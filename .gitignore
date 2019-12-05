@@ -6,6 +6,25 @@ __pycache__/
 # C extensions
 *.so
 
+## Directory-based project format:
+.idea/
+.cache/
+
+# IntelliJ
+/out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+.ipynb_checkpoints
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+## File-based project format:
+*.ipr
+*.iws
+
 # Distribution / packaging
 .Python
 build/
