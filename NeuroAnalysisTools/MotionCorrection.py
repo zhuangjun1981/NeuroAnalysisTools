@@ -312,7 +312,7 @@ def align_single_chunk_iterate_anchor_for_multi_thread(params):
     if output_folder is None:
         output_folder= chunk_folder
 
-    result_f = h5py.File(os.path.join(output_folder, 'temp_offsets_' + chunk_fn_n + '.hdf5'))
+    result_f = h5py.File(os.path.join(output_folder, 'temp_offsets_' + chunk_fn_n + '.hdf5'), 'a')
     offset_dset = result_f.create_dataset('offsets', data=offset_list)
     offset_dset.attrs['data_format'] = '[row, col]'
     result_f['mean_projection'] = np.mean(aligned_chunk, axis=0, dtype=np.float32)
@@ -388,7 +388,7 @@ def correct_movie_for_multi_thread(params):
     max_projection_c =np.max(mov_corr, axis=0)
 
     if down_sample_rate is not None:
-        mov_down = ia.downsample_movie(mov_corr, down_sample_rate)
+        mov_down = ia.z_downsample(mov_corr, down_sample_rate, is_verbose=False)
         print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
         return mean_projection_c, max_projection_c, mov_down
     else:
@@ -468,7 +468,7 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
     file_paths = []
     chunk_offsets = []
     for chunk_offset_fn in chunk_offset_fns:
-        chunk_offset_f = h5py.File(os.path.join(correction_temp_folder, chunk_offset_fn))
+        chunk_offset_f = h5py.File(os.path.join(correction_temp_folder, chunk_offset_fn), 'r')
         mean_projections.append(chunk_offset_f['mean_projection'].value)
         # max_projections.append(chunk_offset_f['max_projection'].value)
         chunk_offsets.append(chunk_offset_f['offsets'].value)
@@ -483,7 +483,7 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                                           preprocessing_type=preprocessing_type,
                                           verbose=False)
     offsets_chunk, mean_projections_c, mean_projection = _
-    offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"))
+    offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"), 'a')
     for i, file_path in enumerate(file_paths):
         curr_chunk_offsets = chunk_offsets[i]
         curr_global_offset = offsets_chunk[i]
@@ -491,7 +491,7 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                                                 data=curr_chunk_offsets + curr_global_offset)
         offsets_dset.attrs['format'] = ['height', 'width']
         offsets_dset.attrs['path'] = os.path.abspath(file_path)
-    offsets_f.create_dataset('path_list', data=file_paths)
+    offsets_f.create_dataset('path_list', data=str(file_paths))
     offsets_f.close()
     print ('\nchunks aligned offsets and projection images saved.')
 
@@ -523,7 +523,7 @@ def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, ma
     offset_list, aligned_chunk, img_ref = _
     # tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'), img_ref)
     # tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), np.max(aligned_chunk, axis=0))
-    offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"))
+    offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"), 'a')
     offsets_dset = offsets_f.create_dataset('file_0000', data=offset_list)
     offsets_dset.attrs['format'] = ['height', 'width']
     offsets_dset.attrs['path'] = os.path.abspath(f_path)
@@ -652,7 +652,7 @@ def apply_correction_offsets(offsets_path,
 
     print('\napplying correction ...')
 
-    offsets_f = h5py.File(offsets_path)
+    offsets_f = h5py.File(offsets_path, 'r')
 
     if output_folder is None:
         output_folder = os.path.dirname(os.path.abspath(offsets_path))
