@@ -21,11 +21,6 @@ try:
 except ImportError as e:
     print('cannot import OpenCV. {}'.format(e))
 
-try:
-    import sync.dataset as sync_dset
-except ImportError as e:
-    print('cannot import sync.dataset. {}'.format(e))
-
 
 def unpack_uint32(uint32_array, endian='L'):
     """

@@ -172,9 +172,9 @@ def binarize(array, threshold):
 
 
 def center_image(img,  # original image, 2d ndarray
-                centerPixel,  # the coordinates of center pixel in original image, [col, row]
-                newSize = 512,  #the size of output image
-                borderValue = 0
+                 centerPixel,  # the coordinates of center pixel in original image, [col, row]
+                 newSize = 512,  #the size of output image
+                 fillvalue = 0
                  ):
     '''
     center a certain image in a new canvas
@@ -190,12 +190,12 @@ def center_image(img,  # original image, 2d ndarray
 
     M = np.float32([[1,0,x],[0,1,y]])
 
-    newImg = cv2.warpAffine(img,M,(newSize,newSize),borderValue=borderValue)
+    newImg = cv2.warpAffine(img, M, (newSize,newSize), borderValue=fillvalue)
 
     return newImg
 
 
-def resize_image(img, outputShape, fillValue = 0.):
+def resize_image(img, outputShape, fillValue=0.):
     '''
     resize every frame of a 3-d matrix to defined output shape
     if the original image is too big it will be truncated
@@ -321,7 +321,7 @@ def zoom_image(img, zoom, interpolation ='cubic'): #'cubic','linear','area','nea
     return newImg
 
 
-def moveImage(img,Xoffset,Yoffset,width,height,borderValue=0.0):
+def moveImage(img, Xoffset, Yoffset, width, height, fillvalue=0.0):
     '''
     move image defined by Xoffset and Yoffset
 
@@ -334,7 +334,7 @@ def moveImage(img,Xoffset,Yoffset,width,height,borderValue=0.0):
 
     M = np.float32([[1,0,Xoffset],[0,1,Yoffset]])
 
-    newImg = cv2.warpAffine(img,M,(width,height),borderValue=borderValue)
+    newImg = cv2.warpAffine(img, M, (width,height), borderValue=fillvalue)
 
     return newImg
 
@@ -359,7 +359,7 @@ def rotate_image(img, angle, borderValue=0.0):
     return newImg
 
 
-def rigid_transform(img, zoom=None, rotation=None, offset=None, outputShape=None, mode='constant', cval=0.0):
+def rigid_transform(img, zoom=None, rotation=None, offset=None, outputShape=None, mode='constant', fillvalue=0.0):
 
     '''
     rigid transformation of a 2d-image or 3d-matrix by using scipy
@@ -381,20 +381,20 @@ def rigid_transform(img, zoom=None, rotation=None, offset=None, outputShape=None
             newZoom = (zoom,zoom)
         elif len(img.shape) == 3:
             newZoom = (1,zoom,zoom)
-        newImg = ni.zoom(newImg,zoom=newZoom,mode=mode,cval=cval)
+        newImg = ni.zoom(newImg, zoom=newZoom, mode=mode, cval=fillvalue)
 
     if rotation is not None:
         newImg = expand_image(newImg)
         if len(img.shape) == 2:
-            newImg = ni.rotate(newImg,angle=rotation,reshape=False,mode=mode,cval=cval)
+            newImg = ni.rotate(newImg, angle=rotation, reshape=False, mode=mode, cval=fillvalue)
         elif len(img.shape) == 3:
-            newImg = ni.rotate(newImg,angle=rotation,axes=(1,2),reshape=False,mode=mode,cval=cval)
+            newImg = ni.rotate(newImg, angle=rotation, axes=(1,2), reshape=False, mode=mode, cval=fillvalue)
 
     if offset is not None:
         if len(img.shape) == 2:
-            newImg = ni.shift(newImg,(offset[1],offset[0]),mode=mode,cval=cval)
+            newImg = ni.shift(newImg, (offset[1],offset[0]), mode=mode, cval=fillvalue)
         if len(img.shape) == 3:
-            newImg = ni.shift(newImg,(0,offset[1],offset[0]),mode=mode,cval=cval)
+            newImg = ni.shift(newImg, (0,offset[1],offset[0]), mode=mode, cval=fillvalue)
 
     if outputShape:
         newImg = resize_image(newImg, outputShape)
@@ -402,7 +402,7 @@ def rigid_transform(img, zoom=None, rotation=None, offset=None, outputShape=None
     return newImg.astype(img.dtype)
 
 
-def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputShape=None):
+def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputShape=None, fillvalue=0.0):
 
     '''
     rigid transformation of a 2d-image by using opencv
@@ -418,7 +418,7 @@ def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputSha
         raise LookupError('Input image is not a 2d or 3d array!')
 
     newImg = np.array(img).astype(np.float)
-    minValue = np.amin(newImg)
+    # minValue = np.amin(newImg)
 
     if zoom is not None:
         newImg = zoom_image(img, zoom=zoom)
@@ -434,12 +434,12 @@ def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputSha
             outputShape = newImg.shape
         if offset is None:
             offset = (0,0)
-        newImg = moveImage(newImg, offset[0], offset[1], outputShape[1],outputShape[0],borderValue=minValue)
+        newImg = moveImage(newImg, offset[0], offset[1], outputShape[1], outputShape[0], fillvalue=fillvalue)
 
         return newImg.astype(img.dtype)
 
 
-def rigid_transform_cv2_3d(img, zoom=None, rotation=None, offset=None, outputShape=None):
+def rigid_transform_cv2_3d(img, zoom=None, rotation=None, offset=None, outputShape=None, fillvalue=0.0):
 
     if len(img.shape) != 3:
         raise LookupError('Input image is not a 3d array!')
@@ -460,19 +460,21 @@ def rigid_transform_cv2_3d(img, zoom=None, rotation=None, offset=None, outputSha
     #     newHeight = outputShape[0]
     #     newWidth = outputShape[1]
 
-    frame_1 = rigid_transform_cv2_2d(img[0, :, :], zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape)
+    frame_1 = rigid_transform_cv2_2d(img[0, :, :], zoom=zoom, rotation=rotation, offset=offset,
+                                     outputShape=outputShape, fillvalue=fillvalue)
     newHeight = frame_1.shape[0]
     newWidth = frame_1.shape[1]
 
     newImg = np.empty((img.shape[0],newHeight,newWidth),dtype=img.dtype)
 
     for i in range(img.shape[0]):
-        newImg[i,:,:] = rigid_transform_cv2_2d(img[i, :, :], zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape)
+        newImg[i,:,:] = rigid_transform_cv2_2d(img[i, :, :], zoom=zoom, rotation=rotation, offset=offset,
+                                               outputShape=outputShape, fillvalue=fillvalue)
 
     return newImg
 
 
-def rigid_transform_cv2(img, zoom=None, rotation=None, offset=None, outputShape=None):
+def rigid_transform_cv2(img, zoom=None, rotation=None, offset=None, outputShape=None, fillvalue=0.0):
 
     '''
     rigid transformation of a 2d-image or 3d-matrix by using opencv
@@ -485,9 +487,11 @@ def rigid_transform_cv2(img, zoom=None, rotation=None, offset=None, outputShape=
     '''
 
     if len(img.shape) == 2:
-        return rigid_transform_cv2_2d(img, zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape)
+        return rigid_transform_cv2_2d(img, zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape,
+                                      fillvalue=fillvalue)
     elif len(img.shape) == 3:
-        return rigid_transform_cv2_3d(img, zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape)
+        return rigid_transform_cv2_3d(img, zoom=zoom, rotation=rotation, offset=offset, outputShape=outputShape,
+                                      fillvalue=fillvalue)
     else:
         raise ValueError('Input image is not a 2d or 3d array!')
 
