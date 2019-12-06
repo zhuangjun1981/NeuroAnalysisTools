@@ -122,14 +122,12 @@ def discrete_cross_correlation(ts1, ts2, t_range=(-1., 1.), bins=100, isPlot=Fal
                 values[j] += np.sum(np.logical_and((ts2s_short >= curr_start),
                                                    (ts2s_short < curr_end)))
 
-        values = values.astype(np.float64) / n
-
     if isPlot:
         f = plt.figure(figsize=(15, 4))
         ax = f.add_subplot(111)
         ax.bar([a[0] for a in intervals], values, bin_width * 0.9)
 
-    return t, values.astype(np.float32)
+    return t, values
 
 
 def find_nearest(trace, value, direction=0):
