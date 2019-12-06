@@ -119,4 +119,4 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-#/NeuroAnalysisTools/test/data/cellsSTRF.hdf5
+/NeuroAnalysisTools/test/data/cellsSTRF.hdf5
