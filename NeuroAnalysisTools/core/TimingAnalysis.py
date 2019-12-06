@@ -276,10 +276,10 @@ def sliding_power_spectrum(trace, fs, sliding_window_length=5., sliding_step_len
     times = np.arange(0., total_length, sliding_step_length)
     times = times[(times + sliding_window_length) < total_length]
 
-    if len(times) == 0: raise ValueError, 'No time point found.'
+    if len(times) == 0: raise ValueError('No time point found.')
     else:
         points_in_window = int(sliding_window_length * fs)
-        if points_in_window <= 0: raise ValueError, 'Sliding window length too short!'
+        if points_in_window <= 0: raise ValueError('Sliding window length too short!')
         else:
             spectrum = np.zeros((len(freq_axis), len(times)))
             for idx, start_time in enumerate(times):
@@ -1121,4 +1121,4 @@ if __name__=='__main__':
     # butter_highpass_filter(is_plot=True)
     # ============================================================================================================
 
-    print 'for debugging...'
+    print('for debugging...')

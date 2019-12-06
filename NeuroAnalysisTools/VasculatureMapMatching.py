@@ -12,29 +12,34 @@ from os.path import isfile, join
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ni
-
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-
+from PyQt5 import QtCore, QtGui, QtWidgets
 import json
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-# from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar2QT
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
-import tifffile as tf
-import corticalmapping.core.PlottingTools as pt
+from core import FileTools as ft
+from core import ImageAnalysis as ia
+from core import PlottingTools as pt
 
-try: import cv2; from core.ImageAnalysis import rigid_transform_cv2 as rigid_transform
-except ImportError as e: print e; from core.ImageAnalysis import rigid_transform as rigid_transform
+try:
+    import tifffile as tf
+except ImportError:
+    import skimage.external.tifffile as tf
+
+try: 
+    import cv2
+    from core.ImageAnalysis import rigid_transform_cv2 as rigid_transform
+except ImportError as e: 
+    print (e) 
+    from core.ImageAnalysis import rigid_transform as rigid_transform
 
 
-class AppForm(QMainWindow):
+class AppForm(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)
+        
+        QtWidgets.QMainWindow.__init__(self, parent)
         self.setWindowTitle('Vasculature Map Matching')
 
         self.create_menu()
@@ -59,9 +64,12 @@ class AppForm(QMainWindow):
         self.MatchingVasMapAfterChange = None
         self.trialDict = None
 
-        self.connect(self.button_RPath,SIGNAL('clicked()'),self.get_RPath)
-        self.connect(self.button_MPath,SIGNAL('clicked()'),self.get_MPath)
-        self.connect(self.button_draw,SIGNAL('clicked()'), self.on_draw)
+        # self.connect(self.button_RPath,SIGNAL('clicked()'),self.get_RPath)
+        # self.connect(self.button_MPath,SIGNAL('clicked()'),self.get_MPath)
+        # self.connect(self.button_draw,SIGNAL('clicked()'), self.on_draw)
+        self.button_RPath.clicked.connect(self.get_RPath)
+        self.button_MPath.clicked.connect(self.get_MPath)
+        self.button_draw.clicked.connect(self.on_draw)
 
         self.spinbox_Xoffset.valueChanged.connect(self.adjustVasMap)
         self.spinbox_Yoffset.valueChanged.connect(self.adjustVasMap)
@@ -177,7 +185,7 @@ class AppForm(QMainWindow):
         try:
             if len(fnames) == 0: # no file is chosen
 
-                print "no file is chosen! Setting reference map as None..."
+                print("no file is chosen! Setting reference map as None...")
                 self.textbrowser_RPath.clear()
                 self.ReferenceVasMap = None
 
@@ -204,7 +212,7 @@ class AppForm(QMainWindow):
                         self.ReferenceVasMap = pt.merge_normalized_images([currMap[0]])
                         self.textbrowser_RPath.setText(filePath)
                     else:
-                        print 'Can not read reference map '+filePath
+                        print('Can not read reference map '+filePath)
                         self.textbrowser_RPath.clear()
                         self.ReferenceVasMap = None
 
@@ -226,21 +234,21 @@ class AppForm(QMainWindow):
                         elif 'JCam' in fileName:
                             currMap, _ = ft.importRawJCam(filePath)
                         else:
-                            print 'Can not read '+filePath
+                            print('Can not read '+filePath)
 
                         mapList.append(currMap[0].astype(np.float32))
 
                 if len(mapList) == 0:
-                    print "no file can be read! Setting reference map as None..."
+                    print("no file can be read! Setting reference map as None...")
                     self.textbrowser_RPath.clear()
                     self.ReferenceVasMap = None
                 else:
                     self.ReferenceVasMap = pt.merge_normalized_images(mapList).astype(np.float32)
                     self.textbrowser_RPath.setText(displayText)
 
-        except Exception, e:
-            print e, '\n\n'
-            print 'Can not load reference Map! Setting it as None...'
+        except Exception as e:
+            print(e, '\n\n')
+            print('Can not load reference Map! Setting it as None...')
             self.textbrowser_RPath.clear()
             self.ReferenceVasMap = None
 
@@ -268,7 +276,7 @@ class AppForm(QMainWindow):
         try:
             if len(fnames) == 0: # no file is chosen
 
-                print "no file is chosen! Setting matching map as None..."
+                print("no file is chosen! Setting matching map as None...")
                 self.textbrowser_MPath.clear()
                 self.MatchingVasMap = None
                 self.MatchingVasMapRaw = None
@@ -303,7 +311,7 @@ class AppForm(QMainWindow):
                         self.MatchingVasMapRaw = currMap[0]
                         self.textbrowser_MPath.setText(filePath)
                     else:
-                        print 'Can not read matching map '+filePath
+                        print('Can not read matching map '+filePath)
                         self.textbrowser_MPath.clear()
                         self.MatchingVasMap = None
                     self.MatchingVasMapAfterChange = None
@@ -325,12 +333,12 @@ class AppForm(QMainWindow):
                         elif 'JCam' in fileName:
                             currMap, _ = ft.importRawJCam(filePath)
                         else:
-                            print 'Can not read '+filePath
+                            print('Can not read '+filePath)
 
                         mapList.append(currMap[0].astype(np.float32))
 
                 if len(mapList) == 0:
-                    print "no file can be read! Setting matching map as None..."
+                    print("no file can be read! Setting matching map as None...")
                     self.textbrowser_MPath.clear()
                     self.MatchingVasMap = None
                     self.MatchingVasMapRaw = None
@@ -341,9 +349,9 @@ class AppForm(QMainWindow):
                     self.textbrowser_MPath.setText(displayText)
                     self.MatchingVasMapAfterChange = None
 
-        except Exception, e:
-            print e, '\n\n'
-            print 'Can not load matching Map! Setting it as None...'
+        except Exception as e:
+            print(e, '\n\n')
+            print('Can not load matching Map! Setting it as None...')
             self.textbrowser_MPath.clear()
             self.MatchingVasMap = None
             self.MatchingVasMapRaw = None
@@ -433,7 +441,7 @@ class AppForm(QMainWindow):
 
 
     def create_main_frame(self):
-        self.main_frame = QWidget()
+        self.main_frame = QtWidgets.QWidget()
 
         self.dpi = 300
         self.fig = Figure(dpi=self.dpi,)
@@ -450,59 +458,59 @@ class AppForm(QMainWindow):
 
         # Other GUI controls
 
-        self.reference_contrast_label = QLabel('reference contrast:')
-        self.reference_contrast_slider = QSlider(Qt.Horizontal)
+        self.reference_contrast_label = QtWidgets.QLabel('reference contrast:')
+        self.reference_contrast_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.reference_contrast_slider.setMinimumWidth(200)
         self.reference_contrast_slider.setRange(0,6)
         self.reference_contrast_slider.setValue(3)
-        self.matching_contrast_label = QLabel('matching contrast:')
-        self.matching_contrast_slider = QSlider(Qt.Horizontal)
+        self.matching_contrast_label = QtWidgets.QLabel('matching contrast:')
+        self.matching_contrast_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.matching_contrast_slider.setMinimumWidth(200)
         self.matching_contrast_slider.setMinimumWidth(200)
         self.matching_contrast_slider.setRange(0,6)
         self.matching_contrast_slider.setValue(3)
 
-        self.radiobutton_reference = QRadioButton('Reference')
-        self.radiobutton_matching = QRadioButton('Matching')
-        self.radiobutton_both = QRadioButton('Both')
+        self.radiobutton_reference = QtWidgets.QRadioButton('Reference')
+        self.radiobutton_matching = QtWidgets.QRadioButton('Matching')
+        self.radiobutton_both = QtWidgets.QRadioButton('Both')
         self.radiobutton_both.setChecked(True)
 
-        self.label_Xoffset = QLabel('X offset:')
-        self.spinbox_Xoffset = QSpinBox()
+        self.label_Xoffset = QtWidgets.QLabel('X offset:')
+        self.spinbox_Xoffset = QtWidgets.QSpinBox()
         self.spinbox_Xoffset.setRange(-2000,2000)
         self.spinbox_Xoffset.setSingleStep(10)
         self.spinbox_Xoffset.setMinimumWidth(60)
 
-        self.label_Yoffset = QLabel('Y offset:')
-        self.spinbox_Yoffset = QSpinBox()
+        self.label_Yoffset = QtWidgets.QLabel('Y offset:')
+        self.spinbox_Yoffset = QtWidgets.QSpinBox()
         self.spinbox_Yoffset.setRange(-2000,2000)
         self.spinbox_Yoffset.setSingleStep(10)
         self.spinbox_Yoffset.setMinimumWidth(60)
 
-        self.label_rotation = QLabel('Rotation:')
-        self.spinbox_rotation = QSpinBox()
+        self.label_rotation = QtWidgets.QLabel('Rotation:')
+        self.spinbox_rotation = QtWidgets.QSpinBox()
         self.spinbox_rotation.setRange(-180,180)
         self.spinbox_rotation.setMinimumWidth(60)
 
-        self.label_zoom = QLabel('Zoom:    ')
-        self.doubleSpinbox_zoom = QDoubleSpinBox()
+        self.label_zoom = QtWidgets.QLabel('Zoom:    ')
+        self.doubleSpinbox_zoom = QtWidgets.QDoubleSpinBox()
         self.doubleSpinbox_zoom.setRange(0.001,64.)
         self.doubleSpinbox_zoom.setValue(1.)
         self.doubleSpinbox_zoom.setMinimumWidth(60)
         self.doubleSpinbox_zoom.setDecimals(3)
 
-        self.label_RPath = QLabel('Reference Dictionary/Map Path(s):')
-        self.textbrowser_RPath = QTextBrowser()
+        self.label_RPath = QtWidgets.QLabel('Reference Dictionary/Map Path(s):')
+        self.textbrowser_RPath = QtWidgets.QTextBrowser()
         self.textbrowser_RPath.setMinimumWidth(200)
-        self.button_RPath=QPushButton('Get Path')
+        self.button_RPath = QtWidgets.QPushButton('Get Path')
 
 
-        self.label_MPath = QLabel('Matching Dictionary/Map Path(s):')
-        self.textbrowser_MPath = QTextBrowser()
+        self.label_MPath = QtWidgets.QLabel('Matching Dictionary/Map Path(s):')
+        self.textbrowser_MPath = QtWidgets.QTextBrowser()
         self.textbrowser_MPath.setMinimumWidth(200)
-        self.button_MPath=QPushButton('Get Path')
+        self.button_MPath = QtWidgets.QPushButton('Get Path')
 
-        self.button_draw = QPushButton('Draw')
+        self.button_draw = QtWidgets.QPushButton('Draw')
         self.button_draw.setMinimumWidth(100)
         self.button_draw.setFixedHeight(100)
 
@@ -510,86 +518,86 @@ class AppForm(QMainWindow):
         # Layout with box sizers
         #
 
-        vbox_Reference = QVBoxLayout()
+        vbox_Reference = QtWidgets.QVBoxLayout()
         for R in [  self.label_RPath, self.textbrowser_RPath, self.button_RPath]:
             vbox_Reference.addWidget(R)
-            vbox_Reference.setAlignment(R, Qt.AlignLeft)
+            vbox_Reference.setAlignment(R, QtCore.Qt.AlignLeft)
 
-        vbox_Match = QVBoxLayout()
+        vbox_Match = QtWidgets.QVBoxLayout()
         for M in [  self.label_MPath, self.textbrowser_MPath, self.button_MPath]:
             vbox_Match.addWidget(M)
-            vbox_Match.setAlignment(M, Qt.AlignLeft)
+            vbox_Match.setAlignment(M, QtCore.Qt.AlignLeft)
 
 
-        vbox_checkbox = QVBoxLayout()
+        vbox_checkbox = QtWidgets.QVBoxLayout()
         for P in [  self.radiobutton_reference, self.radiobutton_matching, self.radiobutton_both]:
             vbox_checkbox.addWidget(P)
-            vbox_checkbox.setAlignment(P, Qt.AlignLeft)
+            vbox_checkbox.setAlignment(P, QtCore.Qt.AlignLeft)
 
-        vbox_contrast = QVBoxLayout()
+        vbox_contrast = QtWidgets.QVBoxLayout()
         for P in [  self.reference_contrast_label,
                     self.reference_contrast_slider,
                     self.matching_contrast_label,
                     self.matching_contrast_slider]:
             vbox_contrast.addWidget(P)
-            vbox_contrast.setAlignment(P, Qt.AlignLeft)
+            vbox_contrast.setAlignment(P, QtCore.Qt.AlignLeft)
 
-        hbox_Zoom = QHBoxLayout()
+        hbox_Zoom = QtWidgets.QHBoxLayout()
         for Z in [self.label_zoom, self.doubleSpinbox_zoom]:
             hbox_Zoom.addWidget(Z)
-            hbox_Zoom.setAlignment(Z,Qt.AlignVCenter)
+            hbox_Zoom.setAlignment(Z, QtCore.Qt.AlignVCenter)
 
-        hbox_Xoffset = QHBoxLayout()
+        hbox_Xoffset = QtWidgets.QHBoxLayout()
         for X in [  self.label_Xoffset,self.spinbox_Xoffset]:
             hbox_Xoffset.addWidget(X)
-            hbox_Xoffset.setAlignment(X, Qt.AlignVCenter)
+            hbox_Xoffset.setAlignment(X, QtCore.Qt.AlignVCenter)
 
-        hbox_Yoffset = QHBoxLayout()
+        hbox_Yoffset = QtWidgets.QHBoxLayout()
         for Y in [  self.label_Yoffset,self.spinbox_Yoffset]:
             hbox_Yoffset.addWidget(Y)
-            hbox_Yoffset.setAlignment(Y, Qt.AlignVCenter)
+            hbox_Yoffset.setAlignment(Y, QtCore.Qt.AlignVCenter)
 
-        hbox_Rotation = QHBoxLayout()
+        hbox_Rotation = QtWidgets.QHBoxLayout()
         for R in [  self.label_rotation,self.spinbox_rotation]:
             hbox_Rotation.addWidget(R)
-            hbox_Rotation.setAlignment(R, Qt.AlignVCenter)
+            hbox_Rotation.setAlignment(R, QtCore.Qt.AlignVCenter)
 
-        vbox_Adjustment = QVBoxLayout()
+        vbox_Adjustment = QtWidgets.QVBoxLayout()
         for A in [  hbox_Zoom, hbox_Xoffset,hbox_Yoffset,hbox_Rotation]:
             vbox_Adjustment.addLayout(A)
-            vbox_Adjustment.setAlignment(A, Qt.AlignLeft)
+            vbox_Adjustment.setAlignment(A, QtCore.Qt.AlignLeft)
 
-        vbox_Adjustment2 = QHBoxLayout()
+        vbox_Adjustment2 = QtWidgets.QHBoxLayout()
         for A in [  vbox_Adjustment,self.button_draw]:
             try:
                 vbox_Adjustment2.addLayout(A)
             except Exception:
                 vbox_Adjustment2.addWidget(A)
-            vbox_Adjustment2.setAlignment(A, Qt.AlignVCenter)
+            vbox_Adjustment2.setAlignment(A, QtCore.Qt.AlignVCenter)
 
-        vbox_right = QVBoxLayout()
+        vbox_right = QtWidgets.QVBoxLayout()
         for RT in [ vbox_Reference, vbox_Match, vbox_contrast, vbox_checkbox, vbox_Adjustment2]:
             vbox_right.addLayout(RT)
-            vbox_right.setAlignment(RT, Qt.AlignLeft)
+            vbox_right.setAlignment(RT, QtCore.Qt.AlignLeft)
         vbox_right.insertSpacing(1,30)
         vbox_right.insertSpacing(3,30)
         vbox_right.insertSpacing(5,30)
 
-        vbox_plot = QVBoxLayout()
+        vbox_plot = QtWidgets.QVBoxLayout()
         for P in [self.canvas, self.mpl_toolbar]:
             vbox_plot.addWidget(P)
 
-        hbox = QHBoxLayout()
+        hbox = QtWidgets.QHBoxLayout()
         for L in [  vbox_plot,vbox_right]:
             hbox.addLayout(L)
-            hbox.setAlignment(L, Qt.AlignVCenter)
+            hbox.setAlignment(L, QtCore.Qt.AlignVCenter)
 
         self.main_frame.setLayout(hbox)
         self.setCentralWidget(self.main_frame)
 
 
     def create_status_bar(self):
-        self.status_text = QLabel("This is a demo")
+        self.status_text = QtWidgets.QLabel("This is a demo")
         self.statusBar().addWidget(self.status_text, 1)
 
 
@@ -622,8 +630,8 @@ class AppForm(QMainWindow):
                 target.addAction(action)
 
 
-    def create_action(self, text, slot=None, shortcut=None,icon=None, tip=None, checkable=False,signal="triggered()"):
-        action = QAction(text, self)
+    def create_action(self, text, slot=None, shortcut=None,icon=None, tip=None, checkable=False,signal="triggered"):
+        action = QtWidgets.QAction(text, self)
         if icon is not None:
             action.setIcon(QIcon(":/%s.png" % icon))
         if shortcut is not None:
@@ -632,14 +640,15 @@ class AppForm(QMainWindow):
             action.setToolTip(tip)
             action.setStatusTip(tip)
         if slot is not None:
-            self.connect(action, SIGNAL(signal), slot)
+            # self.connect(action, SIGNAL(signal), slot)
+            getattr(action, signal).connect(slot)
         if checkable:
             action.setCheckable(True)
         return action
 
 
 def main():
-    app = QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     form = AppForm()
     form.show()
     app.exec_()

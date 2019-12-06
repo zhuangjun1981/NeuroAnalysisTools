@@ -8,6 +8,7 @@ opencv-python
 pytest
 pillow
 scikit-image
+cython
 
 # configobj >= 5.0.6
 # PyDAQmx >= 1.3.2

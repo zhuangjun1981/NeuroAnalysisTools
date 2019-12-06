@@ -2,19 +2,19 @@ import os
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
-import corticalmapping.ephys.OpenEphysWrapper as oew
-import corticalmapping.ephys.KilosortWrapper as kw
-import corticalmapping.HighLevel as hl
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.TimingAnalysis as ta
-import corticalmapping.core.PlottingTools as pt
-import corticalmapping.CamstimTools as ct
+# import corticalmapping.ephys.OpenEphysWrapper as oew
+# import corticalmapping.ephys.KilosortWrapper as kw
+import HighLevel as hl
+import core.FileTools as ft
+import core.TimingAnalysis as ta
+import core.PlottingTools as pt
+import CamstimTools as ct
 
 try:
-    from nwb.nwb import NWB
+    from nwb import NWB
 except ImportError:
-    print 'no Allen Institute NWB API. get this from ' \
-          'http://stimash.corp.alleninstitute.org/projects/INF/repos/ainwb/browse'
+    print('no Allen Institute NWB API. get this from ' \
+          'http://stimash.corp.alleninstitute.org/projects/INF/repos/ainwb/browse')
 
 DEFAULT_GENERAL = {
     'session_id': '',
@@ -299,7 +299,7 @@ class RecordedFile(NWB):
         """
         intermediate processing step for analysis of visual display. Containing the information about the onset of
         photodiode signal. Timestamps are extracted from photodiode signal, should be aligned to the master clock.
-        extraction is done by corticalmapping.HighLevel.segmentPhotodiodeSignal() function. The raw signal
+        extraction is done by NeuroAnalysisTools.HighLevel.segmentPhotodiodeSignal() function. The raw signal
         was first digitized by the digitize_threshold, then filtered by a gaussian fileter with filter_size. Then
         the derivative of the filtered signal was calculated by numpy.diff. The derivative signal was then timed
         with the digitized signal. Then the segmentation_threshold was used to detect rising edge of the resulting
@@ -340,7 +340,7 @@ class RecordedFile(NWB):
         pd_ts.set_description('intermediate processing step for analysis of visual display. '
                               'Containing the information about the onset of photodiode signal. Timestamps '
                               'are extracted from photodiode signal, should be aligned to the master clock.'
-                              'extraction is done by corticalmapping.HighLevel.segmentPhotodiodeSignal()'
+                              'extraction is done by NeuroAnalysisTools.HighLevel.segmentPhotodiodeSignal()'
                               'function. The raw signal was first digitized by the digitize_threshold, then '
                               'filtered by a gaussian fileter with filter_size. Then the derivative of the filtered '
                               'signal was calculated by numpy.diff. The derivative signal was then timed with the '
@@ -358,559 +358,559 @@ class RecordedFile(NWB):
 
 
     # ===========================ephys related==========================================================================
-    def add_open_ephys_data(self, folder, prefix, digital_channels=()):
-        """
-        add open ephys raw data to self, in acquisition group, less useful, because the digital events needs to be
-        processed before added in
-        :param folder: str, the folder contains open ephys raw data
-        :param prefix: str, prefix of open ephys files
-        :param digital_channels: list of str, digital channel
-        :return:
-        """
-        output = oew.pack_folder_for_nwb(folder=folder, prefix=prefix, digital_channels=digital_channels)
-
-        for key, value in output.items():
-
-            if 'CH' in key:  # analog channel for electrode recording
-                ch_ind = int(key[key.find('CH') + 2:])
-                ch_name = 'ch_' + ft.int2str(ch_ind, 4)
-                ch_trace = value['trace']
-                ch_series = self.create_timeseries('ElectricalSeries', ch_name, 'acquisition')
-                ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
-                                   resolution=1.)
-                ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
-                                           rate=float(value['header']['sampleRate']))
-                ch_series.set_value('electrode_idx', ch_ind)
-                ch_series.set_value('num_samples', len(ch_trace))
-                ch_series.set_comments('continuous')
-                ch_series.set_description('extracellular continuous voltage recording from tetrode')
-                ch_series.set_source('open ephys')
-                ch_series.finalize()
-
-            elif key != 'events':  # other continuous channels
-                ch_name = key[len(prefix) + 1:]
-                ch_trace = value['trace']
-                ch_series = self.create_timeseries('AbstractFeatureSeries', ch_name, 'acquisition')
-                ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
-                                   resolution=1.)
-                ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
-                                           rate=float(value['header']['sampleRate']))
-                ch_series.set_value('features', ch_name)
-                ch_series.set_value('feature_units', 'bit')
-                ch_series.set_value('num_samples', len(ch_trace))
-                ch_series.set_value('help', 'continuously recorded analog channels with same sampling times as '
-                                            'of electrode recordings')
-                ch_series.set_comments('continuous')
-                ch_series.set_description('continuous voltage recording from IO board')
-                ch_series.set_source('open ephys')
-                ch_series.finalize()
-
-            else:  # digital events
-
-                for key2, value2 in value.items():
-
-                    ch_rise_ts = value2['rise']
-                    ch_series_rise = self.create_timeseries('TimeSeries', key2 + '_rise', 'acquisition')
-                    ch_series_rise.set_data([], unit='', conversion=np.nan, resolution=np.nan)
-                    if len(ch_rise_ts) == 0:
-                        ch_rise_ts = np.array([np.nan])
-                        ch_series_rise.set_time(ch_rise_ts)
-                        ch_series_rise.set_value('num_samples', 0)
-                    else:
-                        ch_series_rise.set_time(ch_rise_ts)
-                    ch_series_rise.set_description('timestamps of rise cross of digital channel: ' + key2)
-                    ch_series_rise.set_source('open ephys')
-                    ch_series_rise.set_comments('digital')
-                    ch_series_rise.finalize()
-
-                    ch_fall_ts = value2['fall']
-                    ch_series_fall = self.create_timeseries('TimeSeries', key2 + '_fall', 'acquisition')
-                    ch_series_fall.set_data([], unit='', conversion=np.nan, resolution=np.nan)
-                    if len(ch_fall_ts) == 0:
-                        ch_fall_ts = np.array([np.nan])
-                        ch_series_fall.set_time(ch_fall_ts)
-                        ch_series_fall.set_value('num_samples', 0)
-                    else:
-                        ch_series_fall.set_time(ch_fall_ts)
-                    ch_series_fall.set_description('timestamps of fall cross of digital channel: ' + key2)
-                    ch_series_fall.set_source('open ephys')
-                    ch_series_fall.set_comments('digital')
-                    ch_series_fall.finalize()
-
-    def add_open_ephys_continuous_data(self, folder, prefix):
-        """
-        add open ephys raw continuous data to self, in acquisition group
-        :param folder: str, the folder contains open ephys raw data
-        :param prefix: str, prefix of open ephys files
-        :param digital_channels: list of str, digital channel
-        :return:
-        """
-        output = oew.pack_folder_for_nwb(folder=folder, prefix=prefix)
-
-        for key, value in output.items():
-
-            if 'CH' in key:  # analog channel for electrode recording
-                ch_ind = int(key[key.find('CH') + 2:])
-                ch_name = 'ch_' + ft.int2str(ch_ind, 4)
-                ch_trace = value['trace']
-                ch_series = self.create_timeseries('ElectricalSeries', ch_name, 'acquisition')
-                ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
-                                   resolution=1.)
-                ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
-                                           rate=float(value['header']['sampleRate']))
-                ch_series.set_value('electrode_idx', ch_ind)
-                ch_series.set_value('num_samples', len(ch_trace))
-                ch_series.set_comments('continuous')
-                ch_series.set_description('extracellular continuous voltage recording from tetrode')
-                ch_series.set_source('open ephys')
-                ch_series.finalize()
-
-            elif key != 'events':  # other continuous channels
-                ch_name = key[len(prefix) + 1:]
-                ch_trace = value['trace']
-                ch_series = self.create_timeseries('AbstractFeatureSeries', ch_name, 'acquisition')
-                ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
-                                   resolution=1.)
-                ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
-                                           rate=float(value['header']['sampleRate']))
-                ch_series.set_value('features', ch_name)
-                ch_series.set_value('feature_units', 'bit')
-                ch_series.set_value('num_samples', len(ch_trace))
-                ch_series.set_value('help', 'continuously recorded analog channels with same sampling times as '
-                                            'of electrode recordings')
-                ch_series.set_comments('continuous')
-                ch_series.set_description('continuous voltage recording from IO board')
-                ch_series.set_source('open ephys')
-                ch_series.finalize()
-
-    def add_phy_template_clusters(self, folder, module_name, ind_start=None, ind_end=None,
-                                  is_add_artificial_unit=False, artificial_unit_firing_rate=2.,
-                                  spike_sorter=None):
-        """
-        extract phy-template clustering results to nwb format. Only extract spike times, no template for now.
-        Usually the continuous channels of multiple files are concatenated for kilosort. ind_start and ind_end are
-        Used to extract the data of this particular file.
-
-        :param folder: folder containing phy template results.
-                       expects cluster_groups.csv, spike_clusters.npy and spike_times.npy in the folder.
-        :param module_name: str, name of clustering module group
-        :param ind_start: int, the start index of continuous channel of the current file in the concatenated file.
-        :param ind_end: int, the end index of continuous channel of the current file in the concatenated file.
-        :param is_add_artificial_unit: bool, if True: a artificial unit with possion event will be added, this unit
-                                       will have name 'aua' and refractory period 1 ms.
-        :param artificial_unit_firing_rate: float, firing rate of the artificial unit
-        :param spike_sorter: string, user ID of who manually sorted the clusters
-        :return:
-        """
-
-        #  check integrity
-        if ind_start == None:
-            ind_start = 0
-
-        if ind_end == None:
-            ind_end = self.file_pointer['acquisition/timeseries/photodiode/num_samples'].value
-
-        if ind_start >= ind_end:
-            raise ValueError('ind_end should be larger than ind_start.')
-
-        try:
-            fs = self.file_pointer['general/extracellular_ephys/sampling_rate'].value
-        except KeyError:
-            print('\nCannot find "general/extracellular_ephys/sampling_rate" field. Abort process.')
-            return
-
-        #  get spike sorter
-        if spike_sorter is None:
-            spike_sorter = self.file_pointer['general/experimenter'].value
-
-        #  set kilosort output file paths
-        clusters_path = os.path.join(folder, 'spike_clusters.npy')
-        spike_times_path = os.path.join(folder, 'spike_times.npy')
-
-        #  generate dictionary of cluster timing indices
-        try:
-            #  for new version of kilosort
-            phy_template_output = kw.get_clusters(kw.read_csv(os.path.join(folder, 'cluster_group.tsv')))
-        except IOError:
-            # for old version of kilosort
-            phy_template_output = kw.get_clusters(kw.read_csv(os.path.join(folder, 'cluster_groups.csv')))
-
-        spike_ind = kw.get_spike_times_indices(phy_template_output, spike_clusters_path=clusters_path,
-                                               spike_times_path=spike_times_path)
-
-        #  add artificial random unit
-        if is_add_artificial_unit:
-            file_length = (ind_end - ind_start) / fs
-            au_ts = ta.possion_event_ts(duration=file_length, firing_rate=artificial_unit_firing_rate,
-                                        refractory_dur=0.001, is_plot=False)
-            spike_ind.update({'unit_aua': (au_ts * fs).astype(np.uint64) + ind_start})
-
-        #  get channel related infomation
-        ch_ns = self._get_channel_names()
-        file_starting_time = self.get_analog_data(ch_ns[0])[1][0]
-        channel_positions = kw.get_channel_geometry(folder, channel_names=ch_ns)
-
-        #  create specificed module
-        mod = self.create_module(name=module_name)
-        mod.set_description('phy-template manual clustering after kilosort')
-        mod.set_value('channel_list', [ch.encode('Utf8') for ch in ch_ns])
-        mod.set_value('channel_xpos', [channel_positions[ch][0] for ch in ch_ns])
-        mod.set_value('channel_ypos', [channel_positions[ch][1] for ch in ch_ns])
-
-        #  create UnitTimes interface
-        unit_times = mod.create_interface('UnitTimes')
-        for unit in spike_ind.keys():
-
-            #  get timestamps of current unit
-            curr_ts = spike_ind[unit]
-            curr_ts = curr_ts[np.logical_and(curr_ts >= ind_start, curr_ts < ind_end)] - ind_start
-            curr_ts = curr_ts / fs + file_starting_time
-
-            # array to store waveforms from all channels
-            template = []
-            template_uf = []  # wavefrom from unfiltered analog signal
-
-            # array to store standard deviations of waveform from all channels
-            std = []
-            std_uf = []  # standard deviations of unfiltered analog signal
-
-            # temporary variables to detect peak channels
-            peak_channel = None
-            peak_channel_ind = None
-            peak_amp = 0
-
-            for i, ch_n in enumerate(ch_ns):
-
-                #  get current analog signals of a given channel
-                curr_ch_data, curr_ch_ts = self.get_analog_data(ch_n)
-
-                #  band pass this analog signal
-                curr_ch_data_f = ta.butter_highpass(curr_ch_data, cutoff=300., fs=fs)
-
-                #  calculate spike triggered average filtered signal
-                curr_waveform_results = ta.event_triggered_average_regular(ts_event=curr_ts,
-                                                                           continuous=curr_ch_data_f,
-                                                                           fs_continuous=fs,
-                                                                           start_time_continuous=file_starting_time,
-                                                                           t_range=SPIKE_WAVEFORM_TIMEWINDOW,
-                                                                           is_normalize=True,
-                                                                           is_plot=False)
-                curr_waveform, curr_n, curr_t, curr_std = curr_waveform_results
-
-                curr_waveform_results_uf = ta.event_triggered_average_regular(ts_event=curr_ts,
-                                                                              continuous=curr_ch_data,
-                                                                              fs_continuous=fs,
-                                                                              start_time_continuous=file_starting_time,
-                                                                              t_range=SPIKE_WAVEFORM_TIMEWINDOW,
-                                                                              is_normalize=True,
-                                                                              is_plot=False)
-                curr_waveform_uf, _, _, curr_std_uf = curr_waveform_results_uf
-
-                #  append waveform and std for current channel
-                template.append(curr_waveform)
-                std.append(curr_std)
-                template_uf.append(curr_waveform_uf)
-                std_uf.append(curr_std_uf)
-
-                #  detect the channel with peak amplitude
-                if peak_channel is not None:
-                    peak_channel = ch_n
-                    peak_channel_ind = i
-                    peak_amp = np.max(curr_waveform) - np.min(curr_waveform)
-                else:
-                    if np.max(curr_waveform) - np.min(curr_waveform) > peak_amp:
-                        peak_channel = ch_n
-                        peak_channel_ind = i
-                        peak_amp = np.max(curr_waveform) - np.min(curr_waveform)
-
-            #  add 'UnitTimes' field
-            if unit == 'unit_aua':
-                unit_times.add_unit(unit_name='unit_aua', unit_times=curr_ts,
-                                    source='electrophysiology extracellular recording',
-                                    description='Artificial possion unit for control. Spike time unit: seconds. '
-                                                'Spike waveforms are band-pass filtered with cutoff frequency'
-                                                ' (300, 6000) Hz.')
-            else:
-                unit_times.add_unit(unit_name=unit, unit_times=curr_ts,
-                                    source='electrophysiology extracellular recording',
-                                    description="Data spike-sorted by: " + spike_sorter +
-                                                ' using phy-template. Spike time unit: seconds. Spike waveforms are'
-                                                'band-pass filtered with cutoff frequency (300, 6000) Hz.')
-
-            #  add relevant information to current UnitTimes field
-            unit_times.append_unit_data(unit_name=unit, key='channel_name', value=peak_channel)
-            unit_times.append_unit_data(unit_name=unit, key='channel', value=peak_channel_ind)
-            unit_times.append_unit_data(unit_name=unit, key='template_filtered', value=np.array(template).transpose())
-            unit_times.append_unit_data(unit_name=unit, key='template',
-                                        value=np.array(template_uf).transpose())
-            unit_times.append_unit_data(unit_name=unit, key='template_std_filtered', value=np.array(std).transpose())
-            unit_times.append_unit_data(unit_name=unit, key='template_std',
-                                        value=np.array(std_uf).transpose())
-            unit_times.append_unit_data(unit_name=unit, key='waveform', value=template_uf[peak_channel_ind])
-            unit_times.append_unit_data(unit_name=unit, key='waveform_std', value=std_uf[peak_channel_ind])
-            unit_times.append_unit_data(unit_name=unit, key='xpos_probe',
-                                        value=[channel_positions[ch][0] for ch in ch_ns][peak_channel_ind])
-            unit_times.append_unit_data(unit_name=unit, key='ypos_probe',
-                                        value=[channel_positions[ch][1] for ch in ch_ns][peak_channel_ind])
-
-        #  finalize
-        unit_times.finalize()
-        mod.finalize()
-
-    def add_external_LFP(self, traces, fs=30000., module_name=None, notch_base=60., notch_bandwidth=1.,
-                         notch_harmonics=4,
-                         notch_order=2, lowpass_cutoff=300., lowpass_order=5, resolution=0, conversion=0, unit='',
-                         comments='', source=''):
-        """
-        add LFP of raw arbitrary electrical traces into LFP module into /procession field. the trace will be filtered
-        by corticalmapping.HighLevel.get_lfp() function. All filters are butterworth digital filters
-
-        :param module_name: str, name of module to be added
-        :param traces: dict, {str: 1d-array}, {name: trace}, input raw traces
-        :param fs: float, sampling rate, Hz
-        :param notch_base: float, Hz, base frequency of powerline contaminating signal
-        :param notch_bandwidth: float, Hz, filter bandwidth at each side of center frequency
-        :param notch_harmonics: int, number of harmonics to filter out
-        :param notch_order: int, order of butterworth bandpass notch filter, for a narrow band, shouldn't be larger than 2
-        :param lowpass_cutoff: float, Hz, cutoff frequency of lowpass filter
-        :param lowpass_order: int, order of butterworth lowpass filter
-        :param resolution: float, resolution of LFP time series
-        :param conversion: float, conversion of LFP time series
-        :param unit: str, unit of LFP time series
-        :param comments: str, interface comments
-        :param source: str, interface source
-        """
-
-        if module_name is None or module_name == '':
-            module_name = 'external_LFP'
-
-        lfp = {}
-        for tn, trace in traces.items():
-            curr_lfp = hl.get_lfp(trace, fs=fs, notch_base=notch_base, notch_bandwidth=notch_bandwidth,
-                                  notch_harmonics=notch_harmonics, notch_order=notch_order,
-                                  lowpass_cutoff=lowpass_cutoff, lowpass_order=lowpass_order)
-            lfp.update({tn: curr_lfp})
-
-        lfp_mod = self.create_module(module_name)
-        lfp_mod.set_description('LFP from external traces')
-        lfp_interface = lfp_mod.create_interface('LFP')
-        lfp_interface.set_value('description', 'LFP of raw arbitrary electrical traces. The traces were filtered by '
-                                               'corticalmapping.HighLevel.get_lfp() function. First, the powerline contamination at '
-                                               'multiplt harmonics were filtered out by a notch filter. Then the resulting traces were'
-                                               ' filtered by a lowpass filter. All filters are butterworth digital filters')
-        lfp_interface.set_value('comments', comments)
-        lfp_interface.set_value('notch_base', notch_base)
-        lfp_interface.set_value('notch_bandwidth', notch_bandwidth)
-        lfp_interface.set_value('notch_harmonics', notch_harmonics)
-        lfp_interface.set_value('notch_order', notch_order)
-        lfp_interface.set_value('lowpass_cutoff', lowpass_cutoff)
-        lfp_interface.set_value('lowpass_order', lowpass_order)
-        lfp_interface.set_source(source)
-        for tn, t_lfp in lfp.items():
-            curr_ts = self.create_timeseries('ElectricalSeries', tn, modality='other')
-            curr_ts.set_data(t_lfp, conversion=conversion, resolution=resolution, unit=unit)
-            curr_ts.set_time_by_rate(time_zero=0., rate=fs)
-            curr_ts.set_value('num_samples', len(t_lfp))
-            curr_ts.set_value('electrode_idx', 0)
-            lfp_interface.add_timeseries(curr_ts)
-            lfp_interface.finalize()
-
-        lfp_mod.finalize()
-
-    def add_internal_LFP(self, continuous_channels, module_name=None, notch_base=60., notch_bandwidth=1.,
-                         notch_harmonics=4, notch_order=2, lowpass_cutoff=300., lowpass_order=5, comments='',
-                         source=''):
-        """
-        add LFP of acquired electrical traces into LFP module into /procession field. the trace will be filtered
-        by corticalmapping.HighLevel.get_lfp() function. All filters are butterworth digital filters.
-
-        :param continuous_channels: list of strs, name of continuous channels saved in '/acquisition/timeseries'
-                                    folder, the time axis of these channels should be saved by rate
-                                    (ephys sampling rate).
-        :param module_name: str, name of module to be added
-        :param notch_base: float, Hz, base frequency of powerline contaminating signal
-        :param notch_bandwidth: float, Hz, filter bandwidth at each side of center frequency
-        :param notch_harmonics: int, number of harmonics to filter out
-        :param notch_order: int, order of butterworth bandpass notch filter, for a narrow band, shouldn't be larger than 2
-        :param lowpass_cutoff: float, Hz, cutoff frequency of lowpass filter
-        :param lowpass_order: int, order of butterworth lowpass filter
-        :param comments: str, interface comments
-        :param source: str, interface source
-        """
-
-        if module_name is None or module_name == '':
-            module_name = 'LFP'
-
-        lfp_mod = self.create_module(module_name)
-        lfp_mod.set_description('LFP from acquired electrical traces')
-        lfp_interface = lfp_mod.create_interface('LFP')
-        lfp_interface.set_value('description', 'LFP of acquired electrical traces. The traces were filtered by '
-                                               'corticalmapping.HighLevel.get_lfp() function. First, the powerline '
-                                               'contamination at multiplt harmonics were filtered out by a notch '
-                                               'filter. Then the resulting traces were filtered by a lowpass filter. '
-                                               'All filters are butterworth digital filters')
-        lfp_interface.set_value('comments', comments)
-        lfp_interface.set_value('notch_base', notch_base)
-        lfp_interface.set_value('notch_bandwidth', notch_bandwidth)
-        lfp_interface.set_value('notch_harmonics', notch_harmonics)
-        lfp_interface.set_value('notch_order', notch_order)
-        lfp_interface.set_value('lowpass_cutoff', lowpass_cutoff)
-        lfp_interface.set_value('lowpass_order', lowpass_order)
-        lfp_interface.set_source(source)
-
-        for channel in continuous_channels:
-            print '\n', channel, ': start adding LFP ...'
-
-            trace = self.file_pointer['acquisition/timeseries'][channel]['data'].value
-            fs = self.file_pointer['acquisition/timeseries'][channel]['starting_time'].attrs['rate']
-            start_time = self.file_pointer['acquisition/timeseries'][channel]['starting_time'].value
-            conversion = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['conversion']
-            resolution = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['resolution']
-            unit = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['unit']
-            ts_source = self.file_pointer['acquisition/timeseries'][channel].attrs['source']
-
-            print channel, ': calculating LFP ...'
-
-            t_lfp = hl.get_lfp(trace, fs=fs, notch_base=notch_base, notch_bandwidth=notch_bandwidth,
-                               notch_harmonics=notch_harmonics, notch_order=notch_order, lowpass_cutoff=lowpass_cutoff,
-                               lowpass_order=lowpass_order)
-
-            curr_ts = self.create_timeseries('ElectricalSeries', channel, modality='other')
-            curr_ts.set_data(t_lfp, conversion=conversion, resolution=resolution, unit=unit)
-            curr_ts.set_time_by_rate(time_zero=start_time, rate=fs)
-            curr_ts.set_value('num_samples', len(t_lfp))
-            curr_ts.set_value('electrode_idx', int(channel.split('_')[1]))
-            curr_ts.set_source(ts_source)
-            lfp_interface.add_timeseries(curr_ts)
-            print channel, ': finished adding LFP.'
-
-        lfp_interface.finalize()
-
-        lfp_mod.finalize()
-
-    def plot_spike_waveforms(self, modulen, unitn, is_plot_filtered=False, fig=None, axes_size=(0.2, 0.2), **kwargs):
-        """
-        plot spike waveforms
-
-        :param modulen: str, name of the module containing ephys recordings
-        :param unitn: str, name of ephys unit, should be in '/processing/ephys_units/UnitTimes'
-        :param is_plot_filtered: bool, plot unfiltered waveforms or not
-        :param channel_names: list of strs, channel names in continuous recordings, should be in '/acquisition/timeseries'
-        :param fig: matplotlib figure object
-        :param t_range: tuple of two floats, time range to plot along spike time stamps
-        :param kwargs: inputs to matplotlib.axes.plot() function
-        :return: fig
-        """
-        if modulen not in self.file_pointer['processing'].keys():
-            raise LookupError('Can not find module for ephys recording: ' + modulen + '.')
-
-        if unitn not in self.file_pointer['processing'][modulen]['UnitTimes'].keys():
-            raise LookupError('Can not find ephys unit: ' + unitn + '.')
-
-        ch_ns = self._get_channel_names()
-
-        unit_grp = self.file_pointer['processing'][modulen]['UnitTimes'][unitn]
-        waveforms = unit_grp['template'].value
-
-        if 'template_std' in unit_grp.keys():
-            stds = unit_grp['template_std'].value
-        else:
-            stds = None
-
-        if is_plot_filtered:
-            if 'template_filtered' in unit_grp.keys():
-                waveforms_f = unit_grp['template_filtered'].value
-                if 'template_std_filtered' in unit_grp.keys():
-                    stds_f = unit_grp['template_std_filtered'].value
-                else:
-                    stds_f = None
-            else:
-                print('can not find unfiltered spike waveforms for unit: ' + unitn)
-                waveforms_f = None
-                stds_f = None
-        else:
-            waveforms_f = None
-            stds_f = None
-
-        if 'channel_xpos' in self.file_pointer['processing'][modulen].keys():
-            ch_xpos = self.file_pointer['processing'][modulen]['channel_xpos']
-            ch_ypos = self.file_pointer['processing'][modulen]['channel_ypos']
-            ch_locations = zip(ch_xpos, ch_ypos)
-        else:
-            ch_locations = None
-
-        fig = plot_waveforms(waveforms, ch_locations=ch_locations, stds=stds, waveforms_filtered=waveforms_f,
-                             stds_filtered=stds_f, f=fig, ch_ns=ch_ns, axes_size=axes_size, **kwargs)
-
-        fig.suptitle(self.file_pointer['identifier'].value + ' : ' + unitn)
-
-        return fig
-
-    def generate_dat_file_for_kilosort(self, output_folder, output_name, ch_ns, is_filtered=True, cutoff_f_low=300.,
-                                       cutoff_f_high=6000.):
-        """
-        generate .dat file for kilolsort: "https://github.com/cortex-lab/KiloSort", it is binary raw code, with
-        structure: ch0_t0, ch1_t0, ch2_t0, ...., chn_t0, ch0_t1, ch1_t1, ch2_t1, ..., chn_t1, ..., ch0_tm, ch1_tm,
-        ch2_tm, ..., chn_tm
-
-        :param output_folder: str, path to output directory
-        :param output_name: str, output file name, an extension of '.dat' will be automatically added.
-        :param ch_ns: list of strings, name of included analog channels
-        :param is_filtered: bool, if Ture, another .dat file with same size will be generated in the output folder.
-                            this file will contain temporally filtered data (filter done by
-                            corticalmapping.core.TimingAnalysis.butter_... functions). '_filtered' will be attached
-                            to the filtered file name.
-        :param cutoff_f_low: float, low cutoff frequency, Hz. if None, it will be low-pass
-        :param cutoff_f_high: float, high cutoff frequency, Hz, if None, it will be high-pass
-        :return: None
-        """
-
-        save_path = os.path.join(output_folder, output_name + '.dat')
-        if os.path.isfile(save_path):
-            raise IOError('Output file already exists.')
-
-        data_lst = []
-        for ch_n in ch_ns:
-            data_lst.append(self.file_pointer['acquisition/timeseries'][ch_n]['data'].value)
-
-        dtype = data_lst[0].dtype
-        data = np.array(data_lst, dtype=dtype).flatten(order='F')
-        data.tofile(save_path)
-
-        if is_filtered:
-
-            if cutoff_f_low is None and cutoff_f_high is None:
-                print ('both low cutoff frequency and high cutoff frequency are None. Do nothing.')
-                return
-
-            save_path_f = os.path.join(output_folder, output_name + '_filtered.dat')
-            if os.path.isfile(save_path_f):
-                raise IOError('Output file for filtered data already existes.')
-
-            fs = self.file_pointer['general/extracellular_ephys/sampling_rate'].value
-            data_lst_f = []
-            for data_r in data_lst:
-                if cutoff_f_high is None:
-                    data_lst_f.append(ta.butter_lowpass(data_r, fs=fs, cutoff=cutoff_f_low).astype(dtype))
-                elif cutoff_f_low is None:
-                    data_lst_f.append(ta.butter_highpass(data_r, fs=fs, cutoff=cutoff_f_high).astype(dtype))
-                else:
-                    data_lst_f.append(ta.butter_bandpass(data_r,
-                                                         fs=fs,
-                                                         cutoffs=(cutoff_f_low, cutoff_f_high)).astype(dtype))
-            data_f = np.array(data_lst_f, dtype=dtype).flatten(order='F')
-            data_f.tofile(save_path_f)
-
-    def _get_channel_names(self):
-        """
-        :return: sorted list of channel names, each channel name should have prefix 'ch_'
-        """
-        analog_chs = self.file_pointer['acquisition/timeseries'].keys()
-        channel_ns = [cn for cn in analog_chs if cn[0:3] == 'ch_']
-        channel_ns.sort()
-        return channel_ns
-
-    # ===========================ephys related==========================================================================
+    # def add_open_ephys_data(self, folder, prefix, digital_channels=()):
+    #     """
+    #     add open ephys raw data to self, in acquisition group, less useful, because the digital events needs to be
+    #     processed before added in
+    #     :param folder: str, the folder contains open ephys raw data
+    #     :param prefix: str, prefix of open ephys files
+    #     :param digital_channels: list of str, digital channel
+    #     :return:
+    #     """
+    #     output = oew.pack_folder_for_nwb(folder=folder, prefix=prefix, digital_channels=digital_channels)
+
+    #     for key, value in output.items():
+
+    #         if 'CH' in key:  # analog channel for electrode recording
+    #             ch_ind = int(key[key.find('CH') + 2:])
+    #             ch_name = 'ch_' + ft.int2str(ch_ind, 4)
+    #             ch_trace = value['trace']
+    #             ch_series = self.create_timeseries('ElectricalSeries', ch_name, 'acquisition')
+    #             ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
+    #                                resolution=1.)
+    #             ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
+    #                                        rate=float(value['header']['sampleRate']))
+    #             ch_series.set_value('electrode_idx', ch_ind)
+    #             ch_series.set_value('num_samples', len(ch_trace))
+    #             ch_series.set_comments('continuous')
+    #             ch_series.set_description('extracellular continuous voltage recording from tetrode')
+    #             ch_series.set_source('open ephys')
+    #             ch_series.finalize()
+
+    #         elif key != 'events':  # other continuous channels
+    #             ch_name = key[len(prefix) + 1:]
+    #             ch_trace = value['trace']
+    #             ch_series = self.create_timeseries('AbstractFeatureSeries', ch_name, 'acquisition')
+    #             ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
+    #                                resolution=1.)
+    #             ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
+    #                                        rate=float(value['header']['sampleRate']))
+    #             ch_series.set_value('features', ch_name)
+    #             ch_series.set_value('feature_units', 'bit')
+    #             ch_series.set_value('num_samples', len(ch_trace))
+    #             ch_series.set_value('help', 'continuously recorded analog channels with same sampling times as '
+    #                                         'of electrode recordings')
+    #             ch_series.set_comments('continuous')
+    #             ch_series.set_description('continuous voltage recording from IO board')
+    #             ch_series.set_source('open ephys')
+    #             ch_series.finalize()
+
+    #         else:  # digital events
+
+    #             for key2, value2 in value.items():
+
+    #                 ch_rise_ts = value2['rise']
+    #                 ch_series_rise = self.create_timeseries('TimeSeries', key2 + '_rise', 'acquisition')
+    #                 ch_series_rise.set_data([], unit='', conversion=np.nan, resolution=np.nan)
+    #                 if len(ch_rise_ts) == 0:
+    #                     ch_rise_ts = np.array([np.nan])
+    #                     ch_series_rise.set_time(ch_rise_ts)
+    #                     ch_series_rise.set_value('num_samples', 0)
+    #                 else:
+    #                     ch_series_rise.set_time(ch_rise_ts)
+    #                 ch_series_rise.set_description('timestamps of rise cross of digital channel: ' + key2)
+    #                 ch_series_rise.set_source('open ephys')
+    #                 ch_series_rise.set_comments('digital')
+    #                 ch_series_rise.finalize()
+
+    #                 ch_fall_ts = value2['fall']
+    #                 ch_series_fall = self.create_timeseries('TimeSeries', key2 + '_fall', 'acquisition')
+    #                 ch_series_fall.set_data([], unit='', conversion=np.nan, resolution=np.nan)
+    #                 if len(ch_fall_ts) == 0:
+    #                     ch_fall_ts = np.array([np.nan])
+    #                     ch_series_fall.set_time(ch_fall_ts)
+    #                     ch_series_fall.set_value('num_samples', 0)
+    #                 else:
+    #                     ch_series_fall.set_time(ch_fall_ts)
+    #                 ch_series_fall.set_description('timestamps of fall cross of digital channel: ' + key2)
+    #                 ch_series_fall.set_source('open ephys')
+    #                 ch_series_fall.set_comments('digital')
+    #                 ch_series_fall.finalize()
+
+    # def add_open_ephys_continuous_data(self, folder, prefix):
+    #     """
+    #     add open ephys raw continuous data to self, in acquisition group
+    #     :param folder: str, the folder contains open ephys raw data
+    #     :param prefix: str, prefix of open ephys files
+    #     :param digital_channels: list of str, digital channel
+    #     :return:
+    #     """
+    #     output = oew.pack_folder_for_nwb(folder=folder, prefix=prefix)
+
+    #     for key, value in output.items():
+
+    #         if 'CH' in key:  # analog channel for electrode recording
+    #             ch_ind = int(key[key.find('CH') + 2:])
+    #             ch_name = 'ch_' + ft.int2str(ch_ind, 4)
+    #             ch_trace = value['trace']
+    #             ch_series = self.create_timeseries('ElectricalSeries', ch_name, 'acquisition')
+    #             ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
+    #                                resolution=1.)
+    #             ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
+    #                                        rate=float(value['header']['sampleRate']))
+    #             ch_series.set_value('electrode_idx', ch_ind)
+    #             ch_series.set_value('num_samples', len(ch_trace))
+    #             ch_series.set_comments('continuous')
+    #             ch_series.set_description('extracellular continuous voltage recording from tetrode')
+    #             ch_series.set_source('open ephys')
+    #             ch_series.finalize()
+
+    #         elif key != 'events':  # other continuous channels
+    #             ch_name = key[len(prefix) + 1:]
+    #             ch_trace = value['trace']
+    #             ch_series = self.create_timeseries('AbstractFeatureSeries', ch_name, 'acquisition')
+    #             ch_series.set_data(ch_trace, unit='bit', conversion=float(value['header']['bitVolts']),
+    #                                resolution=1.)
+    #             ch_series.set_time_by_rate(time_zero=0.0,  # value['header']['start_time'],
+    #                                        rate=float(value['header']['sampleRate']))
+    #             ch_series.set_value('features', ch_name)
+    #             ch_series.set_value('feature_units', 'bit')
+    #             ch_series.set_value('num_samples', len(ch_trace))
+    #             ch_series.set_value('help', 'continuously recorded analog channels with same sampling times as '
+    #                                         'of electrode recordings')
+    #             ch_series.set_comments('continuous')
+    #             ch_series.set_description('continuous voltage recording from IO board')
+    #             ch_series.set_source('open ephys')
+    #             ch_series.finalize()
+
+    # def add_phy_template_clusters(self, folder, module_name, ind_start=None, ind_end=None,
+    #                               is_add_artificial_unit=False, artificial_unit_firing_rate=2.,
+    #                               spike_sorter=None):
+    #     """
+    #     extract phy-template clustering results to nwb format. Only extract spike times, no template for now.
+    #     Usually the continuous channels of multiple files are concatenated for kilosort. ind_start and ind_end are
+    #     Used to extract the data of this particular file.
+
+    #     :param folder: folder containing phy template results.
+    #                    expects cluster_groups.csv, spike_clusters.npy and spike_times.npy in the folder.
+    #     :param module_name: str, name of clustering module group
+    #     :param ind_start: int, the start index of continuous channel of the current file in the concatenated file.
+    #     :param ind_end: int, the end index of continuous channel of the current file in the concatenated file.
+    #     :param is_add_artificial_unit: bool, if True: a artificial unit with possion event will be added, this unit
+    #                                    will have name 'aua' and refractory period 1 ms.
+    #     :param artificial_unit_firing_rate: float, firing rate of the artificial unit
+    #     :param spike_sorter: string, user ID of who manually sorted the clusters
+    #     :return:
+    #     """
+
+    #     #  check integrity
+    #     if ind_start == None:
+    #         ind_start = 0
+
+    #     if ind_end == None:
+    #         ind_end = self.file_pointer['acquisition/timeseries/photodiode/num_samples'].value
+
+    #     if ind_start >= ind_end:
+    #         raise ValueError('ind_end should be larger than ind_start.')
+
+    #     try:
+    #         fs = self.file_pointer['general/extracellular_ephys/sampling_rate'].value
+    #     except KeyError:
+    #         print('\nCannot find "general/extracellular_ephys/sampling_rate" field. Abort process.')
+    #         return
+
+    #     #  get spike sorter
+    #     if spike_sorter is None:
+    #         spike_sorter = self.file_pointer['general/experimenter'].value
+
+    #     #  set kilosort output file paths
+    #     clusters_path = os.path.join(folder, 'spike_clusters.npy')
+    #     spike_times_path = os.path.join(folder, 'spike_times.npy')
+
+    #     #  generate dictionary of cluster timing indices
+    #     try:
+    #         #  for new version of kilosort
+    #         phy_template_output = kw.get_clusters(kw.read_csv(os.path.join(folder, 'cluster_group.tsv')))
+    #     except IOError:
+    #         # for old version of kilosort
+    #         phy_template_output = kw.get_clusters(kw.read_csv(os.path.join(folder, 'cluster_groups.csv')))
+
+    #     spike_ind = kw.get_spike_times_indices(phy_template_output, spike_clusters_path=clusters_path,
+    #                                            spike_times_path=spike_times_path)
+
+    #     #  add artificial random unit
+    #     if is_add_artificial_unit:
+    #         file_length = (ind_end - ind_start) / fs
+    #         au_ts = ta.possion_event_ts(duration=file_length, firing_rate=artificial_unit_firing_rate,
+    #                                     refractory_dur=0.001, is_plot=False)
+    #         spike_ind.update({'unit_aua': (au_ts * fs).astype(np.uint64) + ind_start})
+
+    #     #  get channel related infomation
+    #     ch_ns = self._get_channel_names()
+    #     file_starting_time = self.get_analog_data(ch_ns[0])[1][0]
+    #     channel_positions = kw.get_channel_geometry(folder, channel_names=ch_ns)
+
+    #     #  create specificed module
+    #     mod = self.create_module(name=module_name)
+    #     mod.set_description('phy-template manual clustering after kilosort')
+    #     mod.set_value('channel_list', [ch.encode('Utf8') for ch in ch_ns])
+    #     mod.set_value('channel_xpos', [channel_positions[ch][0] for ch in ch_ns])
+    #     mod.set_value('channel_ypos', [channel_positions[ch][1] for ch in ch_ns])
+
+    #     #  create UnitTimes interface
+    #     unit_times = mod.create_interface('UnitTimes')
+    #     for unit in spike_ind.keys():
+
+    #         #  get timestamps of current unit
+    #         curr_ts = spike_ind[unit]
+    #         curr_ts = curr_ts[np.logical_and(curr_ts >= ind_start, curr_ts < ind_end)] - ind_start
+    #         curr_ts = curr_ts / fs + file_starting_time
+
+    #         # array to store waveforms from all channels
+    #         template = []
+    #         template_uf = []  # wavefrom from unfiltered analog signal
+
+    #         # array to store standard deviations of waveform from all channels
+    #         std = []
+    #         std_uf = []  # standard deviations of unfiltered analog signal
+
+    #         # temporary variables to detect peak channels
+    #         peak_channel = None
+    #         peak_channel_ind = None
+    #         peak_amp = 0
+
+    #         for i, ch_n in enumerate(ch_ns):
+
+    #             #  get current analog signals of a given channel
+    #             curr_ch_data, curr_ch_ts = self.get_analog_data(ch_n)
+
+    #             #  band pass this analog signal
+    #             curr_ch_data_f = ta.butter_highpass(curr_ch_data, cutoff=300., fs=fs)
+
+    #             #  calculate spike triggered average filtered signal
+    #             curr_waveform_results = ta.event_triggered_average_regular(ts_event=curr_ts,
+    #                                                                        continuous=curr_ch_data_f,
+    #                                                                        fs_continuous=fs,
+    #                                                                        start_time_continuous=file_starting_time,
+    #                                                                        t_range=SPIKE_WAVEFORM_TIMEWINDOW,
+    #                                                                        is_normalize=True,
+    #                                                                        is_plot=False)
+    #             curr_waveform, curr_n, curr_t, curr_std = curr_waveform_results
+
+    #             curr_waveform_results_uf = ta.event_triggered_average_regular(ts_event=curr_ts,
+    #                                                                           continuous=curr_ch_data,
+    #                                                                           fs_continuous=fs,
+    #                                                                           start_time_continuous=file_starting_time,
+    #                                                                           t_range=SPIKE_WAVEFORM_TIMEWINDOW,
+    #                                                                           is_normalize=True,
+    #                                                                           is_plot=False)
+    #             curr_waveform_uf, _, _, curr_std_uf = curr_waveform_results_uf
+
+    #             #  append waveform and std for current channel
+    #             template.append(curr_waveform)
+    #             std.append(curr_std)
+    #             template_uf.append(curr_waveform_uf)
+    #             std_uf.append(curr_std_uf)
+
+    #             #  detect the channel with peak amplitude
+    #             if peak_channel is not None:
+    #                 peak_channel = ch_n
+    #                 peak_channel_ind = i
+    #                 peak_amp = np.max(curr_waveform) - np.min(curr_waveform)
+    #             else:
+    #                 if np.max(curr_waveform) - np.min(curr_waveform) > peak_amp:
+    #                     peak_channel = ch_n
+    #                     peak_channel_ind = i
+    #                     peak_amp = np.max(curr_waveform) - np.min(curr_waveform)
+
+    #         #  add 'UnitTimes' field
+    #         if unit == 'unit_aua':
+    #             unit_times.add_unit(unit_name='unit_aua', unit_times=curr_ts,
+    #                                 source='electrophysiology extracellular recording',
+    #                                 description='Artificial possion unit for control. Spike time unit: seconds. '
+    #                                             'Spike waveforms are band-pass filtered with cutoff frequency'
+    #                                             ' (300, 6000) Hz.')
+    #         else:
+    #             unit_times.add_unit(unit_name=unit, unit_times=curr_ts,
+    #                                 source='electrophysiology extracellular recording',
+    #                                 description="Data spike-sorted by: " + spike_sorter +
+    #                                             ' using phy-template. Spike time unit: seconds. Spike waveforms are'
+    #                                             'band-pass filtered with cutoff frequency (300, 6000) Hz.')
+
+    #         #  add relevant information to current UnitTimes field
+    #         unit_times.append_unit_data(unit_name=unit, key='channel_name', value=peak_channel)
+    #         unit_times.append_unit_data(unit_name=unit, key='channel', value=peak_channel_ind)
+    #         unit_times.append_unit_data(unit_name=unit, key='template_filtered', value=np.array(template).transpose())
+    #         unit_times.append_unit_data(unit_name=unit, key='template',
+    #                                     value=np.array(template_uf).transpose())
+    #         unit_times.append_unit_data(unit_name=unit, key='template_std_filtered', value=np.array(std).transpose())
+    #         unit_times.append_unit_data(unit_name=unit, key='template_std',
+    #                                     value=np.array(std_uf).transpose())
+    #         unit_times.append_unit_data(unit_name=unit, key='waveform', value=template_uf[peak_channel_ind])
+    #         unit_times.append_unit_data(unit_name=unit, key='waveform_std', value=std_uf[peak_channel_ind])
+    #         unit_times.append_unit_data(unit_name=unit, key='xpos_probe',
+    #                                     value=[channel_positions[ch][0] for ch in ch_ns][peak_channel_ind])
+    #         unit_times.append_unit_data(unit_name=unit, key='ypos_probe',
+    #                                     value=[channel_positions[ch][1] for ch in ch_ns][peak_channel_ind])
+
+    #     #  finalize
+    #     unit_times.finalize()
+    #     mod.finalize()
+
+    # def add_external_LFP(self, traces, fs=30000., module_name=None, notch_base=60., notch_bandwidth=1.,
+    #                      notch_harmonics=4,
+    #                      notch_order=2, lowpass_cutoff=300., lowpass_order=5, resolution=0, conversion=0, unit='',
+    #                      comments='', source=''):
+    #     """
+    #     add LFP of raw arbitrary electrical traces into LFP module into /procession field. the trace will be filtered
+    #     by NeuroAnalysisTools.HighLevel.get_lfp() function. All filters are butterworth digital filters
+
+    #     :param module_name: str, name of module to be added
+    #     :param traces: dict, {str: 1d-array}, {name: trace}, input raw traces
+    #     :param fs: float, sampling rate, Hz
+    #     :param notch_base: float, Hz, base frequency of powerline contaminating signal
+    #     :param notch_bandwidth: float, Hz, filter bandwidth at each side of center frequency
+    #     :param notch_harmonics: int, number of harmonics to filter out
+    #     :param notch_order: int, order of butterworth bandpass notch filter, for a narrow band, shouldn't be larger than 2
+    #     :param lowpass_cutoff: float, Hz, cutoff frequency of lowpass filter
+    #     :param lowpass_order: int, order of butterworth lowpass filter
+    #     :param resolution: float, resolution of LFP time series
+    #     :param conversion: float, conversion of LFP time series
+    #     :param unit: str, unit of LFP time series
+    #     :param comments: str, interface comments
+    #     :param source: str, interface source
+    #     """
+
+    #     if module_name is None or module_name == '':
+    #         module_name = 'external_LFP'
+
+    #     lfp = {}
+    #     for tn, trace in traces.items():
+    #         curr_lfp = hl.get_lfp(trace, fs=fs, notch_base=notch_base, notch_bandwidth=notch_bandwidth,
+    #                               notch_harmonics=notch_harmonics, notch_order=notch_order,
+    #                               lowpass_cutoff=lowpass_cutoff, lowpass_order=lowpass_order)
+    #         lfp.update({tn: curr_lfp})
+
+    #     lfp_mod = self.create_module(module_name)
+    #     lfp_mod.set_description('LFP from external traces')
+    #     lfp_interface = lfp_mod.create_interface('LFP')
+    #     lfp_interface.set_value('description', 'LFP of raw arbitrary electrical traces. The traces were filtered by '
+    #                                            'NeuroAnalysisTools.HighLevel.get_lfp() function. First, the powerline contamination at '
+    #                                            'multiplt harmonics were filtered out by a notch filter. Then the resulting traces were'
+    #                                            ' filtered by a lowpass filter. All filters are butterworth digital filters')
+    #     lfp_interface.set_value('comments', comments)
+    #     lfp_interface.set_value('notch_base', notch_base)
+    #     lfp_interface.set_value('notch_bandwidth', notch_bandwidth)
+    #     lfp_interface.set_value('notch_harmonics', notch_harmonics)
+    #     lfp_interface.set_value('notch_order', notch_order)
+    #     lfp_interface.set_value('lowpass_cutoff', lowpass_cutoff)
+    #     lfp_interface.set_value('lowpass_order', lowpass_order)
+    #     lfp_interface.set_source(source)
+    #     for tn, t_lfp in lfp.items():
+    #         curr_ts = self.create_timeseries('ElectricalSeries', tn, modality='other')
+    #         curr_ts.set_data(t_lfp, conversion=conversion, resolution=resolution, unit=unit)
+    #         curr_ts.set_time_by_rate(time_zero=0., rate=fs)
+    #         curr_ts.set_value('num_samples', len(t_lfp))
+    #         curr_ts.set_value('electrode_idx', 0)
+    #         lfp_interface.add_timeseries(curr_ts)
+    #         lfp_interface.finalize()
+
+    #     lfp_mod.finalize()
+
+    # def add_internal_LFP(self, continuous_channels, module_name=None, notch_base=60., notch_bandwidth=1.,
+    #                      notch_harmonics=4, notch_order=2, lowpass_cutoff=300., lowpass_order=5, comments='',
+    #                      source=''):
+    #     """
+    #     add LFP of acquired electrical traces into LFP module into /procession field. the trace will be filtered
+    #     by NeuroAnalysisTools.HighLevel.get_lfp() function. All filters are butterworth digital filters.
+
+    #     :param continuous_channels: list of strs, name of continuous channels saved in '/acquisition/timeseries'
+    #                                 folder, the time axis of these channels should be saved by rate
+    #                                 (ephys sampling rate).
+    #     :param module_name: str, name of module to be added
+    #     :param notch_base: float, Hz, base frequency of powerline contaminating signal
+    #     :param notch_bandwidth: float, Hz, filter bandwidth at each side of center frequency
+    #     :param notch_harmonics: int, number of harmonics to filter out
+    #     :param notch_order: int, order of butterworth bandpass notch filter, for a narrow band, shouldn't be larger than 2
+    #     :param lowpass_cutoff: float, Hz, cutoff frequency of lowpass filter
+    #     :param lowpass_order: int, order of butterworth lowpass filter
+    #     :param comments: str, interface comments
+    #     :param source: str, interface source
+    #     """
+
+    #     if module_name is None or module_name == '':
+    #         module_name = 'LFP'
+
+    #     lfp_mod = self.create_module(module_name)
+    #     lfp_mod.set_description('LFP from acquired electrical traces')
+    #     lfp_interface = lfp_mod.create_interface('LFP')
+    #     lfp_interface.set_value('description', 'LFP of acquired electrical traces. The traces were filtered by '
+    #                                            'NeuroAnalysisTools.HighLevel.get_lfp() function. First, the powerline '
+    #                                            'contamination at multiplt harmonics were filtered out by a notch '
+    #                                            'filter. Then the resulting traces were filtered by a lowpass filter. '
+    #                                            'All filters are butterworth digital filters')
+    #     lfp_interface.set_value('comments', comments)
+    #     lfp_interface.set_value('notch_base', notch_base)
+    #     lfp_interface.set_value('notch_bandwidth', notch_bandwidth)
+    #     lfp_interface.set_value('notch_harmonics', notch_harmonics)
+    #     lfp_interface.set_value('notch_order', notch_order)
+    #     lfp_interface.set_value('lowpass_cutoff', lowpass_cutoff)
+    #     lfp_interface.set_value('lowpass_order', lowpass_order)
+    #     lfp_interface.set_source(source)
+
+    #     for channel in continuous_channels:
+    #         print('\n', channel, ': start adding LFP ...')
+
+    #         trace = self.file_pointer['acquisition/timeseries'][channel]['data'].value
+    #         fs = self.file_pointer['acquisition/timeseries'][channel]['starting_time'].attrs['rate']
+    #         start_time = self.file_pointer['acquisition/timeseries'][channel]['starting_time'].value
+    #         conversion = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['conversion']
+    #         resolution = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['resolution']
+    #         unit = self.file_pointer['acquisition/timeseries'][channel]['data'].attrs['unit']
+    #         ts_source = self.file_pointer['acquisition/timeseries'][channel].attrs['source']
+
+    #         print(channel, ': calculating LFP ...')
+
+    #         t_lfp = hl.get_lfp(trace, fs=fs, notch_base=notch_base, notch_bandwidth=notch_bandwidth,
+    #                            notch_harmonics=notch_harmonics, notch_order=notch_order, lowpass_cutoff=lowpass_cutoff,
+    #                            lowpass_order=lowpass_order)
+
+    #         curr_ts = self.create_timeseries('ElectricalSeries', channel, modality='other')
+    #         curr_ts.set_data(t_lfp, conversion=conversion, resolution=resolution, unit=unit)
+    #         curr_ts.set_time_by_rate(time_zero=start_time, rate=fs)
+    #         curr_ts.set_value('num_samples', len(t_lfp))
+    #         curr_ts.set_value('electrode_idx', int(channel.split('_')[1]))
+    #         curr_ts.set_source(ts_source)
+    #         lfp_interface.add_timeseries(curr_ts)
+    #         print(channel, ': finished adding LFP.')
+
+    #     lfp_interface.finalize()
+
+    #     lfp_mod.finalize()
+
+    # def plot_spike_waveforms(self, modulen, unitn, is_plot_filtered=False, fig=None, axes_size=(0.2, 0.2), **kwargs):
+    #     """
+    #     plot spike waveforms
+
+    #     :param modulen: str, name of the module containing ephys recordings
+    #     :param unitn: str, name of ephys unit, should be in '/processing/ephys_units/UnitTimes'
+    #     :param is_plot_filtered: bool, plot unfiltered waveforms or not
+    #     :param channel_names: list of strs, channel names in continuous recordings, should be in '/acquisition/timeseries'
+    #     :param fig: matplotlib figure object
+    #     :param t_range: tuple of two floats, time range to plot along spike time stamps
+    #     :param kwargs: inputs to matplotlib.axes.plot() function
+    #     :return: fig
+    #     """
+    #     if modulen not in self.file_pointer['processing'].keys():
+    #         raise LookupError('Can not find module for ephys recording: ' + modulen + '.')
+
+    #     if unitn not in self.file_pointer['processing'][modulen]['UnitTimes'].keys():
+    #         raise LookupError('Can not find ephys unit: ' + unitn + '.')
+
+    #     ch_ns = self._get_channel_names()
+
+    #     unit_grp = self.file_pointer['processing'][modulen]['UnitTimes'][unitn]
+    #     waveforms = unit_grp['template'].value
+
+    #     if 'template_std' in unit_grp.keys():
+    #         stds = unit_grp['template_std'].value
+    #     else:
+    #         stds = None
+
+    #     if is_plot_filtered:
+    #         if 'template_filtered' in unit_grp.keys():
+    #             waveforms_f = unit_grp['template_filtered'].value
+    #             if 'template_std_filtered' in unit_grp.keys():
+    #                 stds_f = unit_grp['template_std_filtered'].value
+    #             else:
+    #                 stds_f = None
+    #         else:
+    #             print('can not find unfiltered spike waveforms for unit: ' + unitn)
+    #             waveforms_f = None
+    #             stds_f = None
+    #     else:
+    #         waveforms_f = None
+    #         stds_f = None
+
+    #     if 'channel_xpos' in self.file_pointer['processing'][modulen].keys():
+    #         ch_xpos = self.file_pointer['processing'][modulen]['channel_xpos']
+    #         ch_ypos = self.file_pointer['processing'][modulen]['channel_ypos']
+    #         ch_locations = zip(ch_xpos, ch_ypos)
+    #     else:
+    #         ch_locations = None
+
+    #     fig = plot_waveforms(waveforms, ch_locations=ch_locations, stds=stds, waveforms_filtered=waveforms_f,
+    #                          stds_filtered=stds_f, f=fig, ch_ns=ch_ns, axes_size=axes_size, **kwargs)
+
+    #     fig.suptitle(self.file_pointer['identifier'].value + ' : ' + unitn)
+
+    #     return fig
+
+    # def generate_dat_file_for_kilosort(self, output_folder, output_name, ch_ns, is_filtered=True, cutoff_f_low=300.,
+    #                                    cutoff_f_high=6000.):
+    #     """
+    #     generate .dat file for kilolsort: "https://github.com/cortex-lab/KiloSort", it is binary raw code, with
+    #     structure: ch0_t0, ch1_t0, ch2_t0, ...., chn_t0, ch0_t1, ch1_t1, ch2_t1, ..., chn_t1, ..., ch0_tm, ch1_tm,
+    #     ch2_tm, ..., chn_tm
+
+    #     :param output_folder: str, path to output directory
+    #     :param output_name: str, output file name, an extension of '.dat' will be automatically added.
+    #     :param ch_ns: list of strings, name of included analog channels
+    #     :param is_filtered: bool, if Ture, another .dat file with same size will be generated in the output folder.
+    #                         this file will contain temporally filtered data (filter done by
+    #                         NeuroAnalysisTools.core.TimingAnalysis.butter_... functions). '_filtered' will be attached
+    #                         to the filtered file name.
+    #     :param cutoff_f_low: float, low cutoff frequency, Hz. if None, it will be low-pass
+    #     :param cutoff_f_high: float, high cutoff frequency, Hz, if None, it will be high-pass
+    #     :return: None
+    #     """
+
+    #     save_path = os.path.join(output_folder, output_name + '.dat')
+    #     if os.path.isfile(save_path):
+    #         raise IOError('Output file already exists.')
+
+    #     data_lst = []
+    #     for ch_n in ch_ns:
+    #         data_lst.append(self.file_pointer['acquisition/timeseries'][ch_n]['data'].value)
+
+    #     dtype = data_lst[0].dtype
+    #     data = np.array(data_lst, dtype=dtype).flatten(order='F')
+    #     data.tofile(save_path)
+
+    #     if is_filtered:
+
+    #         if cutoff_f_low is None and cutoff_f_high is None:
+    #             print ('both low cutoff frequency and high cutoff frequency are None. Do nothing.')
+    #             return
+
+    #         save_path_f = os.path.join(output_folder, output_name + '_filtered.dat')
+    #         if os.path.isfile(save_path_f):
+    #             raise IOError('Output file for filtered data already existes.')
+
+    #         fs = self.file_pointer['general/extracellular_ephys/sampling_rate'].value
+    #         data_lst_f = []
+    #         for data_r in data_lst:
+    #             if cutoff_f_high is None:
+    #                 data_lst_f.append(ta.butter_lowpass(data_r, fs=fs, cutoff=cutoff_f_low).astype(dtype))
+    #             elif cutoff_f_low is None:
+    #                 data_lst_f.append(ta.butter_highpass(data_r, fs=fs, cutoff=cutoff_f_high).astype(dtype))
+    #             else:
+    #                 data_lst_f.append(ta.butter_bandpass(data_r,
+    #                                                      fs=fs,
+    #                                                      cutoffs=(cutoff_f_low, cutoff_f_high)).astype(dtype))
+    #         data_f = np.array(data_lst_f, dtype=dtype).flatten(order='F')
+    #         data_f.tofile(save_path_f)
+
+    # def _get_channel_names(self):
+    #     """
+    #     :return: sorted list of channel names, each channel name should have prefix 'ch_'
+    #     """
+    #     analog_chs = self.file_pointer['acquisition/timeseries'].keys()
+    #     channel_ns = [cn for cn in analog_chs if cn[0:3] == 'ch_']
+    #     channel_ns.sort()
+    #     return channel_ns
+
+    # # ===========================ephys related==========================================================================
 
 
     # ===========================2p movie related=======================================================================
@@ -1123,7 +1123,7 @@ class RecordedFile(NWB):
         frame_ts.set_time(ts_display_rise)
         frame_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
         frame_ts.set_description('onset timestamps of each display frames after correction for display lag. '
-                                 'Used corticalmapping.HighLevel.align_visual_display_time() function to '
+                                 'Used NeuroAnalysisTools.HighLevel.align_visual_display_time() function to '
                                  'calculate display lag.')
         frame_ts.set_path('/processing/visual_display')
         frame_ts.set_value('max_mismatch_sec', max_mismatch)
@@ -1922,591 +1922,591 @@ class RecordedFile(NWB):
     # ===========================retinotopic_mapping visual stimuli related (indexed display)===========================
 
 
-    # ===========================corticalmapping visual stimuli related (non-indexed display)===========================
-    def add_visual_stimulus_corticalmapping(self, log_path, display_order=0):
-        """
-        load visual stimulation given saved display log pickle file
-        :param log_path: the path to the display log generated by corticalmapping.VisualStim
-        :param display_order: int, in case there is more than one visual display in the file.
-                              This value records the order of the displays
-        :return:
-        """
-        self._check_display_order(display_order)
-
-        log_dict = ft.loadFile(log_path)
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        if len(display_frames) != len(time_stamps):
-            print ('\nWarning: {}'.format(log_path))
-            print('Unequal number of displayFrames ({}) and timeStamps ({}).'.format(len(display_frames),
-                                                                                     len(time_stamps)))
-
-        if stim_name == 'SparseNoise':
-            self._add_sparse_noise_stimulus_corticalmapping(log_dict, display_order=display_order)
-        elif stim_name == 'FlashingCircle':
-            self._add_flashing_circle_stimulus_corticalmapping(log_dict, display_order=display_order)
-        elif stim_name == 'UniformContrast':
-            self._add_uniform_contrast_stimulus_corticalmapping(log_dict, display_order=display_order)
-        elif stim_name == 'DriftingGratingCircle':
-            self._add_drifting_grating_circle_stimulus_corticalmapping(log_dict, display_order=display_order)
-        elif stim_name == 'KSstimAllDir':
-            self._add_drifting_checker_board_stimulus_corticalmapping(log_dict, display_order=display_order)
-        else:
-            raise ValueError('stimulation name {} unrecognizable!'.format(stim_name))
-
-    def add_visual_stimuli_corticalmapping(self, log_paths):
-
-        exist_stimuli = self.file_pointer['stimulus/presentation'].keys()
-
-        for i, log_path in enumerate(log_paths):
-            self.add_visual_stimulus_corticalmapping(log_path, i + len(exist_stimuli))
-
-    def analyze_visual_stimuli_corticalmapping(self, onsets_ts=None):
-        """
-        add stimuli onset timestamps of all saved stimulus presentations to 'processing/stimulus_onsets' module
-
-        :param onsets_ts: 1-d array, timestamps of stimuli onsets. if None, it will look for
-                          ['processing/photodiode/timestemps'] as onset_ts
-        """
-
-        if onsets_ts is None:
-            print 'input onsets_ts is None, try to use photodiode onsets as onsets_ts.'
-            onsets_ts = self.file_pointer['processing/PhotodiodeOnsets/photodiode_onsets/timestamps'].value
-
-        stim_ns = self.file_pointer['stimulus/presentation'].keys()
-        stim_ns.sort()
-
-        total_onsets = 0
-
-        for stim_ind, stim_n in enumerate(stim_ns):
-
-            if int(stim_n[0: 2]) != stim_ind:
-                raise ValueError('Stimulus name: {} does not follow the order: {}'.format(stim_n, stim_ind))
-
-            curr_stim_grp = self.file_pointer['stimulus/presentation'][stim_n]
-            if curr_stim_grp['stim_name'].value == 'SparseNoise':
-                _ = self._analyze_sparse_noise_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
-                _ = self._analyze_flashing_circle_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
-                _ = self._analyze_driftig_grating_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'UniformContrast':
-                _ = self._analyze_uniform_contrast_frames_corticalmapping(curr_stim_grp)
-            else:
-                raise LookupError('Do not understand stimulus type: {}.'.format(stim_n))
-
-            curr_onset_arr, curr_data_format, curr_description, pooled_onsets = _
-
-            total_onsets += curr_onset_arr.shape[0]
-
-        if total_onsets != len(onsets_ts):
-            raise ValueError('Number of stimuli onsets ({}) do not match the number of given onsets_ts ({}).'
-                             .format(total_onsets, len(onsets_ts)))
-
-        curr_onset_start_ind = 0
-
-        for stim_ind, stim_n in enumerate(stim_ns):
-            curr_stim_grp = self.file_pointer['stimulus/presentation'][stim_n]
-
-            if curr_stim_grp['stim_name'].value == 'SparseNoise':
-                _ = self._analyze_sparse_noise_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
-                _ = self._analyze_flashing_circle_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
-                _ = self._analyze_driftig_grating_frames_corticalmapping(curr_stim_grp)
-            elif curr_stim_grp['stim_name'].value == 'UniformContrast':
-                _ = self._analyze_uniform_contrast_frames_corticalmapping(curr_stim_grp)
-            else:
-                raise LookupError('Do not understand stimulus type: {}.'.format(stim_n))
-
-            curr_onset_arr, curr_data_format, curr_description, pooled_onsets = _
-
-            curr_onset_ts = onsets_ts[curr_onset_start_ind: curr_onset_start_ind + curr_onset_arr.shape[0]]
-
-            curr_onset = self.create_timeseries('TimeSeries', stim_n, modality='other')
-            curr_onset.set_data(curr_onset_arr, unit='', conversion=np.nan, resolution=np.nan)
-            curr_onset.set_time(curr_onset_ts)
-            curr_onset.set_description(curr_description)
-            curr_onset.set_value('data_format', curr_data_format)
-            curr_onset.set_path('processing/StimulusOnsets')
-            curr_onset.set_value('stim_name', curr_stim_grp['stim_name'].value)
-            curr_onset.set_value('background_color', curr_stim_grp['background_color'].value)
-            curr_onset.set_value('pre_gap_dur_sec', curr_stim_grp['pre_gap_dur_sec'].value)
-            curr_onset.set_value('post_gap_dur_sec', curr_stim_grp['post_gap_dur_sec'].value)
-
-            if curr_stim_grp['stim_name'].value == 'UniformContrast':
-                curr_onset.set_value('color', curr_stim_grp['color'].value)
-                curr_onset.finalize()
-
-            elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
-                curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
-                curr_onset.finalize()
-
-            elif curr_stim_grp['stim_name'].value == 'SparseNoise':
-                curr_onset.set_value('grid_space', curr_stim_grp['grid_space'].value)
-                curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
-                curr_onset.set_value('probe_frame_num', curr_stim_grp['probe_frame_num'].value)
-                curr_onset.set_value('probe_height_deg', curr_stim_grp['probe_height_deg'].value)
-                curr_onset.set_value('probe_orientation', curr_stim_grp['probe_orientation'].value)
-                curr_onset.set_value('probe_width_deg', curr_stim_grp['probe_width_deg'].value)
-                curr_onset.set_value('sign', curr_stim_grp['sign'].value)
-                curr_onset.set_value('subregion_deg', curr_stim_grp['subregion_deg'].value)
-                curr_onset.finalize()
-                for curr_sn, curr_sd in pooled_onsets.items():
-                    curr_s_ts = self.create_timeseries('TimeSeries', curr_sn, modality='other')
-                    curr_s_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
-                    curr_s_ts.set_time(curr_onset_ts[curr_sd['onset_ind']])
-                    curr_s_ts.set_value('azimuth_deg', curr_sd['azi'])
-                    curr_s_ts.set_value('altitude_deg', curr_sd['alt'])
-                    curr_s_ts.set_value('sign', curr_sd['sign'])
-                    curr_s_ts.set_path('processing/StimulusOnsets/' + stim_n + '/square_timestamps')
-                    curr_s_ts.finalize()
-
-            elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
-                curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
-                curr_onset.set_value('mid_gap_dur_sec', curr_stim_grp['mid_gap_dur_sec'].value)
-                curr_onset.set_value('center_altitude_deg', curr_stim_grp['center_altitude_deg'].value)
-                curr_onset.set_value('center_azimuth_deg', curr_stim_grp['center_azimuth_deg'].value)
-                curr_onset.set_value('contrast_list', curr_stim_grp['contrast_list'].value)
-                curr_onset.set_value('direction_list', curr_stim_grp['direction_list'].value)
-                curr_onset.set_value('radius_list', curr_stim_grp['radius_list'].value)
-                curr_onset.set_value('spatial_frequency_list', curr_stim_grp['spatial_frequency_list'].value)
-                curr_onset.set_value('temporal_frequency_list', curr_stim_grp['temporal_frequency_list'].value)
-                curr_onset.finalize()
-                for curr_gn, curr_gd in pooled_onsets.items():
-                    curr_g_ts = self.create_timeseries('TimeSeries', curr_gn, modality='other')
-                    curr_g_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
-                    curr_g_ts.set_time(curr_onset_ts[curr_gd['onset_ind']])
-                    curr_g_ts.set_value('sf_cyc_per_deg', curr_gd['sf'])
-                    curr_g_ts.set_value('tf_hz', curr_gd['tf'])
-                    curr_g_ts.set_value('direction_arc', curr_gd['dir'])
-                    curr_g_ts.set_value('contrast', curr_gd['con'])
-                    curr_g_ts.set_value('radius_deg', curr_gd['r'])
-                    curr_g_ts.set_path('processing/StimulusOnsets/' + stim_n + '/grating_timestamps')
-                    curr_g_ts.finalize()
-
-            curr_onset_start_ind = curr_onset_start_ind + curr_onset_arr.shape[0]
-
-    @staticmethod
-    def _analyze_sparse_noise_frames_corticalmapping(sn_grp):
-        """
-        analyze sparse noise display frames saved in '/stimulus/presentation', extract information about onset of
-        each displayed square:
-
-        return: all_squares: 2-d array, each line is a displayed square in sparse noise, each column is a feature of
-                             a particular square, squares follow display order
-                data_format: str, description of the column structure of each square
-                description: str,
-                pooled_squares: dict, squares with same location and sign are pooled together.
-                                keys: 'square_00000', 'square_00001', 'square_00002' ... each represents a unique
-                                      square.
-                                values: dict, {
-                                               'azi': <azimuth of the square>,
-                                               'alt': <altitude of the square>,
-                                               'sign': <sign of the square>,
-                                               'onset_ind': list of indices of the appearances of current square in
-                                                            in "all_squares", to be aligned with to photodiode onset
-                                                            timestamps
-                                               }
-        """
-
-        if sn_grp['stim_name'].value != 'SparseNoise':
-            raise NameError('The input stimulus should be "SparseNoise".')
-
-        frames = sn_grp['data'].value
-        frames = [tuple(x) for x in frames]
-        dtype = [('isDisplay', int), ('azimuth', float), ('altitude', float), ('sign', int), ('isOnset', int)]
-        frames = np.array(frames, dtype=dtype)
-
-        all_squares = []
-        for i in range(len(frames)):
-            if frames[i]['isDisplay'] == 1 and \
-                    (i == 0 or (frames[i - 1]['isOnset'] == -1 and frames[i]['isOnset'] == 1)):
-                all_squares.append(np.array((i, frames[i]['azimuth'], frames[i]['altitude'], frames[i]['sign']),
-                                            dtype=np.float32))
-
-        all_squares = np.array(all_squares)
-
-        pooled_squares = {}
-        unique_squares = list(set([tuple(x[1:]) for x in all_squares]))
-        for i, unique_square in enumerate(unique_squares):
-            curr_square_n = 'square_' + ft.int2str(i, 5)
-            curr_azi = unique_square[0]
-            curr_alt = unique_square[1]
-            curr_sign = unique_square[2]
-            curr_onset_ind = []
-            for j, give_square in enumerate(all_squares):
-                if np.array_equal(give_square[1:], unique_square):
-                    curr_onset_ind.append(j)
-            pooled_squares.update({curr_square_n: {'azi': curr_azi,
-                                                   'alt': curr_alt,
-                                                   'sign': curr_sign,
-                                                   'onset_ind': curr_onset_ind}})
-        all_squares = np.array(all_squares)
-        data_format = ['display frame indices for the onset of each square', 'azimuth of each square',
-                       'altitude of each square', 'sign of each square']
-        description = 'TimeSeries of sparse noise square onsets. Stimulus generated by ' \
-                      'corticalmapping.VisualStim.SparseNoise class.'
-        return all_squares, data_format, description, pooled_squares
-
-    @staticmethod
-    def _analyze_driftig_grating_frames_corticalmapping(dg_grp):
-        """
-        analyze drifting grating display frames saved in '/stimulus/presentation', extract information about onset of
-        each displayed grating:
-
-        return: all_gratings: 2-d array, each line is a displayed square in sparse noise, each column is a feature of
-                             a particular square, squares follow display order
-                data_format: str, description of the column structure of each grating
-                description: str,
-                pooled_squares: dict, gratings with same parameters are pooled together.
-                                keys: 'grating_00000', 'grating_00001', 'grating_00002' ... each represents a unique
-                                      grating.
-                                values: dict, {
-                                               'sf': <spatial frequency of the grating>,
-                                               'tf': <temporal frequency of the grating>,
-                                               'direction': <moving direction of the grating>,
-                                               'contrast': <contrast of the grating>,
-                                               'radius': <radius of the grating>,
-                                               'azi': <azimuth of the grating center>
-                                               'alt': <altitude of the grating center>
-                                               'onset_ind': list of indices of the appearances of current square in
-                                                            in "all_squares", to be aligned with to photodiode onset
-                                                            timestamps
-                                               }
-        """
-        if dg_grp['stim_name'].value != 'DriftingGratingCircle':
-            raise NameError('The input stimulus should be "DriftingGratingCircle".')
-
-        frames = dg_grp['data'].value
-
-        all_gratings = []
-        for i in range(len(frames)):
-            if frames[i][8] == 1 and (i == 0 or (frames[i - 1][8] == -1)):
-                all_gratings.append(np.array((i, frames[i][2], frames[i][3], frames[i][4], frames[i][5], frames[i][6]),
-                                             dtype=np.float32))
-
-        all_gratings = np.array(all_gratings)
-
-        pooled_gratings = {}
-        unique_gratings = list(set([tuple(x[1:]) for x in all_gratings]))
-        for i, unique_grating in enumerate(unique_gratings):
-            curr_grating_n = 'grating_' + ft.int2str(i, 5)
-            curr_sf = unique_grating[0]
-            curr_tf = unique_grating[1]
-            curr_dir = unique_grating[2]
-            curr_con = unique_grating[3]
-            curr_r = unique_grating[4]
-            curr_onset_ind = []
-            for j, given_grating in enumerate(all_gratings):
-                if np.array_equal(given_grating[1:], unique_grating):
-                    curr_onset_ind.append(j)
-            pooled_gratings.update({curr_grating_n: {'sf': curr_sf,
-                                                     'tf': curr_tf,
-                                                     'dir': curr_dir,
-                                                     'con': curr_con,
-                                                     'r': curr_r,
-                                                     'onset_ind': curr_onset_ind}})
-        data_format = ['display frame indices for the onset of each square', 'spatial frequency (cyc/deg)',
-                       'temporal frequency (Hz)', 'moving direction (arc)', 'contrast (%)', 'radius (deg)']
-        description = 'TimeSeries of drifting grating circle onsets. Stimulus generated by ' \
-                      'corticalmapping.VisualStim.SparseNoise class.'
-        return all_gratings, data_format, description, pooled_gratings
-
-    @staticmethod
-    def _analyze_flashing_circle_frames_corticalmapping(fc_grp):
-        """
-        analyze flashing circle display frames saved in '/stimulus/presentation', extract information about onset of
-        each displayed circle:
-
-        return: all_circles: 2-d array, each line is the onset of displayed circle, each column is a feature of
-                             that circle, circles follow the display order
-                data_format: str, description of the column structure of each circle
-                description: str,
-                pooled_circles: None
-        """
-
-        if fc_grp['stim_name'].value != 'FlashingCircle':
-            raise NameError('The input stimulus should be "FlashingCircle".')
-
-        frames = fc_grp['data'][:, 0]
-        azi = fc_grp['center_azimuth_deg'].value
-        alt = fc_grp['center_altitude_deg'].value
-        color_c = fc_grp['center_color'].value
-        color_b = fc_grp['background_color'].value
-        radius = fc_grp['radius_deg'].value
-
-        all_cirlces = []
-        for i in range(len(frames)):
-            if frames[i] == 1 and (i == 0 or (frames[i - 1] == 0)):
-                all_cirlces.append(np.array((i, azi, alt, color_c, color_b, radius), dtype=np.float32))
-
-        all_cirlces = np.array(all_cirlces)
-        data_format = ['display frame indices for the onset of each circle', 'center_azimuth_deg',
-                       'center_altitude_deg', 'center_color', 'background_color', 'radius_deg']
-        description = 'TimeSeries of flashing circle onsets. Stimulus generated by ' \
-                      'corticalmapping.VisualStim.SparseNoise class.'
-        return all_cirlces, data_format, description, None
-
-    @staticmethod
-    def _analyze_uniform_contrast_frames_corticalmapping(uc_grp):
-
-        if uc_grp['stim_name'].value != 'UniformContrast':
-            raise NameError('The input stimulus should be "UniformContrast".')
-
-        onset_array = np.array([])
-        data_format = ''
-        description = 'TimeSeries of uniform contrast stimulus. No onset information. Stimulus generated by ' \
-                      'corticalmapping.VisualStim.UniformContrast class.'
-        return onset_array, data_format, description, {}
-
-    def _add_sparse_noise_stimulus_corticalmapping(self, log_dict, display_order):
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        if stim_name != 'SparseNoise':
-            raise ValueError('stimulus was not sparse noise.')
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        frame_array = np.empty((len(display_frames), 5), dtype=np.float32)
-        for i, frame in enumerate(display_frames):
-            if frame[0] == 0:
-                frame_array[i] = np.array([0, np.nan, np.nan, np.nan, frame[3]])
-            elif frame[0] == 1:
-                frame_array[i] = np.array([1, frame[1][0], frame[1][1], frame[2], frame[3]])
-            else:
-                raise ValueError('The first value of ' + str(i) + 'th display frame: ' + str(frame) + ' should' + \
-                                 ' be only 0 or 1.')
-        stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
-                                      'stimulus')
-        stim.set_time(time_stamps)
-        stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
-        stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
-                          'this particular display, not the master time clock. For more useful timestamps, check'
-                          '/processing for aligned photodiode onset timestamps.')
-        stim.set_description('data formatting: [isDisplay (0:gap; 1:display), azimuth (deg), altitude (deg), '
-                             'polarity (from -1 to 1), indicatorColor (for photodiode, from -1 to 1)]')
-        stim.set_value('data_formatting', ['isDisplay', 'azimuth', 'altitude', 'polarity', 'indicatorColor'])
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
-        stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
-        stim.set_value('iteration', log_dict['stimulation']['iteration'])
-        stim.set_value('sign', log_dict['stimulation']['sign'])
-        stim.set_value('probe_width_deg', log_dict['stimulation']['probeSize'][0])
-        stim.set_value('probe_height_deg', log_dict['stimulation']['probeSize'][1])
-        stim.set_value('subregion_deg', log_dict['stimulation']['subregion'])
-        try:
-            stim.set_value('probe_orientation', log_dict['stimulation']['probeOrientation'])
-        except KeyError:
-            stim.set_value('probe_orientation', log_dict['stimulation']['probeOrientationt'])
-        stim.set_value('stim_name', log_dict['stimulation']['stimName'])
-        stim.set_value('grid_space', log_dict['stimulation']['gridSpace'])
-        stim.set_value('probe_frame_num', log_dict['stimulation']['probeFrameNum'])
-        stim.set_source('corticalmapping.VisualStim.SparseNoise for stimulus; '
-                        'corticalmapping.VisualStim.DisplaySequence for display')
-        stim.finalize()
-
-    def _add_flashing_circle_stimulus_corticalmapping(self, log_dict, display_order):
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        if stim_name != 'FlashingCircle':
-            raise ValueError('stimulus should be flashing circle.')
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        frame_array = np.empty((len(display_frames), 2), dtype=np.int8)
-        for i, frame in enumerate(display_frames):
-            if frame[0] == 0 or frame[0] == 1:
-                frame_array[i] = np.array([frame[0], frame[3]])
-            else:
-                raise ValueError('The first value of ' + str(i) + 'th display frame: ' + str(frame) + ' should' + \
-                                 ' be only 0 or 1.')
-        stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
-                                      'stimulus')
-        stim.set_time(time_stamps)
-        stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
-        stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
-                          'this particular display, not the master time clock. For more useful timestamps, check'
-                          '/processing for aligned photodiode onset timestamps.')
-        stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
-                             'indicatorColor (for photodiode, from -1 to 1)]')
-        stim.set_value('data_formatting', ['isDisplay', 'indicatorColor'])
-        stim.set_source('corticalmapping.VisualStim.FlashingCircle for stimulus; '
-                        'corticalmapping.VisualStim.DisplaySequence for display')
-        stim.set_value('radius_deg', log_dict['stimulation']['radius'])
-        stim.set_value('center_azimuth_deg', log_dict['stimulation']['center'][0])
-        stim.set_value('center_altitude_deg', log_dict['stimulation']['center'][1])
-        stim.set_value('center_color', log_dict['stimulation']['color'])
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.set_value('stim_name', log_dict['stimulation']['stimName'])
-        stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
-        stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
-        stim.set_value('iteration', log_dict['stimulation']['iteration'])
-        stim.finalize()
-
-    def _add_uniform_contrast_stimulus_corticalmapping(self, log_dict, display_order):
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        if stim_name != 'UniformContrast':
-            raise ValueError('stimulus should be uniform contrast.')
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        frame_array = np.array(display_frames, dtype=np.int8)
-
-        stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
-                                      'stimulus')
-        stim.set_time(time_stamps)
-        stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
-        stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
-                          'this particular display, not the master time clock. For more useful timestamps, check'
-                          '/processing for aligned photodiode onset timestamps.')
-        stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
-                             'indicatorColor (for photodiode, from -1 to 1)]')
-        stim.set_value('data_formatting', ['isDisplay', 'indicatorColor'])
-        stim.set_source('corticalmapping.VisualStim.UniformContrast for stimulus; '
-                        'corticalmapping.VisualStim.DisplaySequence for display')
-        stim.set_value('color', log_dict['stimulation']['color'])
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
-        stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
-        stim.set_value('stim_name', log_dict['stimulation']['stimName'])
-        stim.finalize()
-
-    def _add_drifting_grating_circle_stimulus_corticalmapping(self, log_dict, display_order):
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        if stim_name != 'DriftingGratingCircle':
-            raise ValueError('stimulus should be drifting grating circle.')
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        frame_array = np.array(display_frames)
-        frame_array[np.equal(frame_array, None)] = np.nan
-        frame_array = frame_array.astype(np.float32)
-
-        stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
-                                      'stimulus')
-        stim.set_time(time_stamps)
-        stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
-        stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of '
-                          'this particular display, not the master time clock. For more useful timestamps, check '
-                          '"/processing" for aligned photodiode onset timestamps.')
-        stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
-                             'firstFrameInCycle (first frame in cycle:1, rest display frames: 0), '
-                             'spatialFrequency (cyc/deg), '
-                             'temporalFrequency (Hz), '
-                             'direction ([0, 2*pi)), '
-                             'contrast ([0, 1]), '
-                             'radius (deg), '
-                             'phase ([0, 2*pi)'
-                             'indicatorColor (for photodiode, from -1 to 1)]. '
-                             'for gap frames, the 2ed to 8th elements should be np.nan.')
-        stim.set_value('data_formatting', ['isDisplay', 'firstFrameInCycle', 'spatialFrequency', 'temporalFrequency',
-                                           'direction', 'contrast', 'radius', 'phase', 'indicatorColor'])
-        stim.set_value('spatial_frequency_list', log_dict['stimulation']['sf_list'])
-        stim.set_value('temporal_frequency_list', log_dict['stimulation']['tf_list'])
-        stim.set_value('direction_list', log_dict['stimulation']['dire_list'])
-        stim.set_value('contrast_list', log_dict['stimulation']['con_list'])
-        stim.set_value('radius_list', log_dict['stimulation']['size_list'])
-        stim.set_value('center_azimuth_deg', log_dict['stimulation']['center'][0])
-        stim.set_value('center_altitude_deg', log_dict['stimulation']['center'][1])
-        stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
-        stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
-        stim.set_value('mid_gap_dur_sec', log_dict['stimulation']['midGapDur'])
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.set_value('iteration', log_dict['stimulation']['iteration'])
-        stim.set_value('stim_name', log_dict['stimulation']['stimName'])
-        stim.set_value('sweep_dur_sec', log_dict['stimulation']['blockDur'])
-        stim.set_source('corticalmapping.VisualStim.DriftingGratingCircle for stimulus; '
-                        'corticalmapping.VisualStim.DisplaySequence for display')
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.finalize()
-
-    def _add_drifting_checker_board_stimulus_corticalmapping(self, log_dict, display_order):
-
-        stim_name = log_dict['stimulation']['stimName']
-
-        if stim_name != 'KSstimAllDir':
-            raise ValueError('stimulus should be drifting checker board all directions.')
-
-        display_frames = log_dict['presentation']['displayFrames']
-        time_stamps = log_dict['presentation']['timeStamp']
-
-        display_frames = [list(f) for f in display_frames]
-
-        for i in range(len(display_frames)):
-            if display_frames[i][4] == 'B2U':
-                display_frames[i][4] = 0
-            elif display_frames[i][4] == 'U2B':
-                display_frames[i][4] = 1
-            elif display_frames[i][4] == 'L2R':
-                display_frames[i][4] = 2
-            elif display_frames[i][4] == 'R2L':
-                display_frames[i][4] = 3
-
-        frame_array = np.array(display_frames)
-        frame_array[np.equal(frame_array, None)] = np.nan
-        frame_array = frame_array.astype(np.float32)
-
-        stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
-                                      'stimulus')
-        stim.set_time(time_stamps)
-        stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
-        stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
-                          'this particular display, not the master time clock. For more useful timestamps, check'
-                          '/processing for aligned photodiode onset timestamps.')
-        stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
-                             'square polarity (1: not reversed; -1: reversed), '
-                             'sweeps, ind, index in sweep table, '
-                             'indicatorColor (for photodiode, from -1 to 1)]. '
-                             'direction (B2U: 0, U2B: 1, L2R: 2, R2L: 3), '
-                             'for gap frames, the 2ed to 3th elements should be np.nan.')
-        stim.set_value('data_formatting',
-                       ['isDisplay', 'squarePolarity', 'sweepIndex', 'indicatorColor', 'sweepDirection'])
-        stim.set_source('corticalmapping.VisualStim.KSstimAllDir for stimulus; '
-                        'corticalmapping.VisualStim.DisplaySequence for display')
-        stim.set_value('background_color', log_dict['stimulation']['background'])
-        stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
-        stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
-        stim.set_value('iteration', log_dict['stimulation']['iteration'])
-        stim.set_value('stim_name', log_dict['stimulation']['stimName'])
-        stim.finalize()
-
-        display_info = hl.analysisMappingDisplayLog(display_log=log_dict)
-        display_grp = self.file_pointer['processing'].create_group('mapping_display_info')
-        display_grp.attrs['description'] = 'This group saves the useful infomation about the retiotopic mapping visual' \
-                                           'stimulation (drifting checker board sweeps in all directions). Generated ' \
-                                           'by the corticalmapping.HighLevel.analysisMappingDisplayLog() function.'
-        for direction, value in display_info.items():
-            dir_grp = display_grp.create_group(direction)
-            dir_grp.attrs['description'] = 'group containing the relative information about all sweeps in a particular' \
-                                           'sweep direction. B: bottom, U: up, L: nasal, R: temporal (for stimulus to' \
-                                           'the right eye)'
-            ind_dset = dir_grp.create_dataset('onset_index', data=value['ind'])
-            ind_dset.attrs['description'] = 'indices of sweeps of current direction in the whole experiment'
-            st_dset = dir_grp.create_dataset('start_time', data=value['startTime'])
-            st_dset.attrs['description'] = 'sweep start time relative to stimulus onset (second)'
-            sd_dset = dir_grp.create_dataset('sweep_duration', data=value['sweepDur'])
-            sd_dset.attrs['description'] = 'sweep duration (second)'
-            equ_dset = dir_grp.create_dataset('phase_retinotopy_equation', data=[value['slope'], value['intercept']])
-            equ_dset.attrs['description'] = 'the linear equation to transform fft phase into retinotopy visual degrees.' \
-                                            'degree = phase * slope + intercept'
-            equ_dset.attrs['data_format'] = ['slope', 'intercept']
-
-    # ===========================corticalmapping visual stimuli related (non-indexed display)===========================
+    # # ===========================corticalmapping visual stimuli related (non-indexed display)===========================
+    # def add_visual_stimulus_corticalmapping(self, log_path, display_order=0):
+    #     """
+    #     load visual stimulation given saved display log pickle file
+    #     :param log_path: the path to the display log generated by corticalmapping.VisualStim
+    #     :param display_order: int, in case there is more than one visual display in the file.
+    #                           This value records the order of the displays
+    #     :return:
+    #     """
+    #     self._check_display_order(display_order)
+
+    #     log_dict = ft.loadFile(log_path)
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     if len(display_frames) != len(time_stamps):
+    #         print ('\nWarning: {}'.format(log_path))
+    #         print('Unequal number of displayFrames ({}) and timeStamps ({}).'.format(len(display_frames),
+    #                                                                                  len(time_stamps)))
+
+    #     if stim_name == 'SparseNoise':
+    #         self._add_sparse_noise_stimulus_corticalmapping(log_dict, display_order=display_order)
+    #     elif stim_name == 'FlashingCircle':
+    #         self._add_flashing_circle_stimulus_corticalmapping(log_dict, display_order=display_order)
+    #     elif stim_name == 'UniformContrast':
+    #         self._add_uniform_contrast_stimulus_corticalmapping(log_dict, display_order=display_order)
+    #     elif stim_name == 'DriftingGratingCircle':
+    #         self._add_drifting_grating_circle_stimulus_corticalmapping(log_dict, display_order=display_order)
+    #     elif stim_name == 'KSstimAllDir':
+    #         self._add_drifting_checker_board_stimulus_corticalmapping(log_dict, display_order=display_order)
+    #     else:
+    #         raise ValueError('stimulation name {} unrecognizable!'.format(stim_name))
+
+    # def add_visual_stimuli_corticalmapping(self, log_paths):
+
+    #     exist_stimuli = self.file_pointer['stimulus/presentation'].keys()
+
+    #     for i, log_path in enumerate(log_paths):
+    #         self.add_visual_stimulus_corticalmapping(log_path, i + len(exist_stimuli))
+
+    # def analyze_visual_stimuli_corticalmapping(self, onsets_ts=None):
+    #     """
+    #     add stimuli onset timestamps of all saved stimulus presentations to 'processing/stimulus_onsets' module
+
+    #     :param onsets_ts: 1-d array, timestamps of stimuli onsets. if None, it will look for
+    #                       ['processing/photodiode/timestemps'] as onset_ts
+    #     """
+
+    #     if onsets_ts is None:
+    #         print('input onsets_ts is None, try to use photodiode onsets as onsets_ts.')
+    #         onsets_ts = self.file_pointer['processing/PhotodiodeOnsets/photodiode_onsets/timestamps'].value
+
+    #     stim_ns = self.file_pointer['stimulus/presentation'].keys()
+    #     stim_ns.sort()
+
+    #     total_onsets = 0
+
+    #     for stim_ind, stim_n in enumerate(stim_ns):
+
+    #         if int(stim_n[0: 2]) != stim_ind:
+    #             raise ValueError('Stimulus name: {} does not follow the order: {}'.format(stim_n, stim_ind))
+
+    #         curr_stim_grp = self.file_pointer['stimulus/presentation'][stim_n]
+    #         if curr_stim_grp['stim_name'].value == 'SparseNoise':
+    #             _ = self._analyze_sparse_noise_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
+    #             _ = self._analyze_flashing_circle_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
+    #             _ = self._analyze_driftig_grating_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'UniformContrast':
+    #             _ = self._analyze_uniform_contrast_frames_corticalmapping(curr_stim_grp)
+    #         else:
+    #             raise LookupError('Do not understand stimulus type: {}.'.format(stim_n))
+
+    #         curr_onset_arr, curr_data_format, curr_description, pooled_onsets = _
+
+    #         total_onsets += curr_onset_arr.shape[0]
+
+    #     if total_onsets != len(onsets_ts):
+    #         raise ValueError('Number of stimuli onsets ({}) do not match the number of given onsets_ts ({}).'
+    #                          .format(total_onsets, len(onsets_ts)))
+
+    #     curr_onset_start_ind = 0
+
+    #     for stim_ind, stim_n in enumerate(stim_ns):
+    #         curr_stim_grp = self.file_pointer['stimulus/presentation'][stim_n]
+
+    #         if curr_stim_grp['stim_name'].value == 'SparseNoise':
+    #             _ = self._analyze_sparse_noise_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
+    #             _ = self._analyze_flashing_circle_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
+    #             _ = self._analyze_driftig_grating_frames_corticalmapping(curr_stim_grp)
+    #         elif curr_stim_grp['stim_name'].value == 'UniformContrast':
+    #             _ = self._analyze_uniform_contrast_frames_corticalmapping(curr_stim_grp)
+    #         else:
+    #             raise LookupError('Do not understand stimulus type: {}.'.format(stim_n))
+
+    #         curr_onset_arr, curr_data_format, curr_description, pooled_onsets = _
+
+    #         curr_onset_ts = onsets_ts[curr_onset_start_ind: curr_onset_start_ind + curr_onset_arr.shape[0]]
+
+    #         curr_onset = self.create_timeseries('TimeSeries', stim_n, modality='other')
+    #         curr_onset.set_data(curr_onset_arr, unit='', conversion=np.nan, resolution=np.nan)
+    #         curr_onset.set_time(curr_onset_ts)
+    #         curr_onset.set_description(curr_description)
+    #         curr_onset.set_value('data_format', curr_data_format)
+    #         curr_onset.set_path('processing/StimulusOnsets')
+    #         curr_onset.set_value('stim_name', curr_stim_grp['stim_name'].value)
+    #         curr_onset.set_value('background_color', curr_stim_grp['background_color'].value)
+    #         curr_onset.set_value('pre_gap_dur_sec', curr_stim_grp['pre_gap_dur_sec'].value)
+    #         curr_onset.set_value('post_gap_dur_sec', curr_stim_grp['post_gap_dur_sec'].value)
+
+    #         if curr_stim_grp['stim_name'].value == 'UniformContrast':
+    #             curr_onset.set_value('color', curr_stim_grp['color'].value)
+    #             curr_onset.finalize()
+
+    #         elif curr_stim_grp['stim_name'].value == 'FlashingCircle':
+    #             curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
+    #             curr_onset.finalize()
+
+    #         elif curr_stim_grp['stim_name'].value == 'SparseNoise':
+    #             curr_onset.set_value('grid_space', curr_stim_grp['grid_space'].value)
+    #             curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
+    #             curr_onset.set_value('probe_frame_num', curr_stim_grp['probe_frame_num'].value)
+    #             curr_onset.set_value('probe_height_deg', curr_stim_grp['probe_height_deg'].value)
+    #             curr_onset.set_value('probe_orientation', curr_stim_grp['probe_orientation'].value)
+    #             curr_onset.set_value('probe_width_deg', curr_stim_grp['probe_width_deg'].value)
+    #             curr_onset.set_value('sign', curr_stim_grp['sign'].value)
+    #             curr_onset.set_value('subregion_deg', curr_stim_grp['subregion_deg'].value)
+    #             curr_onset.finalize()
+    #             for curr_sn, curr_sd in pooled_onsets.items():
+    #                 curr_s_ts = self.create_timeseries('TimeSeries', curr_sn, modality='other')
+    #                 curr_s_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
+    #                 curr_s_ts.set_time(curr_onset_ts[curr_sd['onset_ind']])
+    #                 curr_s_ts.set_value('azimuth_deg', curr_sd['azi'])
+    #                 curr_s_ts.set_value('altitude_deg', curr_sd['alt'])
+    #                 curr_s_ts.set_value('sign', curr_sd['sign'])
+    #                 curr_s_ts.set_path('processing/StimulusOnsets/' + stim_n + '/square_timestamps')
+    #                 curr_s_ts.finalize()
+
+    #         elif curr_stim_grp['stim_name'].value == 'DriftingGratingCircle':
+    #             curr_onset.set_value('iteration', curr_stim_grp['iteration'].value)
+    #             curr_onset.set_value('mid_gap_dur_sec', curr_stim_grp['mid_gap_dur_sec'].value)
+    #             curr_onset.set_value('center_altitude_deg', curr_stim_grp['center_altitude_deg'].value)
+    #             curr_onset.set_value('center_azimuth_deg', curr_stim_grp['center_azimuth_deg'].value)
+    #             curr_onset.set_value('contrast_list', curr_stim_grp['contrast_list'].value)
+    #             curr_onset.set_value('direction_list', curr_stim_grp['direction_list'].value)
+    #             curr_onset.set_value('radius_list', curr_stim_grp['radius_list'].value)
+    #             curr_onset.set_value('spatial_frequency_list', curr_stim_grp['spatial_frequency_list'].value)
+    #             curr_onset.set_value('temporal_frequency_list', curr_stim_grp['temporal_frequency_list'].value)
+    #             curr_onset.finalize()
+    #             for curr_gn, curr_gd in pooled_onsets.items():
+    #                 curr_g_ts = self.create_timeseries('TimeSeries', curr_gn, modality='other')
+    #                 curr_g_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
+    #                 curr_g_ts.set_time(curr_onset_ts[curr_gd['onset_ind']])
+    #                 curr_g_ts.set_value('sf_cyc_per_deg', curr_gd['sf'])
+    #                 curr_g_ts.set_value('tf_hz', curr_gd['tf'])
+    #                 curr_g_ts.set_value('direction_arc', curr_gd['dir'])
+    #                 curr_g_ts.set_value('contrast', curr_gd['con'])
+    #                 curr_g_ts.set_value('radius_deg', curr_gd['r'])
+    #                 curr_g_ts.set_path('processing/StimulusOnsets/' + stim_n + '/grating_timestamps')
+    #                 curr_g_ts.finalize()
+
+    #         curr_onset_start_ind = curr_onset_start_ind + curr_onset_arr.shape[0]
+
+    # @staticmethod
+    # def _analyze_sparse_noise_frames_corticalmapping(sn_grp):
+    #     """
+    #     analyze sparse noise display frames saved in '/stimulus/presentation', extract information about onset of
+    #     each displayed square:
+
+    #     return: all_squares: 2-d array, each line is a displayed square in sparse noise, each column is a feature of
+    #                          a particular square, squares follow display order
+    #             data_format: str, description of the column structure of each square
+    #             description: str,
+    #             pooled_squares: dict, squares with same location and sign are pooled together.
+    #                             keys: 'square_00000', 'square_00001', 'square_00002' ... each represents a unique
+    #                                   square.
+    #                             values: dict, {
+    #                                            'azi': <azimuth of the square>,
+    #                                            'alt': <altitude of the square>,
+    #                                            'sign': <sign of the square>,
+    #                                            'onset_ind': list of indices of the appearances of current square in
+    #                                                         in "all_squares", to be aligned with to photodiode onset
+    #                                                         timestamps
+    #                                            }
+    #     """
+
+    #     if sn_grp['stim_name'].value != 'SparseNoise':
+    #         raise NameError('The input stimulus should be "SparseNoise".')
+
+    #     frames = sn_grp['data'].value
+    #     frames = [tuple(x) for x in frames]
+    #     dtype = [('isDisplay', int), ('azimuth', float), ('altitude', float), ('sign', int), ('isOnset', int)]
+    #     frames = np.array(frames, dtype=dtype)
+
+    #     all_squares = []
+    #     for i in range(len(frames)):
+    #         if frames[i]['isDisplay'] == 1 and \
+    #                 (i == 0 or (frames[i - 1]['isOnset'] == -1 and frames[i]['isOnset'] == 1)):
+    #             all_squares.append(np.array((i, frames[i]['azimuth'], frames[i]['altitude'], frames[i]['sign']),
+    #                                         dtype=np.float32))
+
+    #     all_squares = np.array(all_squares)
+
+    #     pooled_squares = {}
+    #     unique_squares = list(set([tuple(x[1:]) for x in all_squares]))
+    #     for i, unique_square in enumerate(unique_squares):
+    #         curr_square_n = 'square_' + ft.int2str(i, 5)
+    #         curr_azi = unique_square[0]
+    #         curr_alt = unique_square[1]
+    #         curr_sign = unique_square[2]
+    #         curr_onset_ind = []
+    #         for j, give_square in enumerate(all_squares):
+    #             if np.array_equal(give_square[1:], unique_square):
+    #                 curr_onset_ind.append(j)
+    #         pooled_squares.update({curr_square_n: {'azi': curr_azi,
+    #                                                'alt': curr_alt,
+    #                                                'sign': curr_sign,
+    #                                                'onset_ind': curr_onset_ind}})
+    #     all_squares = np.array(all_squares)
+    #     data_format = ['display frame indices for the onset of each square', 'azimuth of each square',
+    #                    'altitude of each square', 'sign of each square']
+    #     description = 'TimeSeries of sparse noise square onsets. Stimulus generated by ' \
+    #                   'corticalmapping.VisualStim.SparseNoise class.'
+    #     return all_squares, data_format, description, pooled_squares
+
+    # @staticmethod
+    # def _analyze_driftig_grating_frames_corticalmapping(dg_grp):
+    #     """
+    #     analyze drifting grating display frames saved in '/stimulus/presentation', extract information about onset of
+    #     each displayed grating:
+
+    #     return: all_gratings: 2-d array, each line is a displayed square in sparse noise, each column is a feature of
+    #                          a particular square, squares follow display order
+    #             data_format: str, description of the column structure of each grating
+    #             description: str,
+    #             pooled_squares: dict, gratings with same parameters are pooled together.
+    #                             keys: 'grating_00000', 'grating_00001', 'grating_00002' ... each represents a unique
+    #                                   grating.
+    #                             values: dict, {
+    #                                            'sf': <spatial frequency of the grating>,
+    #                                            'tf': <temporal frequency of the grating>,
+    #                                            'direction': <moving direction of the grating>,
+    #                                            'contrast': <contrast of the grating>,
+    #                                            'radius': <radius of the grating>,
+    #                                            'azi': <azimuth of the grating center>
+    #                                            'alt': <altitude of the grating center>
+    #                                            'onset_ind': list of indices of the appearances of current square in
+    #                                                         in "all_squares", to be aligned with to photodiode onset
+    #                                                         timestamps
+    #                                            }
+    #     """
+    #     if dg_grp['stim_name'].value != 'DriftingGratingCircle':
+    #         raise NameError('The input stimulus should be "DriftingGratingCircle".')
+
+    #     frames = dg_grp['data'].value
+
+    #     all_gratings = []
+    #     for i in range(len(frames)):
+    #         if frames[i][8] == 1 and (i == 0 or (frames[i - 1][8] == -1)):
+    #             all_gratings.append(np.array((i, frames[i][2], frames[i][3], frames[i][4], frames[i][5], frames[i][6]),
+    #                                          dtype=np.float32))
+
+    #     all_gratings = np.array(all_gratings)
+
+    #     pooled_gratings = {}
+    #     unique_gratings = list(set([tuple(x[1:]) for x in all_gratings]))
+    #     for i, unique_grating in enumerate(unique_gratings):
+    #         curr_grating_n = 'grating_' + ft.int2str(i, 5)
+    #         curr_sf = unique_grating[0]
+    #         curr_tf = unique_grating[1]
+    #         curr_dir = unique_grating[2]
+    #         curr_con = unique_grating[3]
+    #         curr_r = unique_grating[4]
+    #         curr_onset_ind = []
+    #         for j, given_grating in enumerate(all_gratings):
+    #             if np.array_equal(given_grating[1:], unique_grating):
+    #                 curr_onset_ind.append(j)
+    #         pooled_gratings.update({curr_grating_n: {'sf': curr_sf,
+    #                                                  'tf': curr_tf,
+    #                                                  'dir': curr_dir,
+    #                                                  'con': curr_con,
+    #                                                  'r': curr_r,
+    #                                                  'onset_ind': curr_onset_ind}})
+    #     data_format = ['display frame indices for the onset of each square', 'spatial frequency (cyc/deg)',
+    #                    'temporal frequency (Hz)', 'moving direction (arc)', 'contrast (%)', 'radius (deg)']
+    #     description = 'TimeSeries of drifting grating circle onsets. Stimulus generated by ' \
+    #                   'corticalmapping.VisualStim.SparseNoise class.'
+    #     return all_gratings, data_format, description, pooled_gratings
+
+    # @staticmethod
+    # def _analyze_flashing_circle_frames_corticalmapping(fc_grp):
+    #     """
+    #     analyze flashing circle display frames saved in '/stimulus/presentation', extract information about onset of
+    #     each displayed circle:
+
+    #     return: all_circles: 2-d array, each line is the onset of displayed circle, each column is a feature of
+    #                          that circle, circles follow the display order
+    #             data_format: str, description of the column structure of each circle
+    #             description: str,
+    #             pooled_circles: None
+    #     """
+
+    #     if fc_grp['stim_name'].value != 'FlashingCircle':
+    #         raise NameError('The input stimulus should be "FlashingCircle".')
+
+    #     frames = fc_grp['data'][:, 0]
+    #     azi = fc_grp['center_azimuth_deg'].value
+    #     alt = fc_grp['center_altitude_deg'].value
+    #     color_c = fc_grp['center_color'].value
+    #     color_b = fc_grp['background_color'].value
+    #     radius = fc_grp['radius_deg'].value
+
+    #     all_cirlces = []
+    #     for i in range(len(frames)):
+    #         if frames[i] == 1 and (i == 0 or (frames[i - 1] == 0)):
+    #             all_cirlces.append(np.array((i, azi, alt, color_c, color_b, radius), dtype=np.float32))
+
+    #     all_cirlces = np.array(all_cirlces)
+    #     data_format = ['display frame indices for the onset of each circle', 'center_azimuth_deg',
+    #                    'center_altitude_deg', 'center_color', 'background_color', 'radius_deg']
+    #     description = 'TimeSeries of flashing circle onsets. Stimulus generated by ' \
+    #                   'corticalmapping.VisualStim.SparseNoise class.'
+    #     return all_cirlces, data_format, description, None
+
+    # @staticmethod
+    # def _analyze_uniform_contrast_frames_corticalmapping(uc_grp):
+
+    #     if uc_grp['stim_name'].value != 'UniformContrast':
+    #         raise NameError('The input stimulus should be "UniformContrast".')
+
+    #     onset_array = np.array([])
+    #     data_format = ''
+    #     description = 'TimeSeries of uniform contrast stimulus. No onset information. Stimulus generated by ' \
+    #                   'corticalmapping.VisualStim.UniformContrast class.'
+    #     return onset_array, data_format, description, {}
+
+    # def _add_sparse_noise_stimulus_corticalmapping(self, log_dict, display_order):
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     if stim_name != 'SparseNoise':
+    #         raise ValueError('stimulus was not sparse noise.')
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     frame_array = np.empty((len(display_frames), 5), dtype=np.float32)
+    #     for i, frame in enumerate(display_frames):
+    #         if frame[0] == 0:
+    #             frame_array[i] = np.array([0, np.nan, np.nan, np.nan, frame[3]])
+    #         elif frame[0] == 1:
+    #             frame_array[i] = np.array([1, frame[1][0], frame[1][1], frame[2], frame[3]])
+    #         else:
+    #             raise ValueError('The first value of ' + str(i) + 'th display frame: ' + str(frame) + ' should' + \
+    #                              ' be only 0 or 1.')
+    #     stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
+    #                                   'stimulus')
+    #     stim.set_time(time_stamps)
+    #     stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
+    #     stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
+    #                       'this particular display, not the master time clock. For more useful timestamps, check'
+    #                       '/processing for aligned photodiode onset timestamps.')
+    #     stim.set_description('data formatting: [isDisplay (0:gap; 1:display), azimuth (deg), altitude (deg), '
+    #                          'polarity (from -1 to 1), indicatorColor (for photodiode, from -1 to 1)]')
+    #     stim.set_value('data_formatting', ['isDisplay', 'azimuth', 'altitude', 'polarity', 'indicatorColor'])
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
+    #     stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
+    #     stim.set_value('iteration', log_dict['stimulation']['iteration'])
+    #     stim.set_value('sign', log_dict['stimulation']['sign'])
+    #     stim.set_value('probe_width_deg', log_dict['stimulation']['probeSize'][0])
+    #     stim.set_value('probe_height_deg', log_dict['stimulation']['probeSize'][1])
+    #     stim.set_value('subregion_deg', log_dict['stimulation']['subregion'])
+    #     try:
+    #         stim.set_value('probe_orientation', log_dict['stimulation']['probeOrientation'])
+    #     except KeyError:
+    #         stim.set_value('probe_orientation', log_dict['stimulation']['probeOrientationt'])
+    #     stim.set_value('stim_name', log_dict['stimulation']['stimName'])
+    #     stim.set_value('grid_space', log_dict['stimulation']['gridSpace'])
+    #     stim.set_value('probe_frame_num', log_dict['stimulation']['probeFrameNum'])
+    #     stim.set_source('corticalmapping.VisualStim.SparseNoise for stimulus; '
+    #                     'corticalmapping.VisualStim.DisplaySequence for display')
+    #     stim.finalize()
+
+    # def _add_flashing_circle_stimulus_corticalmapping(self, log_dict, display_order):
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     if stim_name != 'FlashingCircle':
+    #         raise ValueError('stimulus should be flashing circle.')
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     frame_array = np.empty((len(display_frames), 2), dtype=np.int8)
+    #     for i, frame in enumerate(display_frames):
+    #         if frame[0] == 0 or frame[0] == 1:
+    #             frame_array[i] = np.array([frame[0], frame[3]])
+    #         else:
+    #             raise ValueError('The first value of ' + str(i) + 'th display frame: ' + str(frame) + ' should' + \
+    #                              ' be only 0 or 1.')
+    #     stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
+    #                                   'stimulus')
+    #     stim.set_time(time_stamps)
+    #     stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
+    #     stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
+    #                       'this particular display, not the master time clock. For more useful timestamps, check'
+    #                       '/processing for aligned photodiode onset timestamps.')
+    #     stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
+    #                          'indicatorColor (for photodiode, from -1 to 1)]')
+    #     stim.set_value('data_formatting', ['isDisplay', 'indicatorColor'])
+    #     stim.set_source('corticalmapping.VisualStim.FlashingCircle for stimulus; '
+    #                     'corticalmapping.VisualStim.DisplaySequence for display')
+    #     stim.set_value('radius_deg', log_dict['stimulation']['radius'])
+    #     stim.set_value('center_azimuth_deg', log_dict['stimulation']['center'][0])
+    #     stim.set_value('center_altitude_deg', log_dict['stimulation']['center'][1])
+    #     stim.set_value('center_color', log_dict['stimulation']['color'])
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.set_value('stim_name', log_dict['stimulation']['stimName'])
+    #     stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
+    #     stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
+    #     stim.set_value('iteration', log_dict['stimulation']['iteration'])
+    #     stim.finalize()
+
+    # def _add_uniform_contrast_stimulus_corticalmapping(self, log_dict, display_order):
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     if stim_name != 'UniformContrast':
+    #         raise ValueError('stimulus should be uniform contrast.')
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     frame_array = np.array(display_frames, dtype=np.int8)
+
+    #     stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
+    #                                   'stimulus')
+    #     stim.set_time(time_stamps)
+    #     stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
+    #     stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
+    #                       'this particular display, not the master time clock. For more useful timestamps, check'
+    #                       '/processing for aligned photodiode onset timestamps.')
+    #     stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
+    #                          'indicatorColor (for photodiode, from -1 to 1)]')
+    #     stim.set_value('data_formatting', ['isDisplay', 'indicatorColor'])
+    #     stim.set_source('corticalmapping.VisualStim.UniformContrast for stimulus; '
+    #                     'corticalmapping.VisualStim.DisplaySequence for display')
+    #     stim.set_value('color', log_dict['stimulation']['color'])
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
+    #     stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
+    #     stim.set_value('stim_name', log_dict['stimulation']['stimName'])
+    #     stim.finalize()
+
+    # def _add_drifting_grating_circle_stimulus_corticalmapping(self, log_dict, display_order):
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     if stim_name != 'DriftingGratingCircle':
+    #         raise ValueError('stimulus should be drifting grating circle.')
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     frame_array = np.array(display_frames)
+    #     frame_array[np.equal(frame_array, None)] = np.nan
+    #     frame_array = frame_array.astype(np.float32)
+
+    #     stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
+    #                                   'stimulus')
+    #     stim.set_time(time_stamps)
+    #     stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
+    #     stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of '
+    #                       'this particular display, not the master time clock. For more useful timestamps, check '
+    #                       '"/processing" for aligned photodiode onset timestamps.')
+    #     stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
+    #                          'firstFrameInCycle (first frame in cycle:1, rest display frames: 0), '
+    #                          'spatialFrequency (cyc/deg), '
+    #                          'temporalFrequency (Hz), '
+    #                          'direction ([0, 2*pi)), '
+    #                          'contrast ([0, 1]), '
+    #                          'radius (deg), '
+    #                          'phase ([0, 2*pi)'
+    #                          'indicatorColor (for photodiode, from -1 to 1)]. '
+    #                          'for gap frames, the 2ed to 8th elements should be np.nan.')
+    #     stim.set_value('data_formatting', ['isDisplay', 'firstFrameInCycle', 'spatialFrequency', 'temporalFrequency',
+    #                                        'direction', 'contrast', 'radius', 'phase', 'indicatorColor'])
+    #     stim.set_value('spatial_frequency_list', log_dict['stimulation']['sf_list'])
+    #     stim.set_value('temporal_frequency_list', log_dict['stimulation']['tf_list'])
+    #     stim.set_value('direction_list', log_dict['stimulation']['dire_list'])
+    #     stim.set_value('contrast_list', log_dict['stimulation']['con_list'])
+    #     stim.set_value('radius_list', log_dict['stimulation']['size_list'])
+    #     stim.set_value('center_azimuth_deg', log_dict['stimulation']['center'][0])
+    #     stim.set_value('center_altitude_deg', log_dict['stimulation']['center'][1])
+    #     stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
+    #     stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
+    #     stim.set_value('mid_gap_dur_sec', log_dict['stimulation']['midGapDur'])
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.set_value('iteration', log_dict['stimulation']['iteration'])
+    #     stim.set_value('stim_name', log_dict['stimulation']['stimName'])
+    #     stim.set_value('sweep_dur_sec', log_dict['stimulation']['blockDur'])
+    #     stim.set_source('corticalmapping.VisualStim.DriftingGratingCircle for stimulus; '
+    #                     'corticalmapping.VisualStim.DisplaySequence for display')
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.finalize()
+
+    # def _add_drifting_checker_board_stimulus_corticalmapping(self, log_dict, display_order):
+
+    #     stim_name = log_dict['stimulation']['stimName']
+
+    #     if stim_name != 'KSstimAllDir':
+    #         raise ValueError('stimulus should be drifting checker board all directions.')
+
+    #     display_frames = log_dict['presentation']['displayFrames']
+    #     time_stamps = log_dict['presentation']['timeStamp']
+
+    #     display_frames = [list(f) for f in display_frames]
+
+    #     for i in range(len(display_frames)):
+    #         if display_frames[i][4] == 'B2U':
+    #             display_frames[i][4] = 0
+    #         elif display_frames[i][4] == 'U2B':
+    #             display_frames[i][4] = 1
+    #         elif display_frames[i][4] == 'L2R':
+    #             display_frames[i][4] = 2
+    #         elif display_frames[i][4] == 'R2L':
+    #             display_frames[i][4] = 3
+
+    #     frame_array = np.array(display_frames)
+    #     frame_array[np.equal(frame_array, None)] = np.nan
+    #     frame_array = frame_array.astype(np.float32)
+
+    #     stim = self.create_timeseries('TimeSeries', ft.int2str(display_order, 2) + '_' + stim_name,
+    #                                   'stimulus')
+    #     stim.set_time(time_stamps)
+    #     stim.set_data(frame_array, unit='', conversion=np.nan, resolution=np.nan)
+    #     stim.set_comments('the timestamps of displayed frames (saved in data) are referenced to the start of'
+    #                       'this particular display, not the master time clock. For more useful timestamps, check'
+    #                       '/processing for aligned photodiode onset timestamps.')
+    #     stim.set_description('data formatting: [isDisplay (0:gap; 1:display), '
+    #                          'square polarity (1: not reversed; -1: reversed), '
+    #                          'sweeps, ind, index in sweep table, '
+    #                          'indicatorColor (for photodiode, from -1 to 1)]. '
+    #                          'direction (B2U: 0, U2B: 1, L2R: 2, R2L: 3), '
+    #                          'for gap frames, the 2ed to 3th elements should be np.nan.')
+    #     stim.set_value('data_formatting',
+    #                    ['isDisplay', 'squarePolarity', 'sweepIndex', 'indicatorColor', 'sweepDirection'])
+    #     stim.set_source('corticalmapping.VisualStim.KSstimAllDir for stimulus; '
+    #                     'corticalmapping.VisualStim.DisplaySequence for display')
+    #     stim.set_value('background_color', log_dict['stimulation']['background'])
+    #     stim.set_value('pre_gap_dur_sec', log_dict['stimulation']['preGapDur'])
+    #     stim.set_value('post_gap_dur_sec', log_dict['stimulation']['postGapDur'])
+    #     stim.set_value('iteration', log_dict['stimulation']['iteration'])
+    #     stim.set_value('stim_name', log_dict['stimulation']['stimName'])
+    #     stim.finalize()
+
+    #     display_info = hl.analysisMappingDisplayLog(display_log=log_dict)
+    #     display_grp = self.file_pointer['processing'].create_group('mapping_display_info')
+    #     display_grp.attrs['description'] = 'This group saves the useful infomation about the retiotopic mapping visual' \
+    #                                        'stimulation (drifting checker board sweeps in all directions). Generated ' \
+    #                                        'by the corticalmapping.HighLevel.analysisMappingDisplayLog() function.'
+    #     for direction, value in display_info.items():
+    #         dir_grp = display_grp.create_group(direction)
+    #         dir_grp.attrs['description'] = 'group containing the relative information about all sweeps in a particular' \
+    #                                        'sweep direction. B: bottom, U: up, L: nasal, R: temporal (for stimulus to' \
+    #                                        'the right eye)'
+    #         ind_dset = dir_grp.create_dataset('onset_index', data=value['ind'])
+    #         ind_dset.attrs['description'] = 'indices of sweeps of current direction in the whole experiment'
+    #         st_dset = dir_grp.create_dataset('start_time', data=value['startTime'])
+    #         st_dset.attrs['description'] = 'sweep start time relative to stimulus onset (second)'
+    #         sd_dset = dir_grp.create_dataset('sweep_duration', data=value['sweepDur'])
+    #         sd_dset.attrs['description'] = 'sweep duration (second)'
+    #         equ_dset = dir_grp.create_dataset('phase_retinotopy_equation', data=[value['slope'], value['intercept']])
+    #         equ_dset.attrs['description'] = 'the linear equation to transform fft phase into retinotopy visual degrees.' \
+    #                                         'degree = phase * slope + intercept'
+    #         equ_dset.attrs['data_format'] = ['slope', 'intercept']
+
+    # # ===========================corticalmapping visual stimuli related (non-indexed display)===========================
 
 
     # ============================================eye tracking related==================================================

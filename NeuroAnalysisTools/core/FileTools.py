@@ -8,22 +8,22 @@ import struct
 import h5py
 import warnings
 import numbers
-
-try:
-    import ImageAnalysis as ia
-except (AttributeError, ImportError):
-    from . import ImageAnalysis as ia
+from . import ImageAnalysis as ia
 
 try:
     import tifffile as tf
 except ImportError:
     import skimage.external.tifffile as tf
 
-try: import cv2
-except ImportError as e: print('cannot import OpenCV. {}'.format(e))
+try: 
+    import cv2
+except ImportError as e: 
+    print('cannot import OpenCV. {}'.format(e))
 
-try: import sync.dataset as sync_dset
-except ImportError as e: print('cannot import sync.dataset. {}'.format(e))
+try: 
+    import sync.dataset as sync_dset
+except ImportError as e: 
+    print('cannot import sync.dataset. {}'.format(e))
 
 
 def is_integer(var):

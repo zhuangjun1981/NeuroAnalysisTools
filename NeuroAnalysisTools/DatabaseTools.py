@@ -11,11 +11,11 @@ import scipy.ndimage as ni
 import scipy.interpolate as ip
 import scipy.spatial as spatial
 import scipy.cluster as cluster
-import corticalmapping.SingleCellAnalysis as sca
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
-import corticalmapping.core.DataAnalysis as da
-import corticalmapping.core.TimingAnalysis as ta
+import SingleCellAnalysis as sca
+import core.ImageAnalysis as ia
+import core.PlottingTools as pt
+import core.DataAnalysis as da
+import core.TimingAnalysis as ta
 from matplotlib.backends.backend_pdf import PdfPages
 
 ANALYSIS_PARAMS = {

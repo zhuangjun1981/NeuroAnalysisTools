@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import corticalmapping.core.FileTools as ft
+import core.FileTools as ft
 import Tkinter, tkFileDialog
 
 def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatch=0.1, verbose=True,

@@ -10,16 +10,8 @@ import scipy.stats as stats
 import skimage.morphology as sm
 import skimage.measure as measure
 import time
-
-try:
-    import FileTools as ft
-except (AttributeError, ImportError):
-    from . import FileTools as ft
-
-try:
-    import PlottingTools as pt
-except (AttributeError, ImportError):
-    from . import PlottingTools as pt
+from . import FileTools as ft
+from . import PlottingTools as pt
 
 try:
     import cv2
@@ -1551,7 +1543,7 @@ class ROI(object):
         else: self.pixelSizeUnit = pixelSizeUnit
 
     def __str__(self):
-        return 'corticalmapping.core.ImageAnalysis.ROI object'
+        return 'NeuroAnalysisTools.core.ImageAnalysis.ROI object'
 
     def set_pixel_size(self, pixelSize):
         if pixelSize is None: self.pixelSizeX = self.pixelSizeY = pixelSize
@@ -1708,7 +1700,7 @@ class ROI(object):
         pixelSize = h5Group.attrs['pixelSize']
         if pixelSize == 'None': pixelSize = None
         pixelSizeUnit = h5Group.attrs['pixelSizeUnit']
-        if pixelSizeUnit is 'None': pixelSizeUnit = None
+        if pixelSizeUnit == 'None': pixelSizeUnit = None
         pixels = h5Group['pixels'].value
 
         if 'weights' in h5Group.keys():
@@ -1738,7 +1730,7 @@ class WeightedROI(ROI):
         self.weights = mask[self.pixels]
 
     def __str__(self):
-        return 'corticalmapping.core.ImageAnalysis.WeightedROI object'
+        return 'NeuroAnalysisTools.core.ImageAnalysis.WeightedROI object'
 
     def get_peak(self):
         return np.max(self.weights)
@@ -1837,7 +1829,7 @@ class WeightedROI(ROI):
 
         :param thr: float, threshold to threshold the mask
         :param is_plot: bool
-        :return ell: corticalmapping.ImageAnalysis.Ellipse object
+        :return ell: NeuroAnalysisTools.ImageAnalysis.Ellipse object
         """
 
         if thr is None:
@@ -2048,14 +2040,14 @@ if __name__ == '__main__':
     #============================================================
 
     #============================================================
-    a=np.array(range(15)+range(10)[::-1]).reshape((5,5))
-    print(a)
-    labeled,_ = ni.label(a>7)
-    peakCoor = np.array(np.where(a==np.amax(a))).transpose()[0]
-    print(peakCoor)
-    peakMask = get_marked_masks(labeled,peakCoor)
-    plt.imshow(peakMask,interpolation='nearest')
-    plt.show()
+    # a=np.array(range(15)+range(10)[::-1]).reshape((5,5))
+    # print(a)
+    # labeled,_ = ni.label(a>7)
+    # peakCoor = np.array(np.where(a==np.amax(a))).transpose()[0]
+    # print(peakCoor)
+    # peakMask = get_marked_masks(labeled,peakCoor)
+    # plt.imshow(peakMask,interpolation='nearest')
+    # plt.show()
     #============================================================
 
     #============================================================

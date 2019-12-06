@@ -1,10 +1,11 @@
 __author__ = 'junz'
 
-from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
+import sys
 import io
 import os
-import sys
+import codecs
+import re
+from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 os.chdir(here)
@@ -52,7 +53,7 @@ setup(
     author_email='junz@alleninstitute.org',
     description='Data analysis tools for systems neuroscience',
     long_description=long_description,
-    packages=prepend_find_packages('NeuroAnalysisTools'),
+    packages=find_packages(),
     include_package_data=True,
     package_data={'':['*.md', '*.txt', '*.cfg', '*.hdf5']},
     platforms='any',

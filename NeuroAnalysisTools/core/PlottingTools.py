@@ -13,16 +13,12 @@ import matplotlib.gridspec as gridspec
 import colorsys
 import matplotlib.colors as col
 import scipy.ndimage as ni
+from . import ImageAnalysis as ia
 
 try:
     import tifffile as tf
 except ImportError:
     import skimage.external.tifffile as tf
-
-try:
-    import ImageAnalysis as ia
-except (AttributeError, ImportError):
-    from . import ImageAnalysis as ia
 
 try:
     import cv2
@@ -132,7 +128,7 @@ def bar_graph(left,
               faceColor='none',
               edgeColor='#000000',
               capSize=10,
-              label=None
+              label=None,
               **kwargs):
     """
     plot a single bar with error bar
