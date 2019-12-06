@@ -4,17 +4,12 @@ import h5py
 import matplotlib.pyplot as plt
 # import corticalmapping.ephys.OpenEphysWrapper as oew
 # import corticalmapping.ephys.KilosortWrapper as kw
-import HighLevel as hl
-import core.FileTools as ft
-import core.TimingAnalysis as ta
-import core.PlottingTools as pt
-import CamstimTools as ct
-
-try:
-    from nwb import NWB
-except ImportError:
-    print('no Allen Institute NWB API. get this from ' \
-          'http://stimash.corp.alleninstitute.org/projects/INF/repos/ainwb/browse')
+from .core import FileTools as ft
+from .core import TimingAnalysis as ta
+from .core import PlottingTools as pt
+from . import HighLevel as hl
+from . import CamstimTools as ct
+from .nwb.nwb import NWB as NWB 
 
 DEFAULT_GENERAL = {
     'session_id': '',

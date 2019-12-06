@@ -1,7 +1,7 @@
 import os
 import numpy as np
-import core.FileTools as ft
-import Tkinter, tkFileDialog
+import tkinter
+from .core import FileTools as ft
 
 def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatch=0.1, verbose=True,
                               refresh_rate=60., allowed_jitter=0.01):
@@ -207,9 +207,9 @@ def analyze_LSN_movie(arr, alt_lst=None, azi_lst=None, dark=0, bright=255, verbo
 def get_stim_dict_locally_sparse_noise(input_dict, stim_name, npy_path=None):
 
     if npy_path is None:
-        root = Tkinter.Tk()
+        root = tkinter.Tk()
         root.withdraw()
-        movie_path = tkFileDialog.askopenfilename()
+        movie_path = tkinter.filedialog.askopenfilename()
         mov = np.load(movie_path)
     else:
         mov = np.load(npy_path)
