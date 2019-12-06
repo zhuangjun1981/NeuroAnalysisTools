@@ -8,29 +8,108 @@ files. This files should be small enough to be loaded and manipulated in your me
 
 import tifffile as tf
 import os
-import cv2
 import numpy as np
 import h5py
+import scipy.ndimage as ni
+import scipy.signal as sig
 import matplotlib.pyplot as plt
-from .core import ImageAnalysis as ia
+import skimage.exposure as exp
+import skimage.feature as fea
 import time
 import shutil
 from multiprocessing import Pool
 
+from .core import ImageAnalysis as ia
 
-def add_suffix(path, suffix):
+try:
+    import cv2
+except ImportError as e:
+    print('MotionCorrection: cannot import opencv.')
+    print(e)
+
+def tukey_2d(shape, alpha=0.1, sym=True):
     """
-    add a suffix to file name of a given path
+    generate 2d tukey window
 
-    :param path: original path
-    :param suffix: str
-    :return: new path
+    :param shape: tuple of two positive integers
+    :param alpha: alpha of tukey filter
+    :param sym: symmetry of tukey filter
+    :return: 2d array with shape as input shape of 2d tukey filter
     """
 
-    folder, file_name_full = os.path.split(path)
-    file_name, file_ext = os.path.splitext(file_name_full)
-    file_name_full_new = file_name + suffix + file_ext
-    return os.path.join(folder, file_name_full_new)
+    if len(shape) != 2:
+        raise ValueError('input shape should have length of 2.')
+
+    win_h = np.array([sig.tukey(M=shape[1], alpha=alpha, sym=sym)])
+    win_w = np.array([sig.tukey(M=shape[0], alpha=alpha, sym=sym)]).transpose()
+
+    window = np.ones(shape)
+    window = window * win_h
+    window = window * win_w
+
+    return window
+
+
+def preprocessing(chunk, processing_type):
+    """
+    performing preprocessing before motion correction
+    :param chunk: 3d array, frame * y * x
+    :param processing_type: int, type of preprocessing
+                            0: nothing, no preprocessing
+                            1: histogram equlization, return uint8 bit chunk
+                            2: rectifyinng with a certain threshold
+                            3: gamma correct each frame by gamma=0.1
+                            4: brightness contrast adjustment
+                            5: spatial filtering
+                            6: tukey window with alpha 0.1
+    :return: preprocessed chunk
+    """
+
+    if processing_type == 0:
+        return chunk
+    elif processing_type == 1:
+        chunk_eh = np.zeros(chunk.shape, dtype=np.uint8)
+        for i in range(chunk.shape[0]):
+            frame = chunk[i].astype(np.float32)
+            frame = (frame - np.amin(frame)) / (np.amax(frame) - np.amin(frame))
+            chunk_eh[i] = cv2.equalizeHist((frame * 255).astype(np.uint8))
+        return chunk_eh
+    elif processing_type == 2:
+        low_thr = -200
+        high_thr = 2000
+        chunk[chunk < low_thr] = low_thr
+        chunk[chunk > high_thr] = high_thr
+        return chunk
+    elif processing_type == 3:
+        chunk_gamma = np.zeros(chunk.shape, dtype=np.float32)
+        for i in range(chunk.shape[0]):
+            frame = chunk[i].astype(np.float32)
+            frame = (frame - np.amin(frame)) / (np.amax(frame) - np.amin(frame))
+            chunk_gamma[i] = exp.adjust_gamma(frame, gamma=0.1)
+        return chunk_gamma.astype(chunk.dtype)
+    elif processing_type == 4:
+        chunk_sigmoid = np.zeros(chunk.shape, dtype=np.float32)
+        for i in range(chunk.shape[0]):
+            frame = chunk[i].astype(np.float32)
+            frame = (frame - np.amin(frame)) / (np.amax(frame) - np.amin(frame))
+            frame_sigmoid = exp.adjust_sigmoid(frame, cutoff=0.1, gain=10, inv=False)
+            # plt.imshow(frame_sigmoid)
+            # plt.show()
+            chunk_sigmoid[i] = frame_sigmoid
+        return chunk_sigmoid.astype(chunk.dtype)
+    elif processing_type == 5:
+        chunk_filtered = np.zeros(chunk.shape, dtype=np.float32)
+        for i in range(chunk.shape[0]):
+            frame = chunk[i].astype(np.float32)
+            frame_filtered = ni.gaussian_filter(frame, sigma=10.)
+            chunk_filtered[i] = frame_filtered
+        return chunk_filtered.astype(chunk.dtype)
+    elif processing_type == 6:
+        window = tukey_2d(shape=(chunk.shape[1], chunk.shape[2]), alpha=0.1, sym=True)
+        window = np.array([window])
+        return (chunk * window).astype(chunk.dtype)
+    else:
+        raise LookupError('Do not understand framewise preprocessing type.')
 
 
 def phase_correlation(img_match, img_ref):
@@ -43,9 +122,20 @@ def phase_correlation(img_match, img_ref):
     :param img_ref: the reference image
     :return: rigid_transform coordinates of alignment (height_offset, width_offset)
     """
-
-    x_offset, y_offset =  cv2.phaseCorrelate(img_match.astype(np.float32), img_ref.astype(np.float32))
+    if cv2.__version__[0] == '2':
+        x_offset, y_offset =  cv2.phaseCorrelate(img_match.astype(np.float32), img_ref.astype(np.float32))
+    elif cv2.__version__[0] == '3' or cv2.__version__[0] == '4':
+        (x_offset, y_offset), _ = cv2.phaseCorrelate(img_match.astype(np.float32), img_ref.astype(np.float32))
+    else:
+        raise EnvironmentError('Do not understand opencv version.')
     return [y_offset, x_offset]
+
+
+def phase_correlation_scikit(img_match, img_ref, upsample_factor=10):
+    shifts, error, phasediff = fea.register_translation(src_image=img_match,
+                                                        target_image=img_ref,
+                                                        upsample_factor=upsample_factor)
+    return shifts
 
 
 def align_single_chunk(chunk, img_ref, max_offset=(10., 10.), align_func=phase_correlation, fill_value=0.,
@@ -108,105 +198,20 @@ def align_single_chunk(chunk, img_ref, max_offset=(10., 10.), align_func=phase_c
             sum_img = sum_img + aligned_frame
             valid_frame_num += 1
         else:
+            # print('correction {} exceeds max_offset {}.'.format(curr_offset, max_offset))
             aligned_chunk[i, :, :] = curr_frame
             offset_list.append([0., 0.])
 
-    new_mean_img = sum_img / float(valid_frame_num)
+    if valid_frame_num == 0:
+        new_mean_img = np.mean(aligned_chunk, axis=0)
+    else:
+        new_mean_img = sum_img / float(valid_frame_num)
 
     return offset_list, aligned_chunk.astype(data_type), new_mean_img
 
-
-def align_single_chunk_iterate(chunk, iteration=2, max_offset=(10., 10.), align_func=phase_correlation, fill_value=0.,
-                               verbose=True):
-    """
-    align the frames in a single chunk of movie to its mean projection iteratively. for each iteration, the reference
-    image (mean projection) will be updated based on the aligned chunk
-
-    all operations will be applied with np.float32 format
-
-    If the translation is larger than max_offset, the translation of that particular frame will be set as zero,
-    and it will not be counted during the calculation of average projection image.
-
-    :param chunk: a movie chunk, should be small enough to be managed in memory, 3d numpy.array
-    :param iteration: number of iterations, int
-    :param max_offset: maximum offset, (height, width), if single value, will be applied to both height and width
-    :param align_func: function to align two image frames, return rigid transform offset (height, width)
-    :param fill_value: value to fill empty pixels
-    :param verbose:
-    :return: alignment offset list, aligned movie chunk (same data type of original chunk), updated mean projection
-    image np.float32
-    """
-
-    if iteration < 1:
-        raise ValueError('iteration should be an integer larger than 0.')
-
-    img_ref = np.mean(chunk.astype(np.float32), axis=0)
-    offset_list = None
-    aligned_chunk = None
-
-    for i in range(iteration):
-
-        print("\nMotion Correction, iteration " + str(i))
-        offset_list, aligned_chunk, img_ref = align_single_chunk(chunk, img_ref, max_offset=max_offset,
-                                                                 align_func=align_func, fill_value=fill_value,
-                                                                 verbose=verbose)
-
-    return offset_list, aligned_chunk, img_ref
-
-
-# def align_single_chunk_iterate2(chunk, iteration=2, max_offset=(10., 10.), align_func=phase_correlation, fill_value=0.,
-#                                 verbose=True):
-#     """
-#     align the frames in a single chunk of movie to its mean projection iteratively. for each iteration, the reference
-#     image (mean projection) will be updated based on the aligned chunk
-#
-#     all operations will be applied with np.float32 format
-#
-#     If the translation is larger than max_offset, the translation of that particular frame will be set as zero,
-#     and it will not be counted during the calculation of average projection image.
-#
-#     the difference between align_single_chunk_iterate and align_single_chunk_iterate2 is during iteration, the first
-#     method only updates img_ref and for each iteration it aligns the original movie to the updated img_ref. it returns
-#     the offsets generated by the last iteration. But the second method updates both img_ref and the movie itself, and
-#     for each iteration it aligns the corrected movie form last iteration to the updated img_ref, and return the
-#     accumulated offsets of all iterations.
-#
-#     :param chunk: a movie chunk, should be small enough to be managed in memory, 3d numpy.array
-#     :param iteration: number of iterations, int
-#     :param max_offset: maximum offset, (height, width), if single value, will be applied to both height and width
-#     :param align_func: function to align two image frames, return rigid transform offset (height, width)
-#     :param fill_value: value to fill empty pixels
-#     :param verbose:
-#     :return: alignment offset list, aligned movie chunk (same data type of original chunk), updated mean projection
-#     image np.float32
-#     """
-#
-#     if iteration < 1:
-#         raise ValueError('iteration should be an integer larger than 0.')
-#
-#     img_ref = np.mean(chunk.astype(np.float32), axis=0)
-#     offset_list = None
-#     aligned_chunk = chunk
-#
-#     for i in range(iteration):
-#
-#         print "\nMotion Correction, iteration " + str(i)
-#         curr_offset_list, aligned_chunk, img_ref = align_single_chunk(aligned_chunk, img_ref, max_offset=max_offset,
-#                                                                       align_func=align_func, fill_value=fill_value,
-#                                                                       verbose=verbose)
-#
-#         if offset_list is None:
-#             offset_list = curr_offset_list
-#         else:
-#             for i in range(len(offset_list)):
-#                 offset_list[i] = [offset_list[i][0] + curr_offset_list[i][0],
-#                                   offset_list[i][1] + curr_offset_list[i][1]]
-#
-#     return offset_list, aligned_chunk, img_ref
-
-
 def align_single_chunk_iterate_anchor(chunk, anchor_frame_ind=0, iteration=2, max_offset=(10., 10.),
-                                      align_func=phase_correlation, fill_value=0., verbose=True):
+                                      align_func=phase_correlation, fill_value=0.,
+                                      preprocessing_type=0, verbose=True):
     """
     align the frames in a single chunk of movie to its mean projection iteratively. for each iteration, the reference
     image (mean projection) will be updated based on the aligned chunk
@@ -230,6 +235,8 @@ def align_single_chunk_iterate_anchor(chunk, anchor_frame_ind=0, iteration=2, ma
     :param max_offset: maximum offset, (height, width), if single value, will be applied to both height and width
     :param align_func: function to align two image frames, return rigid transform offset (height, width)
     :param fill_value: value to fill empty pixels
+    :param preprocessing_type: int, type of preprocessing before motion correction,
+                               refer to preprocessing() function of this module.
     :param verbose:
     :return: alignment offset list, aligned movie chunk (same data type of original chunk), updated mean projection
     image np.float32
@@ -237,6 +244,9 @@ def align_single_chunk_iterate_anchor(chunk, anchor_frame_ind=0, iteration=2, ma
 
     if iteration < 1:
         raise ValueError('iteration should be an integer larger than 0.')
+
+    print('performing framewise preprocessing')
+    chunk = preprocessing(chunk, processing_type=preprocessing_type)
 
     if verbose:
         print('performing anchor frame correction ...')
@@ -253,6 +263,10 @@ def align_single_chunk_iterate_anchor(chunk, anchor_frame_ind=0, iteration=2, ma
         offset_list, aligned_chunk, img_ref = align_single_chunk(chunk, img_ref, max_offset=max_offset,
                                                                  align_func=align_func, fill_value=fill_value,
                                                                  verbose=verbose)
+
+    # plt.imshow(img_ref)
+    # plt.colorbar()
+    # plt.show()
 
     return offset_list, aligned_chunk, img_ref
 
@@ -273,7 +287,9 @@ def align_single_chunk_iterate_anchor_for_multi_thread(params):
        folder as chunk_path.
     """
 
-    chunk_path, anchor_frame_ind, iteration, max_offset, align_func, fill_value, output_folder = params
+    chunk_path, anchor_frame_ind, iteration, max_offset, align_func, fill_value, \
+    preprocessing_type, output_folder = params
+
     chunk_real_path = os.path.abspath(chunk_path)
     chunk_name = os.path.splitext(os.path.split(chunk_real_path)[1])[0]
     chunk = tf.imread(chunk_real_path)
@@ -287,6 +303,7 @@ def align_single_chunk_iterate_anchor_for_multi_thread(params):
                                                                             max_offset=max_offset,
                                                                             align_func=align_func,
                                                                             fill_value=fill_value,
+                                                                            preprocessing_type=preprocessing_type,
                                                                             verbose=False)
 
     chunk_folder, chunk_fn = os.path.split(os.path.abspath(chunk_path))
@@ -298,7 +315,7 @@ def align_single_chunk_iterate_anchor_for_multi_thread(params):
     result_f = h5py.File(os.path.join(output_folder, 'temp_offsets_' + chunk_fn_n + '.hdf5'))
     offset_dset = result_f.create_dataset('offsets', data=offset_list)
     offset_dset.attrs['data_format'] = '[row, col]'
-    result_f['mean_projection'] = img_ref
+    result_f['mean_projection'] = np.mean(aligned_chunk, axis=0, dtype=np.float32)
     result_f['max_projection'] = np.max(aligned_chunk, axis=0)
     result_f['file_path'] = chunk_real_path
     print ('\n\t{:09.2f} second; {}; correction finished.'.format(time.time() - t0, chunk_name))
@@ -367,343 +384,16 @@ def correct_movie_for_multi_thread(params):
     mov_corr = correct_movie(mov=mov, offsets=offsets, fill_value=fill_value, verbose=False)
     tf.imsave(save_path, mov_corr)
 
+    mean_projection_c = np.mean(mov_corr, axis=0, dtype=np.float32)
+    max_projection_c =np.max(mov_corr, axis=0)
+
     if down_sample_rate is not None:
-        mov_down = ia.z_downsample(mov_corr, down_sample_rate, is_verbose=False)
+        mov_down = ia.downsample_movie(mov_corr, down_sample_rate)
         print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
-        return mov_down
+        return mean_projection_c, max_projection_c, mov_down
     else:
         print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
-        return
-
-
-def align_multiple_files_iterate(paths, output_folder=None, is_output_mov=True, iteration=2, max_offset=(10., 10.),
-                                 align_func=phase_correlation, fill_value=0., verbose=True, offset_file_name=None,
-                                 mean_projections_file_name=None, mean_projection_file_name=None):
-
-    """
-    Motion correct a list of movie files (currently only support .tif format, designed for ScanImage output files.
-    each files will be first aligned to its own mean projection iteratively. for each iteration, the reference
-    image (mean projection) will be updated based on the aligned result. Then all files will be aligned based on their
-    final mean projection images. Designed for movies recorded from ScanImage with dtype int16
-
-    all operations will be applied with np.float32 format
-
-    :param paths: list of paths of data files (currently only support .tif format), they should have same height and
-                  width dimensions.
-    :param output_folder: folder to save output, if None, a subfolder named "motion_correction" will be created in the
-                          folder of the first paths in paths
-    :param is_output_mov: bool, if True, aligned movie will be saved, if False, only correction offsets and final mean
-                          projection image of all files will be saved
-    :param iteration: int, number of iterations to correct each file
-    :param max_offset: If the correction is larger than max_offset, the correction of that particular frame will be
-                       set as zero, and it will not be counted during the calculation of average projection image.
-    :param align_func: function to align two image frames, return rigid transform offset (height, width)
-    :param fill_value: value to fill empty pixels
-    :param verbose:
-    :param offset_file_name: str, the file name of the saved offsets hdf5 file (without extension), if None,
-                             default will be 'correction_offsets.hdf5'
-    :param mean_projections_file_name: str, the file name of the saved mean projection image stack (without extension),
-                                       one image for each file, order is same as 'path_list' field in saved offsets
-                                       hdf5 file. If None, default will be 'corrected_mean_projections'
-    :param mean_projection_file_name: str, the file name of the saved mean projection image (without extension), if
-                                      None, default will be 'corrected_mean_projection'
-    :return: offsets, dictionary of correction offsets. Key: path of file; value: list of tuple with correction offsets,
-             (height, width)
-    """
-
-    if output_folder is None:
-        main_folder, _ = os.path.split(paths[0])
-        output_folder = os.path.join(main_folder, 'motion_correction')
-
-    if not os.path.isdir(output_folder):
-        print("\n\nOutput folder: " + str(output_folder) + "does not exist. Create new folder.")
-        os.mkdir(output_folder)
-    else:
-        print("\n\nOutput folder: " + str(output_folder) + "already exists. Write into this folder.")
-    os.chdir(output_folder)
-
-    offsets = [] # list of local correction for each file
-    mean_projections=[] # final mean projection of each file
-
-    for path in paths:
-
-        if verbose:
-            print('\nCorrecting file: ' + str(path) + ' ...')
-
-        curr_mov = tf.imread(path)
-        offset, _, mean_projection = align_single_chunk_iterate(curr_mov, iteration=iteration, max_offset=max_offset,
-                                                                align_func=align_func, fill_value=fill_value,
-                                                                verbose=verbose)
-
-        offsets.append(offset)
-        mean_projections.append(mean_projection)
-
-    mean_projections = np.array(mean_projections, dtype=np.float32)
-
-    print('\n\nCorrected mean projection images of all files ...')
-    mean_projection_offset, final_mean_projections, _= align_single_chunk_iterate(mean_projections, iteration=iteration,
-                                                                                  max_offset=max_offset,
-                                                                                  align_func=align_func,
-                                                                                  fill_value=fill_value,
-                                                                                  verbose=False)
-
-    print('\nAdding global correction offset to local correction offsets and save.')
-    if offset_file_name is None:
-        h5_file = h5py.File(os.path.join(output_folder, 'correction_offsets.hdf5'))
-    else:
-        h5_file = h5py.File(os.path.join(output_folder, offset_file_name + '.hdf5'))
-    h5_file.create_dataset('path_list', data=paths)
-    offset_dict = {}
-    for i in range(len(offsets)):
-        curr_offset = offsets[i]
-        curr_global_offset = mean_projection_offset[i]
-        offsets[i] = [[offset[0] + curr_global_offset[0],
-                       offset[1] + curr_global_offset[1]] for offset in curr_offset]
-        curr_h5_dset = h5_file.create_dataset('file{:04d}'.format(i), data=offsets[i])
-        curr_h5_dset.attrs['path'] = str(paths[i])
-        curr_h5_dset.attrs['format'] = ['row', 'col']
-        offset_dict.update({str(paths[i]):offsets[i]})
-    h5_file.close()
-
-    print('\nSaving final mean projection image.')
-    if mean_projections_file_name is None:
-        tf.imsave(os.path.join(output_folder, 'corrected_mean_projections.tif'),
-                  final_mean_projections.astype(np.float32))
-    else:
-        tf.imsave(os.path.join(output_folder, mean_projections_file_name + '.tif'),
-                  final_mean_projections.astype(np.float32))
-
-    if mean_projection_file_name is None:
-        tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'),
-                  np.mean(final_mean_projections, axis=0).astype(np.float32))
-    else:
-        tf.imsave(os.path.join(output_folder, mean_projection_file_name + '.tif'),
-                  np.mean(final_mean_projections, axis=0).astype(np.float32))
-
-    if is_output_mov:
-        for i, curr_path in enumerate(paths):
-            print('\nFinal Correction of file: ' + curr_path)
-            curr_mov = tf.imread(curr_path)
-            curr_offset = offsets[i]
-            curr_corrected_mov = correct_movie(curr_mov, curr_offset, fill_value=fill_value, verbose=verbose)
-
-            try:  # try to write a movie of corrected images
-                if i == 0:
-                    codex = 'XVID'
-                    fourcc = cv2.cv.CV_FOURCC(*codex)
-                    out = cv2.VideoWriter('corrected_movie_' + codex + '.avi', fourcc, 30, (512, 512), isColor=False)
-                    # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-                    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-
-                # generate .avi movie of concatenated corrected movies
-                for i, frame in enumerate(curr_corrected_mov):
-                    if i == 0:
-                        stack = [frame]
-
-                    elif i % 20 == 0:
-
-                        # convert to 8-bit gray scale
-                        display_frame = np.mean(stack, axis=0).astype(np.float32)
-                        display_frame = (display_frame - np.amin(display_frame)) / \
-                                        (np.amax(display_frame) - np.amin(display_frame))
-                        display_frame = (display_frame * 255).astype(np.uint8)
-
-                        # # histogram normalization
-                        # display_frame = clahe.apply(display_frame)
-                        display_frame = cv2.equalizeHist(display_frame)
-
-                        # write frame
-                        out.write(display_frame)
-
-                        # clear stack
-                        stack = [frame]
-
-                    else:
-                        stack.append(frame)
-
-            except Exception:
-                pass
-
-            _, curr_file_name = os.path.split(curr_path)
-            curr_save_name = add_suffix(curr_file_name, '_corrected')
-            print('Saving corrected file: ' + curr_save_name + ' ...')
-            tf.imsave(os.path.join(output_folder, curr_save_name), curr_corrected_mov)
-
-    cv2.destroyAllWindows()
-    out.release()
-
-    tf.imshow(final_mean_projections, cmap='gray', interpolation='nearest')
-    plt.show()
-
-    return offset_dict
-
-
-def align_multiple_files_iterate_anchor(paths, output_folder=None, is_output_mov=True, anchor_frame_ind=0,
-                                        iteration_chunk=6, iteration_projection=10,
-                                        max_offset=(10., 10.), align_func=phase_correlation, fill_value=0.,
-                                        verbose=True, offset_file_name=None, mean_projections_file_name=None,
-                                        mean_projection_file_name=None):
-
-    """
-    Motion correct a list of movie files (currently only support .tif format, designed for ScanImage output files.
-    each files will be first aligned to its own mean projection iteratively. for each iteration, the reference
-    image (mean projection) will be updated based on the aligned result. Then all files will be aligned based on their
-    final mean projection images. Designed for movies recorded from ScanImage with dtype int16
-
-    this uses one iteration of anchor frame correction before the main correction.
-
-    all operations will be applied with np.float32 format
-
-    :param paths: list of paths of data files (currently only support .tif format), they should have same height and
-                  width dimensions.
-    :param output_folder: folder to save output, if None, a subfolder named "motion_correction" will be created in the
-                          folder of the first paths in paths
-    :param is_output_mov: bool, if True, aligned movie will be saved, if False, only correction offsets and final mean
-                          projection image of all files will be saved
-    :param anchor_frame_ind: non-negative int, frame number for anchor frame correction
-    :param iteration_chunk: positive int, number of iterations to correct each file
-    :param iteration_projection: positive int, number of iterations to correct mean projections
-    :param max_offset: If the correction is larger than max_offset, the correction of that particular frame will be
-                       set as zero, and it will not be counted during the calculation of average projection image.
-    :param align_func: function to align two image frames, return rigid transform offset (height, width)
-    :param fill_value: value to fill empty pixels
-    :param verbose:
-    :param offset_file_name: str, the file name of the saved offsets hdf5 file (without extension), if None,
-                             default will be 'correction_offsets.hdf5'
-    :param mean_projections_file_name: str, the file name of the saved mean projection image stack (without extension),
-                                       one image for each file, order is same as 'path_list' field in saved offsets
-                                       hdf5 file. If None, default will be 'corrected_mean_projections'
-    :param mean_projection_file_name: str, the file name of the saved mean projection image (without extension), if
-                                      None, default will be 'corrected_mean_projection'
-    :return: offsets, dictionary of correction offsets. Key: path of file; value: list of tuple with correction offsets,
-             (height, width)
-    """
-
-    if output_folder is None:
-        main_folder, _ = os.path.split(paths[0])
-        output_folder = os.path.join(main_folder, 'motion_correction')
-
-    if not os.path.isdir(output_folder):
-        print("\n\nOutput folder: " + str(output_folder) + " does not exist. Create this folder.")
-        os.mkdir(output_folder)
-    else:
-        print("\n\nOutput folder: " + str(output_folder) + " already exists. Write into this folder.")
-    os.chdir(output_folder)
-
-    offsets = [] # list of local correction for each file
-    mean_projections=[] # final mean projection of each file
-
-    for path in paths:
-
-        if verbose:
-            print('\nCorrecting file: ' + str(path) + ' ...')
-
-        curr_mov = tf.imread(path)
-        offset, _, mean_projection = \
-            align_single_chunk_iterate_anchor(curr_mov, anchor_frame_ind=anchor_frame_ind, iteration=iteration_chunk,
-                                              max_offset=max_offset, align_func=align_func, fill_value=fill_value,
-                                              verbose=verbose)
-
-        offsets.append(offset)
-        mean_projections.append(mean_projection)
-
-    mean_projections = np.array(mean_projections, dtype=np.float32)
-
-    print('\n\nCorrected mean projection images of all files ...')
-    mean_projection_offset, final_mean_projections, _= \
-        align_single_chunk_iterate_anchor(mean_projections, anchor_frame_ind=anchor_frame_ind,
-                                          iteration=iteration_projection, max_offset=max_offset, align_func=align_func,
-                                          fill_value=fill_value, verbose=False)
-
-    print('\nAdding global correction offset to local correction offsets and save.')
-    if offset_file_name is None:
-        h5_file = h5py.File(os.path.join(output_folder, 'correction_offsets.hdf5'))
-    else:
-        h5_file = h5py.File(os.path.join(output_folder, offset_file_name + '.hdf5'))
-    h5_file.create_dataset('path_list', data=paths)
-    offset_dict = {}
-    for i in range(len(offsets)):
-        curr_offset = offsets[i]
-        curr_global_offset = mean_projection_offset[i]
-        offsets[i] = [[offset[0] + curr_global_offset[0],
-                       offset[1] + curr_global_offset[1]] for offset in curr_offset]
-        curr_h5_dset = h5_file.create_dataset('file{:04d}'.format(i), data=offsets[i])
-        curr_h5_dset.attrs['path'] = str(paths[i])
-        curr_h5_dset.attrs['format'] = ['row', 'col']
-        offset_dict.update({str(paths[i]):offsets[i]})
-    h5_file.close()
-
-    print('\nSaving final mean projection image.')
-    if mean_projections_file_name is None:
-        tf.imsave(os.path.join(output_folder, 'corrected_mean_projections.tif'),
-                  final_mean_projections.astype(np.float32))
-    else:
-        tf.imsave(os.path.join(output_folder, mean_projections_file_name + '.tif'),
-                  final_mean_projections.astype(np.float32))
-
-    if mean_projection_file_name is None:
-        tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'),
-                  np.mean(final_mean_projections, axis=0).astype(np.float32))
-    else:
-        tf.imsave(os.path.join(output_folder, mean_projection_file_name + '.tif'),
-                  np.mean(final_mean_projections, axis=0).astype(np.float32))
-
-    if is_output_mov:
-        for i, curr_path in enumerate(paths):
-            print('\nFinal Correction of file: ' + curr_path)
-            curr_mov = tf.imread(curr_path)
-            curr_offset = offsets[i]
-            curr_corrected_mov = correct_movie(curr_mov, curr_offset, fill_value=fill_value, verbose=verbose)
-
-            try:  # try to write a movie of corrected images
-                if i == 0:
-                    codex = 'XVID'
-                    fourcc = cv2.cv.CV_FOURCC(*codex)
-                    out = cv2.VideoWriter('corrected_movie_' + codex + '.avi', fourcc, 30, (512, 512), isColor=False)
-                    # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-                    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-
-                # generate .avi movie of concatenated corrected movies
-                for i, frame in enumerate(curr_corrected_mov):
-                    if i == 0:
-                        stack = [frame]
-
-                    elif i % 20 == 0:
-
-                        # convert to 8-bit gray scale
-                        display_frame = np.mean(stack, axis=0).astype(np.float32)
-                        display_frame = (display_frame - np.amin(display_frame)) / \
-                                        (np.amax(display_frame) - np.amin(display_frame))
-                        display_frame = (display_frame * 255).astype(np.uint8)
-
-                        # # histogram normalization
-                        # display_frame = clahe.apply(display_frame)
-                        display_frame = cv2.equalizeHist(display_frame)
-
-                        # write frame
-                        out.write(display_frame)
-
-                        # clear stack
-                        stack = [frame]
-
-                    else:
-                        stack.append(frame)
-
-            except Exception:
-                pass
-
-            _, curr_file_name = os.path.split(curr_path)
-            curr_save_name = add_suffix(curr_file_name, '_corrected')
-            print('Saving corrected file: ' + curr_save_name + ' ...')
-            tf.imsave(os.path.join(output_folder, curr_save_name), curr_corrected_mov)
-
-    cv2.destroyAllWindows()
-    out.release()
-
-    tf.imshow(final_mean_projections, cmap='gray', interpolation='nearest')
-    plt.show()
-
-    return offset_dict
+        return mean_projection_c, max_projection_c, None
 
 
 def align_multiple_files_iterate_anchor_multi_thread(f_paths,
@@ -713,8 +403,10 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                                                      anchor_frame_ind_projection=0,
                                                      iteration_chunk=6,
                                                      iteration_projection=10,
-                                                     max_offset=(10., 10.),
+                                                     max_offset_chunk=(10., 10.),
+                                                     max_offset_projection=(10., 10.),
                                                      align_func=phase_correlation,
+                                                     preprocessing_type=0,
                                                      fill_value=0.):
     """
 
@@ -742,6 +434,8 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                        single frame is larger than this value, it will be set to zero.
     :param align_func: function object, the function to align two frames
     :param fill_value: float, value to fill the correction margin
+    :param preprocessing_type: int, type of preprocessing before motion correction,
+                               refer to preprocessing() function of this module.
     :return: None
     """
 
@@ -753,42 +447,42 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
     print ('\ncorrection output will be saved in {}.'.format(os.path.abspath(output_folder)))
 
     print ('\naligning single chunks:')
-    params_lst = [(f, anchor_frame_ind_chunk, iteration_chunk, max_offset, align_func, fill_value,
-                   correction_temp_folder) for f in f_paths]
-    # print '\n'.join([str(p) for p in params_lst])
-    chunk_p = Pool(process_num)
-    chunk_p.map(align_single_chunk_iterate_anchor_for_multi_thread, params_lst)
+    if process_num == 1:
+        for f in f_paths:
+            curr_params = (f, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, align_func, fill_value,
+                           preprocessing_type, correction_temp_folder)
+            align_single_chunk_iterate_anchor_for_multi_thread(curr_params)
+    else:
+        params_lst = [(f, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, align_func, fill_value,
+                       preprocessing_type, correction_temp_folder) for f in f_paths]
+        # print '\n'.join([str(p) for p in params_lst])
+        chunk_p = Pool(process_num)
+        chunk_p.map(align_single_chunk_iterate_anchor_for_multi_thread, params_lst)
 
     print('\naligning among files ...')
     chunk_offset_fns = [f for f in os.listdir(correction_temp_folder) if f[0: 13] == 'temp_offsets_']
     chunk_offset_fns.sort()
     # print('\n'.join(chunk_offset_fns))
     mean_projections = []
-    max_projections = []
+    # max_projections = []
     file_paths = []
     chunk_offsets = []
     for chunk_offset_fn in chunk_offset_fns:
         chunk_offset_f = h5py.File(os.path.join(correction_temp_folder, chunk_offset_fn))
         mean_projections.append(chunk_offset_f['mean_projection'].value)
-        max_projections.append(chunk_offset_f['max_projection'].value)
+        # max_projections.append(chunk_offset_f['max_projection'].value)
         chunk_offsets.append(chunk_offset_f['offsets'].value)
         file_paths.append(chunk_offset_f['file_path'].value)
 
     _ = align_single_chunk_iterate_anchor(chunk=np.array(mean_projections),
                                           anchor_frame_ind=anchor_frame_ind_projection,
                                           iteration=iteration_projection,
-                                          max_offset=max_offset,
+                                          max_offset=max_offset_projection,
                                           align_func=align_func,
-                                          fill_value=0., verbose=False)
+                                          fill_value=0.,
+                                          preprocessing_type=preprocessing_type,
+                                          verbose=False)
     offsets_chunk, mean_projections_c, mean_projection = _
-    max_projections_c = correct_movie(mov=np.array(max_projections), offsets=offsets_chunk, fill_value=fill_value,
-                                      verbose=False)
-    max_projection = np.max(max_projections_c, axis=0)
-
-    tf.imsave(os.path.join(output_folder, 'corrected_mean_projections.tif'), mean_projections_c)
-    tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'), mean_projection)
-    tf.imsave(os.path.join(output_folder, 'corrected_max_projections.tif'), max_projections_c)
-    tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), max_projection)
     offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"))
     for i, file_path in enumerate(file_paths):
         curr_chunk_offsets = chunk_offsets[i]
@@ -797,12 +491,13 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                                                 data=curr_chunk_offsets + curr_global_offset)
         offsets_dset.attrs['format'] = ['height', 'width']
         offsets_dset.attrs['path'] = os.path.abspath(file_path)
+    offsets_f.create_dataset('path_list', data=file_paths)
     offsets_f.close()
     print ('\nchunks aligned offsets and projection images saved.')
 
 
 def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, max_offset=(10, 10),
-                      align_func=phase_correlation, fill_value=0.):
+                      align_func=phase_correlation, fill_value=0., preprocessing_type=0, verbose=False):
     """
 
     :param f_path: str, path to the file to be corrected.
@@ -813,6 +508,8 @@ def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, ma
                        single frame is larger than this value, it will be set to zero.
     :param align_func: function object, the function to align two frames
     :param fill_value: float, value to fill the correction margin
+    :param preprocessing_type: int, type of preprocessing before motion correction,
+                               refer to preprocessing() function of this module.
     :return: None
     """
 
@@ -822,10 +519,10 @@ def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, ma
     mov = tf.imread(f_path)
     _ = align_single_chunk_iterate_anchor(mov, anchor_frame_ind=anchor_frame_ind, iteration=iteration,
                                           max_offset=max_offset, align_func=align_func, fill_value=fill_value,
-                                          verbose=True)
+                                          preprocessing_type=preprocessing_type, verbose=verbose)
     offset_list, aligned_chunk, img_ref = _
-    tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'), img_ref)
-    tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), np.max(aligned_chunk, axis=0))
+    # tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'), img_ref)
+    # tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), np.max(aligned_chunk, axis=0))
     offsets_f = h5py.File(os.path.join(output_folder, "correction_offsets.hdf5"))
     offsets_dset = offsets_f.create_dataset('file_0000', data=offset_list)
     offsets_dset.attrs['format'] = ['height', 'width']
@@ -842,8 +539,10 @@ def motion_correction(input_folder,
                       anchor_frame_ind_projection=0,
                       iteration_chunk=6,
                       iteration_projection=10,
-                      max_offset=(10., 10.),
+                      max_offset_chunk=(10., 10.),
+                      max_offset_projection=(10., 10.),
                       align_func=phase_correlation,
+                      preprocessing_type=0,
                       fill_value=0.):
     """
     Motion correct a list of movie files (currently only support .tif format, designed for ScanImage output files.
@@ -873,6 +572,8 @@ def motion_correction(input_folder,
                        single frame is larger than this value, it will be set to zero.
     :param align_func: function object, the function to align two frames
     :param fill_value: float, value to fill the correction margin
+    :param preprocessing_type: int, type of preprocessing before motion correction,
+                               refer to preprocessing() function of this module.
     :return f_paths: list of str, absolute paths of all files that are corrected
     :return output_folder: str, absolute path to the results folder
     """
@@ -890,22 +591,17 @@ def motion_correction(input_folder,
         if not os.path.isdir(output_folder):
             os.makedirs(output_folder)
 
-        if os.path.isfile(os.path.join(output_folder, 'corrected_mean_projections.tif')):
-            raise IOError('"corrected_mean_projections.tif" already exists in output folder.')
-        if os.path.isfile(os.path.join(output_folder, 'corrected_mean_projection.tif')):
-            raise IOError('"corrected_mean_projection.tif" already exists in output folder.')
-        if os.path.isfile(os.path.join(output_folder, 'corrected_max_projections.tif')):
-            raise IOError('"corrected_max_projections.tif" already exists in output folder.')
-        if os.path.isfile(os.path.join(output_folder, 'corrected_max_projection.tif')):
-            raise IOError('"corrected_max_projection.tif" already exists in output folder.')
         if os.path.isfile(os.path.join(output_folder, 'correction_offsets.hdf5')):
             raise IOError('"correction_offsets.hdf5" already exists in output folder.')
 
         if len(f_paths) == 1:
 
-            align_single_file(f_path=f_paths[0], output_folder=output_folder, anchor_frame_ind=anchor_frame_ind_chunk,
-                              iteration=iteration_chunk, max_offset=max_offset, align_func=align_func,
-                              fill_value=fill_value)
+            f_paths = [os.path.join(input_folder, f) for f in f_paths]
+
+            align_single_file(f_path=f_paths[0], output_folder=output_folder,
+                              anchor_frame_ind=anchor_frame_ind_chunk, iteration=iteration_chunk,
+                              max_offset=max_offset_chunk, align_func=align_func, fill_value=fill_value,
+                              preprocessing_type=preprocessing_type, verbose=False)
 
         else:
             f_paths.sort()
@@ -920,18 +616,22 @@ def motion_correction(input_folder,
                                                              anchor_frame_ind_projection=anchor_frame_ind_projection,
                                                              iteration_chunk=iteration_chunk,
                                                              iteration_projection=iteration_projection,
-                                                             max_offset=max_offset,
+                                                             max_offset_chunk=max_offset_chunk,
+                                                             max_offset_projection=max_offset_projection,
                                                              align_func=align_func,
-                                                             fill_value=fill_value)
+                                                             fill_value=fill_value,
+                                                             preprocessing_type=preprocessing_type)
+
     return [os.path.abspath(f) for f in f_paths], os.path.abspath(output_folder)
 
 
 def apply_correction_offsets(offsets_path,
                              path_pairs,
+                             output_folder=None,
                              process_num=1,
                              fill_value=0.,
-                             output_folder=None,
-                             avi_downsample_rate=20):
+                             avi_downsample_rate=20,
+                             is_equalizing_histogram=False):
     """
     apply correction offsets to a set of uncorrected files
 
@@ -954,28 +654,83 @@ def apply_correction_offsets(offsets_path,
 
     offsets_f = h5py.File(offsets_path)
 
+    if output_folder is None:
+        output_folder = os.path.dirname(os.path.abspath(offsets_path))
+
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+
+    if os.path.isfile(os.path.join(output_folder, 'corrected_mean_projections.tif')):
+        raise IOError('"corrected_mean_projections.tif" already exists in output folder.')
+    if os.path.isfile(os.path.join(output_folder, 'corrected_mean_projection.tif')):
+        raise IOError('"corrected_mean_projection.tif" already exists in output folder.')
+    if os.path.isfile(os.path.join(output_folder, 'corrected_max_projections.tif')):
+        raise IOError('"corrected_max_projections.tif" already exists in output folder.')
+    if os.path.isfile(os.path.join(output_folder, 'corrected_max_projection.tif')):
+        raise IOError('"corrected_max_projection.tif" already exists in output folder.')
+
     params_list = []
     for path_pair in path_pairs:
         target_path = path_pair[1]
         source_path = path_pair[0]
+
+        # print('target path: ' + target_path)
+        # print('source path: ' + source_path)
+
         offset = None
-        for offset_dest in offsets_f.values():
-            if offset_dest.attrs['path'] == source_path:
+        for offset_name, offset_dest in offsets_f.items():
+            if offset_name != 'path_list' and offset_dest.attrs['path'] == source_path:
                 offset = offset_dest.value
                 break
         if offset is None:
-            raise LookupError('can not find source file {} in the offsets file for target file: {}'
+            raise LookupError('can not find source file ({}) in the offsets file for target file: ({}).'
                               .format(source_path, target_path))
         params_list.append((target_path, offset, fill_value, output_folder, avi_downsample_rate))
     offsets_f.close()
 
-    p_corr = Pool(process_num)
-    mov_downs = p_corr.map(correct_movie_for_multi_thread, params_list)
+
+    if process_num == 1:
+        mov_downs = []
+        mean_projections = []
+        max_projections = []
+        for params in params_list:
+            _ = correct_movie_for_multi_thread(params)
+            mean_projections.append(_[0])
+            max_projections.append(_[1])
+            mov_downs.append(_[2])
+    elif process_num > 1:
+        p_corr = Pool(process_num)
+        _ = p_corr.map(correct_movie_for_multi_thread, params_list)
+        mean_projections = [p[0] for p in _]
+        max_projections = [p[1] for p in _]
+        mov_downs = [p[2] for p in _]
+    else:
+        raise ValueError('process_num should be not less than one.')
+
+    max_projection = np.max(max_projections, axis=0)
+    mean_projection = np.mean(mean_projections, axis=0)
+
+    tf.imsave(os.path.join(output_folder, 'corrected_mean_projections.tif'), np.array(mean_projections))
+    tf.imsave(os.path.join(output_folder, 'corrected_mean_projection.tif'), mean_projection)
+    tf.imsave(os.path.join(output_folder, 'corrected_max_projections.tif'), np.array(max_projections))
+    tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), max_projection)
 
     if avi_downsample_rate is not None:
         print ('\ngenerating .avi downsampled movie after correction ...')
 
-        if cv2.__version__[0:3] == '3.1':
+        # import skvideo.io
+        # mov_name = 'corrected_movie.avi'
+        # writer = skvideo.io.FFmpegWriter(os.path.join(output_folder, mov_name), outputdict={'-framerate': '30'})
+        # writer.writeFrame(mov_down)
+        # writer.close()
+
+        if cv2.__version__[0:1] == '4':
+            codex = 'XVID'
+            mov_name = 'corrected_movie_' + codex + '.avi'
+            fourcc = cv2.VideoWriter_fourcc(*codex)
+            out = cv2.VideoWriter(os.path.join(output_folder, mov_name), fourcc, 30,
+                                  (mov_downs[0].shape[2], mov_downs[0].shape[1]), isColor=False)
+        elif cv2.__version__[0:1] == '3.1':
             codex = 'XVID'
             mov_name = 'corrected_movie_' + codex + '.avi'
             fourcc = cv2.VideoWriter_fourcc(*codex)
@@ -994,14 +749,22 @@ def apply_correction_offsets(offsets_path,
         else:
             raise EnvironmentError('Do not understand opencv cv2 version: {}.'.format(cv2.__version__))
 
-        for mov_down in mov_downs:
-            for frame in mov_down:
-                display_frame = frame.astype(np.float32)
-                display_frame = (display_frame - np.amin(display_frame)) / \
-                                (np.amax(display_frame) - np.amin(display_frame))
-                display_frame = (display_frame * 255).astype(np.uint8)
+        mov_down = np.concatenate(mov_downs, axis=0).astype(np.float32)
+        mov_down = (mov_down - np.amin(mov_down)) / (np.amax(mov_down) - np.amin(mov_down))
+        mov_down = (mov_down * 255).astype(np.uint8)
+
+        for display_frame in mov_down:
+            if is_equalizing_histogram:
                 display_frame = cv2.equalizeHist(display_frame)
-                out.write(display_frame)
+            out.write(display_frame)
+
         out.release()
         cv2.destroyAllWindows()
         print ('.avi moive generated.')
+
+
+if __name__ == "__main__":
+
+    win = tukey_2d((512, 512))
+    plt.imshow(win, interpolation='nearest')
+    plt.show()

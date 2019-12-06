@@ -1700,30 +1700,30 @@ class RetinotopicMappingTrial(object):
         signMap = self.signMap
         signMapf = self.signMapf
 
-        altPosMapC = ia.center_image(self.altPosMap, centerPixel=centerPixel, newSize=mapSize, fillvalue=borderValue)
+        altPosMapC = ia.center_image(self.altPosMap, centerPixel=centerPixel, newSize=mapSize, fill_value=borderValue)
         altPosMapNor = ia.rotate_image(altPosMapC, rotationAngle, borderValue=borderValue)
 
-        aziPosMapC = ia.center_image(self.aziPosMap, centerPixel=centerPixel, newSize=mapSize, fillvalue=borderValue)
+        aziPosMapC = ia.center_image(self.aziPosMap, centerPixel=centerPixel, newSize=mapSize, fill_value=borderValue)
         aziPosMapNor = ia.rotate_image(aziPosMapC, rotationAngle, borderValue=borderValue)
 
         if hasattr(self, 'altPowerMap') and self.altPowerMap is not None:
             altPowerMapC = ia.center_image(self.altPowerMap, centerPixel=centerPixel, newSize=mapSize,
-                                           fillvalue=borderValue)
+                                           fill_value=borderValue)
             altPowerMapNor = ia.rotate_image(altPowerMapC, rotationAngle, borderValue=borderValue)
         else:
             altPowerMapNor = None
 
         if hasattr(self, 'aziPowerMap') and self.aziPowerMap is not None:
             aziPowerMapC = ia.center_image(self.aziPowerMap, centerPixel=centerPixel, newSize=mapSize,
-                                           fillvalue=borderValue)
+                                           fill_value=borderValue)
             aziPowerMapNor = ia.rotate_image(aziPowerMapC, rotationAngle, borderValue=borderValue)
         else:
             aziPowerMapNor = None
 
-        signMapC = ia.center_image(signMap, centerPixel=centerPixel, newSize=mapSize, fillvalue=borderValue)
+        signMapC = ia.center_image(signMap, centerPixel=centerPixel, newSize=mapSize, fill_value=borderValue)
         signMapNor = ia.rotate_image(signMapC, rotationAngle, borderValue=borderValue)
 
-        signMapfC = ia.center_image(signMapf, centerPixel=centerPixel, newSize=mapSize, fillvalue=borderValue)
+        signMapfC = ia.center_image(signMapf, centerPixel=centerPixel, newSize=mapSize, fill_value=borderValue)
         signMapfNor = ia.rotate_image(signMapfC, rotationAngle, borderValue=borderValue)
 
         if isPlot:
@@ -1814,7 +1814,7 @@ class RetinotopicMappingTrial(object):
         centerPixel = centerPixel * zoom
 
         try:
-            vasMapNor = ia.center_image(vasMap, centerPixel=centerPixel, newSize=mapSize, fillvalue=borderValue)
+            vasMapNor = ia.center_image(vasMap, centerPixel=centerPixel, newSize=mapSize, fill_value=borderValue)
             vasMapNor = ia.rotate_image(vasMapNor, rotationAngle, borderValue=borderValue)
         except NameError:
             pass
@@ -1824,7 +1824,7 @@ class RetinotopicMappingTrial(object):
             patchArray = patch.array.astype(np.float)
             patchArrayNor = ni.zoom(patchArray, zoom=zoom)
             patchArrayNor = ia.center_image(patchArrayNor, centerPixel=centerPixel, newSize=mapSize,
-                                            fillvalue=borderValue)
+                                            fill_value=borderValue)
             patchArrayNor = ia.rotate_image(patchArrayNor, rotationAngle, borderValue=borderValue)
             patchArrayNor = np.round(patchArrayNor).astype(np.int8)
             newPatch = Patch(patchArrayNor, patch.sign)
