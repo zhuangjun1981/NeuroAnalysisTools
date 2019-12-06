@@ -28,17 +28,17 @@ try:
 except ImportError:
     import skimage.external.tifffile as tf
 
-try: 
+try:
     import cv2
     from core.ImageAnalysis import rigid_transform_cv2 as rigid_transform
-except ImportError as e: 
-    print (e) 
+except ImportError as e:
+    print (e)
     from core.ImageAnalysis import rigid_transform as rigid_transform
 
 
 class AppForm(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        
+
         QtWidgets.QMainWindow.__init__(self, parent)
         self.setWindowTitle('Vasculature Map Matching')
 
@@ -89,9 +89,10 @@ class AppForm(QtWidgets.QMainWindow):
 
 
     def save_alignment_json(self):
-        path = unicode(QFileDialog.getSaveFileName(self,
+
+        path = str(QtWidgets.QFileDialog.getSaveFileName(self,
                         'Save file', self.currSaveFolder,
-                        '*.json'))
+                        '*.json')[0])
 
         if path:
             bigDict = {}
@@ -151,10 +152,10 @@ class AppForm(QtWidgets.QMainWindow):
 
 
     def setZero(self):
-        self.spinbox_Xoffset.setValue(0.)
-        self.spinbox_Yoffset.setValue(0.)
-        self.spinbox_rotation.setValue(0.)
-        self.doubleSpinbox_zoom.setValue(1.)
+        self.spinbox_Xoffset.setValue(0)
+        self.spinbox_Yoffset.setValue(0)
+        self.spinbox_rotation.setValue(0)
+        self.doubleSpinbox_zoom.setValue(1)
 
 
     def on_about(self):
@@ -165,7 +166,7 @@ class AppForm(QtWidgets.QMainWindow):
          * Adjust X offset, Y offset and rotation to match two vasculature maps
          * hit menu -> File -> save alignment to save alignment parameter
         """
-        QMessageBox.about(self, "About the GUI", msg.strip())
+        QtWidgets.QMessageBox.about(self, "About the GUI", msg.strip())
 
 
     def get_RPath(self):
@@ -176,11 +177,11 @@ class AppForm(QtWidgets.QMainWindow):
         self.button_RPath.setStyleSheet('QPushButton {color: #888888}')
         self.button_RPath.setEnabled(False)
 
-        fnames = QFileDialog.getOpenFileNames(self, 'Choose Retinotopic Mapping Dictionary of TIFF/JCam file(s):',
+        fnames = QtWidgets.QFileDialog.getOpenFileNames(self, 'Choose Retinotopic Mapping Dictionary of TIFF/JCam file(s):',
                 self.currReferenceFolder)
 
-        fnames = list(fnames)
-        fnames = [str(x) for x in fnames]
+        fnames = fnames[0]
+        # fnames = [str(x) for x in fnames]
 
         try:
             if len(fnames) == 0: # no file is chosen
@@ -267,11 +268,11 @@ class AppForm(QtWidgets.QMainWindow):
         self.button_MPath.setStyleSheet('QPushButton {color: #888888}')
         self.button_MPath.setEnabled(False)
 
-        fnames = QFileDialog.getOpenFileNames(self, 'Choose Retinotopic Mapping Dictionary of TIFF/JCam file(s):',
+        fnames = QtWidgets.QFileDialog.getOpenFileNames(self, 'Choose Retinotopic Mapping Dictionary of TIFF/JCam file(s):',
                 self.currMatchingFolder)
 
-        fnames = list(fnames)
-        fnames = [str(x) for x in fnames]
+        fnames = fnames[0]
+        # fnames = [str(x) for x in fnames]
 
         try:
             if len(fnames) == 0: # no file is chosen
@@ -633,7 +634,7 @@ class AppForm(QtWidgets.QMainWindow):
     def create_action(self, text, slot=None, shortcut=None,icon=None, tip=None, checkable=False,signal="triggered"):
         action = QtWidgets.QAction(text, self)
         if icon is not None:
-            action.setIcon(QIcon(":/%s.png" % icon))
+            action.setIcon(QtWidgets.QIcon(":/%s.png" % icon))
         if shortcut is not None:
             action.setShortcut(shortcut)
         if tip is not None:
