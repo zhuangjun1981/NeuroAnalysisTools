@@ -23,7 +23,7 @@ def get_sparse_noise_onset_index(sparseNoiseDisplayLog):
     onsetIndWithLocationSign: indices of frames for each white square, list with element structure [np.array([alt, azi]),sign,[list of indices]]
     """
 
-    frames = sparseNoiseDisplayLog['presentation']['displayFrames']
+    frames = sparseNoiseDisplayLog[b'presentation'][b'displayFrames']
     frames = [tuple([np.array([x[1][1], x[1][0]]), x[2], x[3], i]) for i, x in enumerate(frames)]
     dtype = [('location', np.ndarray), ('sign', int), ('isOnset', int), ('index', int)]
     frames = np.array(frames, dtype=dtype)
@@ -836,7 +836,7 @@ class SpatialTemporalReceptiveField(object):
                 trigger_ts.append(traceItem.attrs['trigger_ts_sec'])
             else:
                 trigger_ts.append([])
-            traces.append(traceItem.value)
+            traces.append(traceItem[()])
 
         # no available or corrupted trigger timestamp info, set it to None
         # if len(trigger_ts) < len(signs):

@@ -838,7 +838,7 @@ def get_trace_binaryslicer3(bl_obj, masks, mask_mode = 'binary', loading_frame_n
         if indEnd > frameNum: indEnd = frameNum
         print('Extracting signal from frame '+str(indStart)+' to frame '+str(indEnd)+'.\t'+str(i*100./chunkNum)+'%')
         currMov = bl_obj[indStart:indEnd,:,:]
-        for key, mask in masks.iteritems():
+        for key, mask in masks.items():
             if len(mask.shape) != 2: raise ValueError('Mask "' + key + '" should be 2d!')
             if bl_obj.shape[1] != mask.shape[0] or bl_obj.shape[2] != mask.shape[1]:
                 raise ValueError('the size of each frame of the BinarySlicer object should be the same as the size of mask "' + key + '"!')
@@ -1136,7 +1136,7 @@ def sort_masks(masks, keyPrefix=None, labelLength=3):
 
     maskNum = len(masks.keys())
     order = []
-    for key, mask in masks.iteritems():
+    for key, mask in masks.items():
         order.append([key,np.sum(mask.flatten())])
 
     order = sorted(order, key=lambda a:a[1], reverse=True)
@@ -1677,7 +1677,7 @@ class ROI(object):
 
         dataDict = dict(self.__dict__)
         _ = dataDict.pop('dimension');_ = dataDict.pop('pixelSizeX');_ = dataDict.pop('pixelSizeY');_ = dataDict.pop('pixelSizeUnit')
-        for key, value in dataDict.iteritems():
+        for key, value in dataDict.items():
             if value is None: h5Group.create_dataset(key,data='None')
             else: h5Group.create_dataset(key,data=value)
 
