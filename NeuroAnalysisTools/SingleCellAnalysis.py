@@ -2148,11 +2148,11 @@ class DriftingGratingResponseTable(DataFrame):
 
 
             # get orientation indices
-            peak_dire_raw_ind = dire_tuning_2['resp_mean'].argmax()
+            peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
             peak_dire_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'dire']
-            oppo_dire_ind = (dire_tuning_2['dire'] == ((peak_dire_raw + 180) % 360)).argmax()
-            othr_dire_ind_1 = (dire_tuning_2['dire'] == ((peak_dire_raw + 90) % 360)).argmax()
-            othr_dire_ind_2 = (dire_tuning_2['dire'] == ((peak_dire_raw - 90) % 360)).argmax()
+            oppo_dire_ind = (dire_tuning_2['dire'] == ((peak_dire_raw + 180) % 360)).idxmax()
+            othr_dire_ind_1 = (dire_tuning_2['dire'] == ((peak_dire_raw + 90) % 360)).idxmax()
+            othr_dire_ind_2 = (dire_tuning_2['dire'] == ((peak_dire_raw - 90) % 360)).idxmax()
 
             # get raw os tuning properties
             peak_resp_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'resp_mean']
