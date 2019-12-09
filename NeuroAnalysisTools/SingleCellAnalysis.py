@@ -805,7 +805,7 @@ class SpatialTemporalReceptiveField(object):
             trace.attrs['altitude'] = probe['altitude']
             trace.attrs['azimuth'] = probe['azimuth']
             trace.attrs['sign'] = probe['sign']
-            if probe['trigger_ts']:
+            if probe['trigger_ts'] is not None:
                 trace.attrs['trigger_ts_sec'] = probe['trigger_ts']
 
     @staticmethod
@@ -829,7 +829,7 @@ class SpatialTemporalReceptiveField(object):
         signs = []
         traces = []
         trigger_ts = []
-        for key, traceItem in h5Group.iteritems():
+        for key, traceItem in h5Group.items():
             locations.append(np.array([traceItem.attrs['altitude'], traceItem.attrs['azimuth']]))
             signs.append(traceItem.attrs['sign'])
             if 'trigger_ts_sec' in traceItem.attrs:

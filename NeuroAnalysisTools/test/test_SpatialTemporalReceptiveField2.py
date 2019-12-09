@@ -113,7 +113,7 @@ class TestSpatialTemporalReceptiveField2(unittest.TestCase):
         strf = STRF(locations=locations, signs=signs, traces=traces, trigger_ts=trigger_ts, time=time)
 
         import h5py
-        test_f = h5py.File('test.hdf5', 'r')
+        test_f = h5py.File('test.hdf5', 'a')
         strf_grp = test_f.create_group('strf')
         strf.to_h5_group(strf_grp)
         test_f.close()
@@ -144,6 +144,7 @@ class TestSpatialTemporalReceptiveField2(unittest.TestCase):
         plt.close('all')
 
     def test_get_amplitude_map(self):
+        np.random.seed(0)
         locations = [(1.0, 10.), (2., 11.), (3., 12)]
         signs = [1., -1., 0.]
         traces = [np.random.rand(3, 4),
@@ -160,7 +161,8 @@ class TestSpatialTemporalReceptiveField2(unittest.TestCase):
         # print(allAziPos)
         assert (np.array_equal(allAltPos.astype(np.float32), np.array([3., 2., 1.], dtype=np.float32)))
         assert (np.array_equal(allAziPos.astype(np.float32), np.array([10., 11., 12.], dtype=np.float32)))
-        assert (ampON[2, 0] - 0.5964107 < 1E-7)
+
+        assert (ampON[2, 0] - 0.6329377890 < 1E-7)
         assert (ampOFF[1, 1] - 1. < 1E-10)
         assert (np.isnan(ampON[0, 1]))
         assert (np.isnan(ampOFF[2, 2]))
@@ -220,9 +222,10 @@ class TestSpatialTemporalReceptiveField2(unittest.TestCase):
                 strf_dff.data.iloc[1]['traces'].shape ==
                 strf_dff.data.iloc[2]['traces'].shape ==
                 (1, 4))
-        assert (np.isnan(strf_dff.data.iloc[0]['trigger_ts']))
-        assert (np.isnan(strf_dff.data.iloc[1]['trigger_ts']))
-        assert (np.isnan(strf_dff.data.iloc[2]['trigger_ts']))
+
+        assert (not strf_dff.data.iloc[0]['trigger_ts'])
+        assert (not strf_dff.data.iloc[1]['trigger_ts'])
+        assert (not strf_dff.data.iloc[2]['trigger_ts'])
         assert (np.array_equal(strf_dff.data.iloc[1]['traces'], np.zeros((1, 4), dtype=np.float32)))
         assert (np.array_equal(strf_dff.data.iloc[2]['traces'], np.zeros((1, 4), dtype=np.float32)))
 
