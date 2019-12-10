@@ -119,8 +119,10 @@ def discrete_cross_correlation(ts1, ts2, t_range=(-1., 1.), bins=100, isPlot=Fal
                 curr_start = curr_ts1 + curr_int[0]
                 curr_end = curr_ts1 + curr_int[1]
 
-                values[j] += np.sum(np.logical_and((ts2s_short >= curr_start),
-                                                   (ts2s_short < curr_end)))
+                values[j] = values[j] + np.sum(np.logical_and((ts2s_short >= curr_start),
+                                                              (ts2s_short < curr_end)))
+
+    # values = values.astype(np.float64) / n
 
     if isPlot:
         f = plt.figure(figsize=(15, 4))
