@@ -422,10 +422,10 @@ class SpatialReceptiveField(WeightedROI):
         else:
             interpolate_rate = self.interpolate_rate
 
-        plot_axis.set_yticks(range(len(self.altPos))[::interpolate_rate])
-        plot_axis.set_xticks(range(len(self.aziPos))[::interpolate_rate])
-        plot_axis.set_yticklabels(['{:.1f}'.format(p) for p in self.altPos[::interpolate_rate]])
-        plot_axis.set_xticklabels(['{:.1f}'.format(p) for p in self.aziPos[::interpolate_rate]])
+        plot_axis.set_yticks(list(range(len(self.altPos)))[::int(interpolate_rate)])
+        plot_axis.set_xticks(list(range(len(self.aziPos)))[::int(interpolate_rate)])
+        plot_axis.set_yticklabels(['{:.1f}'.format(p) for p in self.altPos[::int(interpolate_rate)]])
+        plot_axis.set_xticklabels(['{:.1f}'.format(p) for p in self.aziPos[::int(interpolate_rate)]])
 
         if is_colorbar:
             plot_axis.get_figure().colorbar(curr_plot)
