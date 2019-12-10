@@ -516,15 +516,15 @@ class SpatialReceptiveField(WeightedROI):
         # aziInterpolation = ip.interp1d(np.arange(len(self.aziPos)),self.aziPos)
         altStep = np.mean(np.diff(self.altPos))
         aziStep = np.mean(np.diff(self.aziPos))
-        newAltPos = np.arange(self.altPos[0], self.altPos[-1] + altStep, altStep / ratio)
-        newAziPos = np.arange(self.aziPos[0], self.aziPos[-1] + aziStep, aziStep / ratio)
+        newAltPos = np.arange(self.altPos[0], self.altPos[-1], altStep / ratio)
+        newAziPos = np.arange(self.aziPos[0], self.aziPos[-1], aziStep / ratio)
 
         mask = self.get_weighted_mask()
         mask_ip = ip.interp2d(x=np.arange(mask.shape[1]), y=np.arange(mask.shape[0]), z=mask,
                               kind=method, fill_value=fill_value)
 
-        new_x = np.arange(0., mask.shape[1], 1. / ratio)
-        new_y = np.arange(0., mask.shape[0], 1. / ratio)
+        new_x = np.arange(0., mask.shape[1] - 1, 1. / ratio)
+        new_y = np.arange(0., mask.shape[0] - 1, 1. / ratio)
 
         newMask = mask_ip(x=new_x, y=new_y)
 
