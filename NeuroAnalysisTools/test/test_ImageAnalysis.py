@@ -7,7 +7,7 @@ import unittest
 
 class TestImageAnalysis(unittest.TestCase):
 
-    def setup(self):
+    def setUp(self):
         pass
 
     def test_getTrace(self):
@@ -78,10 +78,14 @@ class TestImageAnalysis(unittest.TestCase):
         _ = roi2.plot_weighted_mask()
 
     def test_WeightedROI_getWeightedCenterInCoordinate(self):
-        aa = np.zeros((5, 5));
+        aa = np.zeros((5, 5))
         aa[1:3, 2:4] = 0.5
+
+        print(aa)
+
         roi = ia.WeightedROI(aa)
-        assert (list(roi.get_weighted_center_in_coordinate(range(2, 7), range(1, 6))) == [3.5, 3.5])
+        assert (list(roi.get_weighted_center_in_coordinate(range(3, 8), range(1, 6))) == [4.5, 3.5])
+        assert (list(roi.get_weighted_center_in_coordinate(range(1, 6), range(3, 8))) == [2.5, 5.5])
 
     def test_mergeROIs(self):
 
@@ -122,15 +126,3 @@ class TestImageAnalysis(unittest.TestCase):
         # ax.imshow(mask, interpolation='nearest')
         # plt.show()
 
-        ell = ia.fit_ellipse(mask)
-        print(ell.info())
-
-        assert((np.round(ell.angle * 100) / 100) % 180. == 44.16)
-
-        import cv2
-        img = np.array([mask, mask, mask]).transpose((1, 2, 0)).copy()
-        img = ell.draw(img=img, thickness=1)
-        img = cv2.cvtColor(img, code=cv2.COLOR_BGR2RGB)
-        import matplotlib.pyplot as plt
-        plt.imshow(img, interpolation='nearest')
-        plt.show()

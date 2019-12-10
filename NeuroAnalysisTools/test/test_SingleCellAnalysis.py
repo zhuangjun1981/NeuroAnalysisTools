@@ -10,7 +10,6 @@ import numpy as np
 # from ..core import FileTools as ft
 # from ..core import ImageAnalysis as ia
 
-
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.SingleCellAnalysis as sca
@@ -18,7 +17,8 @@ import NeuroAnalysisTools.SingleCellAnalysis as sca
 
 class TestSingleCellAnalysis(unittest.TestCase):
 
-    def setup(self):
+    def setUp(self):
+
         currFolder = os.path.dirname(os.path.realpath(__file__))
         self.testDataFolder = os.path.join(currFolder, 'data')
 
@@ -279,23 +279,22 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
         assert (peak_dire_raw == int(vs_dire_raw) == int(vs_dire_ele) == int(vs_dire_rec) == 90)
 
+    def test_SpatialReceptiveField_reverse_locations(self):
+
+        alts = [-1., 0., 1.]
+        azis = [-1., 0., 1.]
+
+        map = np.array([[0., 0., 0.],
+                        [0., 1., 1.],
+                        [0., 1., 1.]])
+
+        srf = sca.SpatialReceptiveField(mask=map, altPos=alts, aziPos=azis, sign='ON')
+        assert(srf.get_weighted_rf_center() == [0.5, 0.5])
+
+        srf2 = sca.SpatialReceptiveField(mask=map, altPos=alts[::-1], aziPos=azis, sign='ON')
+        assert(srf2.get_weighted_rf_center() == [-0.5, 0.5])
+
 
 if __name__ == '__main__':
-    t = TestSingleCellAnalysis()
-    t.setup()
-    t.test_mergeROIs()
-    t.test_getSparseNoiseOnsetIndex()
-    t.test_SpatialTemporalReceptiveField_from_h5_group()
-    t.test_SpatialTemporalReceptiveField()
-    t.test_SpatialTemporalReceptiveField_IO()
-    t.test_SpatialTemporalReceptiveField_getAmpLitudeMap()
-    t.test_SpatialTemporalReceptiveField_getZscoreMap()
-    t.test_SpatialTemporalReceptiveField_getCenters()
-    t.test_SpatialTemporalReceptiveField_getAmplitudeReceptiveField()
-    t.test_SpatialTemporalReceptiveField_getZscoreReceptiveField()
-    t.test_SpatialTemporalReceptiveField_shrink()
-    t.test_SpatialReceptiveField()
-    t.test_SpatialReceptiveField_thresholdReceptiveField()
-    t.test_SpatialReceptiveField_interpolate()
-    t.test_get_orientation_properties()
+    pass
 

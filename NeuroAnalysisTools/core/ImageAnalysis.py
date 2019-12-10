@@ -1502,7 +1502,14 @@ def fit_ellipse(mask):
     if not mask.dtype == np.uint8:
         raise ValueError("input mask should have dtype as np.uint8")
 
-    _, cons, _ = cv2.findContours(image=mask2, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+    fitted = cv2.findContours(image=mask2, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(fitted) == 3:
+        cons = fitted[1]
+    elif len(fitted) == 2:
+        cons = fitted[0]
+    else:
+        raise ValueError
 
     if len(cons) == 0:
         print('ImageAnalysis.fit_ellipse: No contour detected. Returning None.')
@@ -1890,7 +1897,7 @@ class Ellipse(object):
     """
     ellipse object
 
-    :attribute center: tuple of two positive floats, (center height, center width)
+    :attribute center: tuple of two floats, (center height, center width)
     :attribute axes: tuple of two positive floats, (radius of the long axis, radius of short axis)
     :attribute angle: float, degree, counterclockwise rotation of long axis, from right direction
     """
@@ -1899,7 +1906,7 @@ class Ellipse(object):
         """
         ellipse object
 
-        :param center: tuple of two positive floats, (center height, center width)
+        :param center: tuple of two floats, (center height, center width)
         :param axes: tuple of two positive floats, (radius of the long axis, radius of short axis)
         :param angle: float, degree, counterclockwise rotation of long axis, from right direction
         """
