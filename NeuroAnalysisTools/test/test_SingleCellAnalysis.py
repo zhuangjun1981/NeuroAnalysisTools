@@ -281,18 +281,38 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
     def test_SpatialReceptiveField_reverse_locations(self):
 
-        alts = [-1., 0., 1.]
-        azis = [-1., 0., 1.]
+        alts = [-2., -1., 0., 1., 2.]
+        azis = [-2., -1., 0., 1., 2.]
 
-        map = np.array([[0., 0., 0.],
-                        [0., 1., 1.],
-                        [0., 1., 1.]])
+        map = np.array([[0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0.],
+                        [0., 0., 1., 1., 0.],
+                        [0., 0., 1., 1., 0.],
+                        [0., 0., 0., 0., 0.]])
 
         srf = sca.SpatialReceptiveField(mask=map, altPos=alts, aziPos=azis, sign='ON')
         assert(srf.get_weighted_rf_center() == [0.5, 0.5])
 
         srf2 = sca.SpatialReceptiveField(mask=map, altPos=alts[::-1], aziPos=azis, sign='ON')
         assert(srf2.get_weighted_rf_center() == [-0.5, 0.5])
+
+        srf_f = srf.gaussian_filter(sigma=1)
+        # print(srf_f.get_weighted_rf_center())
+
+        srf2_f = srf2.gaussian_filter(sigma=1)
+        # print(srf2_f.get_weighted_rf_center())
+        assert (abs(srf_f.get_weighted_rf_center()[0] + srf2_f.get_weighted_rf_center()[0]) < 1e-10)
+
+        srf_fi = srf_f.interpolate(ratio=2, method='linear')
+        # print(srf_fi.get_weighted_mask())
+        # print(srf_fi.get_weighted_rf_center())
+
+        srf2_fi = srf2_f.interpolate(ratio=2, method='linear')
+        # print(srf2_fi.get_weighted_mask())
+        # print(srf2_fi.get_weighted_rf_center())
+
+        assert(np.array_equal(srf_fi.get_weighted_mask(), srf2_fi.get_weighted_mask()))
+        assert(abs(srf_fi.get_weighted_rf_center()[0] + srf2_fi.get_weighted_rf_center()[0]) < 1e-10)
 
 
 if __name__ == '__main__':
