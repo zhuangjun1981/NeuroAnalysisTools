@@ -852,7 +852,7 @@ def threshold_to_intervals(trace, thr, comparison='>='):
     if len(start) - len(end) == 1:
         end.append(len(trace))
 
-    return zip(start, end)
+    return list(zip(start, end))
 
 
 def haramp(trace, periods, ceil_f=4):

@@ -191,9 +191,9 @@ def get_normalized_binary_roi(roi, scope, canvas_size=300., pixel_res=600, is_ce
 def get_scope(nwb_f):
 
     try:
-        device = nwb_f['general/optophysiology/imaging_plane_1/device'].value
+        device = nwb_f['general/optophysiology/imaging_plane_1/device'][()]
     except KeyError:
-        device = nwb_f['general/optophysiology/imaging_plane_0/device'].value
+        device = nwb_f['general/optophysiology/imaging_plane_0/device'][()]
 
     if device in ['DeepScope', 'Deep Scope', 'deepscope', 'Deepscope', 'deep scope', 'Deep scope']:
         return 'deepscope'
@@ -204,7 +204,7 @@ def get_scope(nwb_f):
 
 
 def get_depth(nwb_f, plane_n):
-    return nwb_f['processing/rois_and_traces_{}/imaging_depth_micron'.format(plane_n)].value
+    return nwb_f['processing/rois_and_traces_{}/imaging_depth_micron'.format(plane_n)][()]
 
 
 def get_background_img(nwb_f, plane_n):
@@ -212,9 +212,9 @@ def get_background_img(nwb_f, plane_n):
     rf_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane/reference_images'.format(plane_n)]
 
     if 'max_projection' in rf_grp.keys():
-        return rf_grp['max_projection/data'].value
+        return rf_grp['max_projection/data'][()]
     elif 'mean_projection' in rf_grp.keys():
-        return rf_grp['mean_projection/data'].value
+        return rf_grp['mean_projection/data'][()]
     else:
         return None
 
@@ -233,7 +233,7 @@ def get_roi_triplets(nwb_f, overlap_ratio=0.9, size_thr=25.):
     """
 
     roi_grp0 = nwb_f['processing/rois_and_traces_plane0/ImageSegmentation/imaging_plane']
-    roi_lst0 = roi_grp0['roi_list'].value
+    roi_lst0 = roi_grp0['roi_list'][()]
     roi_lst0 = [r for r in roi_lst0 if r[0:4] == 'roi_']
     roi_lst0_new = []
     for roi_n0 in roi_lst0:
@@ -243,7 +243,7 @@ def get_roi_triplets(nwb_f, overlap_ratio=0.9, size_thr=25.):
     roi_lst0 = roi_lst0_new
 
     roi_grp1 = nwb_f['processing/rois_and_traces_plane1/ImageSegmentation/imaging_plane']
-    roi_lst1 = roi_grp1['roi_list'].value
+    roi_lst1 = roi_grp1['roi_list'][()]
     roi_lst1 = [r for r in roi_lst1 if r[0:4] == 'roi_']
     roi_lst1_new = []
     for roi_n1 in roi_lst1:
@@ -253,7 +253,7 @@ def get_roi_triplets(nwb_f, overlap_ratio=0.9, size_thr=25.):
     roi_lst1 = roi_lst1_new
 
     roi_grp2 = nwb_f['processing/rois_and_traces_plane2/ImageSegmentation/imaging_plane']
-    roi_lst2 = roi_grp2['roi_list'].value
+    roi_lst2 = roi_grp2['roi_list'][()]
     roi_lst2 = [r for r in roi_lst2 if r[0:4] == 'roi_']
     roi_lst2_new = []
     for roi_n2 in roi_lst2:
@@ -323,7 +323,8 @@ def get_plane_ns(nwb_f):
 
 
 def get_roi_ns(nwb_f, plane_n):
-    roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane/roi_list'.format(plane_n)].value
+    roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane/roi_list'.format(plane_n)][()]
+    roi_lst = [r.decode('utf-8') for r in roi_lst]
     roi_ns = [r for r in roi_lst if r[0:4] == 'roi_']
     return roi_ns
 
@@ -334,7 +335,7 @@ def get_sampling_rate(nwb_f, ts_name):
     if 'starting_time' in grp.keys():
         return grp['starting_time'].attrs['rate']
     else:
-        ts = grp['timestamps'].value
+        ts = grp['timestamps'][()]
         return 1. / np.mean(np.diff(ts))
 
 
@@ -451,28 +452,28 @@ def get_roi(nwb_f, plane_n, roi_n):
     """
 
     try:
-        pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)].value
-        pixel_size_unit = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size_unit'.format(plane_n)].value
+        pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)][()]
+        pixel_size_unit = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size_unit'.format(plane_n)][()]
     except Exception as e:
         pixel_size = None
         pixel_size_unit = None
 
     roi_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane/{}'.format(plane_n, roi_n)]
-    mask = roi_grp['img_mask'].value
+    mask = roi_grp['img_mask'][()]
     return ia.WeightedROI(mask=mask, pixelSize=pixel_size, pixelSizeUnit=pixel_size_unit)
 
 
 def get_traces(nwb_f, plane_n, trace_type=ANALYSIS_PARAMS['trace_type']):
 
-    traces = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/data'.format(plane_n, trace_type)].value
-    trace_ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/timestamps'.format(plane_n, trace_type)].value
+    traces = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/data'.format(plane_n, trace_type)][()]
+    trace_ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/timestamps'.format(plane_n, trace_type)][()]
     return traces, trace_ts
 
 
 def get_single_trace(nwb_f, plane_n, roi_n, trace_type=ANALYSIS_PARAMS['trace_type']):
     roi_i = int(roi_n[-4:])
     trace = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/data'.format(plane_n, trace_type)][roi_i, :]
-    trace_ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/timestamps'.format(plane_n, trace_type)].value
+    trace_ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/{}/timestamps'.format(plane_n, trace_type)][()]
     return trace, trace_ts
 
 
@@ -506,7 +507,7 @@ def get_UC_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
                           True: has UniformContrast stimulus
     """
 
-    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)].value
+    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)][()]
     mask = np.zeros(ts.shape, dtype=np.bool)
 
     stim_ns = [n for n in nwb_f['stimulus/presentation'].keys() if 'UniformContrast' in n]
@@ -517,7 +518,7 @@ def get_UC_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
     else:
         for stim_n in stim_ns:
 
-            stim_dur = nwb_f['stimulus/presentation/{}/duration'.format(stim_n)].value
+            stim_dur = nwb_f['stimulus/presentation/{}/duration'.format(stim_n)][()]
 
             pd_grp = nwb_f['analysis/photodiode_onsets/{}'.format(stim_n)]
             pd_key = pd_grp.keys()[0]
@@ -546,7 +547,7 @@ def get_DGC_spont_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
                            True: has DriftingGratingCircle stimulus
     """
 
-    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)].value
+    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)][()]
     mask = np.zeros(ts.shape, dtype=np.bool)
 
     stim_ns = [n for n in nwb_f['stimulus/presentation'].keys() if 'DriftingGratingCircle' in n]
@@ -556,8 +557,8 @@ def get_DGC_spont_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
 
     else:
         for stim_n in stim_ns:
-            midgap_dur = nwb_f['stimulus/presentation/{}/midgap_dur'.format(stim_n)].value
-            block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(stim_n)].value
+            midgap_dur = nwb_f['stimulus/presentation/{}/midgap_dur'.format(stim_n)][()]
+            block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(stim_n)][()]
 
             pd_grp = nwb_f['analysis/photodiode_onsets/{}'.format(stim_n)]
             pd_keys = pd_grp.keys()
@@ -597,7 +598,7 @@ def get_LSN_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
                           True: has LocallySparseNoise stimulus
     """
 
-    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)].value
+    ts = nwb_f['processing/rois_and_traces_{}/Fluorescence/f_center_raw/timestamps'.format(plane_n)][()]
     mask = np.zeros(ts.shape, dtype=np.bool)
 
     stim_ns = [n for n in nwb_f['stimulus/presentation'].keys() if 'LocallySparseNoise' in n]
@@ -608,7 +609,7 @@ def get_LSN_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
     else:
         for stim_n in stim_ns:
 
-            probe_frame_num = nwb_f['stimulus/presentation/{}/probe_frame_num'.format(stim_n)].value
+            probe_frame_num = nwb_f['stimulus/presentation/{}/probe_frame_num'.format(stim_n)][()]
             probe_dur = probe_frame_num / 60.
 
             pd_grp = nwb_f['analysis/photodiode_onsets/{}'.format(stim_n)]
@@ -618,7 +619,7 @@ def get_LSN_ts_mask(nwb_f, plane_n='plane0', len_thr=100):
             stim_offset = None
 
             for pd_key in pd_keys:
-                curr_onsets = pd_grp[pd_key]['pd_onset_ts_sec'].value
+                curr_onsets = pd_grp[pd_key]['pd_onset_ts_sec'][()]
 
                 if stim_onset is None:
                     stim_onset = np.min(curr_onsets)
@@ -751,8 +752,8 @@ def plot_roi_retinotopy(coords_roi, coords_rf, ax_alt, ax_azi, alt_range=None, a
 
 def get_pupil_area(nwb_f, module_name, ell_thr=0.5, median_win=3.):
 
-    pupil_shape = nwb_f['processing/{}/PupilTracking/eyetracking/pupil_shape'.format(module_name)].value
-    pupil_ts = nwb_f['processing/{}/PupilTracking/eyetracking/timestamps'.format(module_name)].value
+    pupil_shape = nwb_f['processing/{}/PupilTracking/eyetracking/pupil_shape'.format(module_name)][()]
+    pupil_ts = nwb_f['processing/{}/PupilTracking/eyetracking/timestamps'.format(module_name)][()]
 
     fs = 1. / np.mean(np.diff(pupil_ts))
     # print(fs)
@@ -764,11 +765,11 @@ def get_pupil_area(nwb_f, module_name, ell_thr=0.5, median_win=3.):
 def get_running_speed(nwb_f, disk_radius=8., fs_final=30., speed_thr_pos=100., speed_thr_neg=-20.,
                       gauss_sig=1.):
 
-    ref = nwb_f['acquisition/timeseries/analog_running_ref/data'].value
-    sig = nwb_f['acquisition/timeseries/analog_running_sig/data'].value
-    starting_time = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'].value
+    ref = nwb_f['acquisition/timeseries/analog_running_ref/data'][()]
+    sig = nwb_f['acquisition/timeseries/analog_running_sig/data'][()]
+    starting_time = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'][()]
     ts_rate = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'].attrs['rate']
-    num_sample = nwb_f['acquisition/timeseries/analog_running_ref/num_samples'].value
+    num_sample = nwb_f['acquisition/timeseries/analog_running_ref/num_samples'][()]
 
     ts = starting_time + np.arange(num_sample) / ts_rate
 
@@ -791,11 +792,11 @@ def plot_roi_contour_on_background(nwb_f, plane_n, plot_ax, **kwargs):
     seg_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane'.format(plane_n)]
 
     if 'max_projection' in seg_grp['reference_images']:
-        bg = seg_grp['reference_images/max_projection/data'].value
+        bg = seg_grp['reference_images/max_projection/data'][()]
         bg = ia.array_nor(bg)
         plot_ax.imshow(bg, vmin=0, vmax=0.8, cmap='gray', interpolation='nearest')
     elif 'max_projection' in seg_grp['reference_images']:
-        bg = seg_grp['reference_images/mean_projection/data'].value
+        bg = seg_grp['reference_images/mean_projection/data'][()]
         bg = ia.array_nor(bg)
         plot_ax.imshow(bg, vmin=0, vmax=0.8, cmap='gray', interpolation='nearest')
     else:
@@ -805,7 +806,7 @@ def plot_roi_contour_on_background(nwb_f, plane_n, plot_ax, **kwargs):
 
     roi_ns = [r for r in seg_grp['roi_list'] if r[0:4] == 'roi_']
     for roi_n in roi_ns:
-        roi_mask = seg_grp[roi_n]['img_mask'].value
+        roi_mask = seg_grp[roi_n]['img_mask'][()]
         pt.plot_mask_borders(mask=roi_mask, plotAxis=plot_ax, **kwargs)
 
 
@@ -820,15 +821,15 @@ def get_everything_from_roi(nwb_f, plane_n, roi_n, params=ANALYSIS_PARAMS, verbo
 
     roi_ind = int(roi_n[-4:])
 
-    roi_properties = {'date': nwb_f['identifier'].value[0:6],
-                      'mouse_id': nwb_f['identifier'].value[7:14],
+    roi_properties = {'date': nwb_f['identifier'][()][0:6],
+                      'mouse_id': nwb_f['identifier'][()][7:14],
                       'plane_n': plane_n,
                       'roi_n': roi_n,
                       'depth': get_depth(nwb_f=nwb_f, plane_n=plane_n)}
 
     # get roi properties
     roi = get_roi(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
-    pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)].value * 1000000.
+    pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)][()] * 1000000.
     roi_area = roi.get_binary_area() * pixel_size[0] * pixel_size[1]
     roi_center_row, roi_center_col = roi.get_weighted_center()
     roi_properties.update({'roi_area': roi_area,
@@ -1009,7 +1010,7 @@ def get_everything_from_roi(nwb_f, plane_n, roi_n, params=ANALYSIS_PARAMS, verbo
     dgcrm = get_dgcrm(nwb_f=nwb_f, plane_n=plane_n, roi_ind=roi_ind, trace_type='sta_' + params['trace_type'])
     if dgcrm is not None:
         dgcrm_grp_key = get_dgcrm_grp_key(nwb_f=nwb_f)
-        dgc_block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(dgcrm_grp_key[15:])].value
+        dgc_block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(dgcrm_grp_key[15:])][()]
         # print('block duration: {}'.format(block_dur))
 
         # get df statistics ============================================================================================
@@ -1648,7 +1649,7 @@ def get_axon_ind_from_clu_f(clu_f, axon_n):
     """
 
     if axon_n in clu_f['axons'].keys():
-        roi_lst = clu_f['axons/{}'.format(axon_n)].value
+        roi_lst = clu_f['axons/{}'.format(axon_n)][()]
         if len(roi_lst) == 1:
             print('\tThere is only one roi in the axon ({}). Returning None.'.format(axon_n))
             return None
@@ -1732,11 +1733,11 @@ def get_axon_morphology(clu_f, nwb_f, plane_n, axon_n):
     axon_morph = {}
 
     mc_grp = nwb_f['processing/motion_correction/MotionCorrection/{}/corrected'.format(plane_n)]
-    pixel_size = mc_grp['pixel_size'].value
+    pixel_size = mc_grp['pixel_size'][()]
     # print(pixel_size)
     pixel_size_mean = np.mean(pixel_size)
 
-    bout_ns = clu_f['axons/{}'.format(axon_n)].value
+    bout_ns = clu_f['axons/{}'.format(axon_n)][()]
     # print(bout_ns)
     bout_num = len(bout_ns)
     axon_morph['bouton_num'] = bout_num
@@ -1746,7 +1747,7 @@ def get_axon_morphology(clu_f, nwb_f, plane_n, axon_n):
     else:
         axon_roi = get_axon_roi_from_clu_f(clu_f=clu_f, axon_n=axon_n)
         axon_roi = ia.WeightedROI(axon_roi.get_weighted_mask(), pixelSize=pixel_size,
-                                  pixelSizeUnit=mc_grp['pixel_size_unit'].value)
+                                  pixelSizeUnit=mc_grp['pixel_size_unit'][()])
 
     # plt.imshow(axon_roi.get_binary_mask(), interpolation='nearest')
     # plt.show()
@@ -1812,16 +1813,16 @@ def get_axon_roi(clu_f, nwb_f, plane_n, axon_n):
     :return axon_roi: corticalmapping.core.ImageAnalysis.WeightedROI object
     """
 
-    pixel_size_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)].value
-    pixel_size_u_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size_unit'.format(plane_n)].value
+    pixel_size_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)][()]
+    pixel_size_u_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size_unit'.format(plane_n)][()]
 
-    if axon_n in clu_f['rois_and_traces/axon_list'].value:
+    if axon_n in clu_f['rois_and_traces/axon_list'][()]:
         axon_roi = get_axon_roi_from_clu_f(clu_f=clu_f, axon_n=axon_n)
         axon_roi.pixelSizeX = pixel_size_s[1]
         axon_roi.pixelSizeY = pixel_size_s[0]
         axon_roi.pixelSizeUnit = pixel_size_u_s
     else:
-        roi_n = clu_f['axons/{}'.format(axon_n)].value
+        roi_n = clu_f['axons/{}'.format(axon_n)][()]
         if len(roi_n) == 0 :
             raise ValueError('Did not find bouton rois for this axon: {} / {}'.format(clu_f.filename, axon_n))
         elif len(roi_n) > 1:
@@ -1846,21 +1847,21 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
     :return:
     """
 
-    date = nwb_f['identifier'].value[0:6]
-    if clu_f['meta/date'].value != date:
+    date = nwb_f['identifier'][()][0:6]
+    if clu_f['meta/date'][()] != date:
         raise ValueError('the date ({}) specified in nwb_f does not match the date ({}) specified in '
-                         '"clu_f".'.format(date, clu_f['meta/date'].value))
+                         '"clu_f".'.format(date, clu_f['meta/date'][()]))
 
-    mid = nwb_f['identifier'].value[7:14]
-    if clu_f['meta/mouse_id'].value != mid:
+    mid = nwb_f['identifier'][()][7:14]
+    if clu_f['meta/mouse_id'][()] != mid:
         raise ValueError('the mouse_id ({}) specified in nwb_f does not match the mouse_id ({}) '
-                         'specified in clu_f.'.format(plane_n, clu_f['meta/mouse_id'].value))
+                         'specified in clu_f.'.format(plane_n, clu_f['meta/mouse_id'][()]))
 
-    if clu_f['meta/plane_n'].value != plane_n:
+    if clu_f['meta/plane_n'][()] != plane_n:
         raise ValueError('the input "plane_n" ({}) does not match the plane_n ({}) specified in '
-                         '"clu_f".'.format(plane_n, clu_f['meta/plane_n'].value))
+                         '"clu_f".'.format(plane_n, clu_f['meta/plane_n'][()]))
 
-    roi_lst = clu_f['axons/{}'.format(axon_n)].value
+    roi_lst = clu_f['axons/{}'.format(axon_n)][()]
     if len(roi_lst) == 1:
         roi_n = roi_lst[0]
         print('\tThere is only one roi ({}) in the axon ({}).'.format(roi_n, axon_n))
@@ -1873,11 +1874,11 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
                            'mouse_id': mid,
                            'plane_n': plane_n,
                            'roi_n': axon_n,
-                           'depth': nwb_f['processing/rois_and_traces_{}/imaging_depth_micron'.format(plane_n)].value}
+                           'depth': nwb_f['processing/rois_and_traces_{}/imaging_depth_micron'.format(plane_n)][()]}
 
         # get mask properties
         axon_roi = get_axon_roi_from_clu_f(clu_f=clu_f, axon_n=axon_n)
-        pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)].value * 1000000.
+        pixel_size = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)][()] * 1000000.
         roi_area = axon_roi.get_binary_area() * pixel_size[0] * pixel_size[1]
         roi_center_row, roi_center_col = axon_roi.get_weighted_center()
         axon_properties.update({'roi_area': roi_area,
@@ -1888,7 +1889,7 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
         tt = params['trace_type'].replace('f', 'traces')
         trace = get_axon_trace_from_clu_f(clu_f=clu_f, axon_n=axon_n, trace_type=tt)
         trace_ts = nwb_f['processing/rois_and_traces_{}/' \
-                         'Fluorescence/{}/timestamps'.format(plane_n, params['trace_type'])].value
+                         'Fluorescence/{}/timestamps'.format(plane_n, params['trace_type'])][()]
         skew_raw, skew_fil = sca.get_skewness(trace=trace, ts=trace_ts,
                                               filter_length=params['filter_length_skew_sec'])
         axon_properties.update({'skew_raw': skew_raw,
@@ -2066,7 +2067,7 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
 
         if dgcrm is not None:
             dgcrm_grp_key = get_dgcrm_grp_key(nwb_f=nwb_f)
-            dgc_block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(dgcrm_grp_key[15:])].value
+            dgc_block_dur = nwb_f['stimulus/presentation/{}/block_dur'.format(dgcrm_grp_key[15:])][()]
             # print('block duration: {}'.format(block_dur))
 
             # get df statistics ============================================================================================
@@ -2706,9 +2707,9 @@ def roi_page_report(nwb_f, plane_n, roi_n, params=ANALYSIS_PARAMS, plot_params=P
     segmentation_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane'.format(plane_n)]
     rf_img_grp = segmentation_grp['reference_images']
     if 'mean_projection' in rf_img_grp.keys():
-        rf_img = rf_img_grp['mean_projection/data'].value
+        rf_img = rf_img_grp['mean_projection/data'][()]
     else:
-        rf_img = rf_img_grp['max_projection/data'].value
+        rf_img = rf_img_grp['max_projection/data'][()]
 
     f = plt.figure(figsize=plot_params['fig_size'], facecolor=plot_params['fig_facecolor'])
 
@@ -2965,9 +2966,9 @@ def axon_page_report(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARAMS, plot
     segmentation_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane'.format(plane_n)]
     rf_img_grp = segmentation_grp['reference_images']
     if 'mean_projection' in rf_img_grp.keys():
-        rf_img = rf_img_grp['mean_projection/data'].value
+        rf_img = rf_img_grp['mean_projection/data'][()]
     else:
-        rf_img = rf_img_grp['max_projection/data'].value
+        rf_img = rf_img_grp['max_projection/data'][()]
 
     f = plt.figure(figsize=plot_params['fig_size'], facecolor=plot_params['fig_facecolor'])
 
@@ -3676,7 +3677,7 @@ class BoutonClassifier(object):
 
         print('\tclustering ...')
 
-        nwb_id = nwb_f['identifier'].value
+        nwb_id = nwb_f['identifier'][()]
         date = nwb_id.split('_')[0]
         mid = nwb_id.split('_')[1]
 
@@ -3775,7 +3776,7 @@ class BoutonClassifier(object):
                 for roi_n in roi_lst:
 
                     roi_i = int(roi_n[-4:])
-                    curr_mask = curr_mask + seg_grp[roi_n]['img_mask'].value
+                    curr_mask = curr_mask + seg_grp[roi_n]['img_mask'][()]
                     curr_weight = np.sum(seg_grp[roi_n]['pix_mask_weight'])
                     total_weight = total_weight + curr_weight
 
@@ -4070,7 +4071,7 @@ class BoutonClassifier(object):
                     print('no clustered axons, skip')
                     return
                 else:
-                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)].value})
+                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)][()]})
 
         frame_dur = np.mean(np.diff(trace_ts))
         frame_start = int(np.floor(t_win[0] / frame_dur))
@@ -4091,10 +4092,10 @@ class BoutonClassifier(object):
 
             curr_probe_grp = strf_plane_grp.create_group(probe_n)
 
-            probe_onsets = onsets_probe_grp['pd_onset_ts_sec'].value
+            probe_onsets = onsets_probe_grp['pd_onset_ts_sec'][()]
 
             curr_probe_grp['global_trigger_timestamps'] = nwb_f['/{}/{}/pd_onset_ts_sec'
-                .format(probe_onsets_path, probe_n)].value
+                .format(probe_onsets_path, probe_n)][()]
             curr_probe_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
 
             for trace_n, trace in traces.items():
@@ -4158,7 +4159,7 @@ class BoutonClassifier(object):
                     print('no clustered axons, skip')
                     return
                 else:
-                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)].value})
+                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)][()]})
 
         dgcrm_grp = clu_f.create_group('response_table_{}'.format(dgc_stim_n))
         dgcrm_plane_grp = dgcrm_grp.create_group(plane_n)
@@ -4178,7 +4179,7 @@ class BoutonClassifier(object):
 
             curr_grating_grp = dgcrm_plane_grp.create_group(grating_n)
 
-            grating_onsets = onsets_grating_grp['pd_onset_ts_sec'].value
+            grating_onsets = onsets_grating_grp['pd_onset_ts_sec'][()]
 
             curr_grating_grp.attrs['global_trigger_timestamps'] = grating_onsets
             curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
@@ -4204,7 +4205,7 @@ class BoutonClassifier(object):
 
         print('\tclustering ...')
 
-        nwb_id = nwb_f['identifier'].value
+        nwb_id = nwb_f['identifier'][()].decode('utf-8')
         date = nwb_id.split('_')[0]
         mid = nwb_id.split('_')[1]
 
@@ -4577,7 +4578,7 @@ class BoutonClassifier(object):
                     print('no clustered axons, skip')
                     return
                 else:
-                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)].value})
+                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)][()]})
 
         frame_dur = np.mean(np.diff(trace_ts))
         frame_start = int(np.floor(t_win[0] / frame_dur))
@@ -4598,10 +4599,10 @@ class BoutonClassifier(object):
 
             curr_probe_grp = strf_plane_grp.create_group(probe_n)
 
-            probe_onsets = onsets_probe_grp['pd_onset_ts_sec'].value
+            probe_onsets = onsets_probe_grp['pd_onset_ts_sec'][()]
 
             curr_probe_grp['global_trigger_timestamps'] = nwb_f['/{}/{}/pd_onset_ts_sec'
-                .format(probe_onsets_path, probe_n)].value
+                .format(probe_onsets_path, probe_n)][()]
             curr_probe_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
 
             for trace_n, trace in traces.items():
@@ -4667,7 +4668,7 @@ class BoutonClassifier(object):
                     print('no clustered axons, skip')
                     return
                 else:
-                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)].value})
+                    traces.update({f_type: clu_f['rois_and_traces/{}'.format(f_type)][()]})
 
         dgcrm_grp = clu_f.create_group('response_table_{}'.format(dgc_stim_n))
         dgcrm_plane_grp = dgcrm_grp.create_group('multiplane')
@@ -4687,7 +4688,7 @@ class BoutonClassifier(object):
 
             curr_grating_grp = dgcrm_plane_grp.create_group(grating_n)
 
-            grating_onsets = onsets_grating_grp['pd_onset_ts_sec'].value
+            grating_onsets = onsets_grating_grp['pd_onset_ts_sec'][()]
 
             curr_grating_grp.attrs['global_trigger_timestamps'] = grating_onsets
             curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
