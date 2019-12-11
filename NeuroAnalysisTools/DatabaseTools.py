@@ -3722,7 +3722,7 @@ class BoutonClassifier(object):
         # get axon clusters
         axon_dict, clu_axon = self.get_axon_dict(linkage_z=linkage_z, roi_ns=roi_ns_res)
 
-        axon_ns = axon_dict.keys()
+        axon_ns = list(axon_dict.keys())
         axon_ns.sort()
         roi_num_per_axon = [len(axon_dict[axon_n]) for axon_n in axon_ns]
         # print(roi_num_per_axon)
@@ -3960,7 +3960,7 @@ class BoutonClassifier(object):
 
         trace_f = PdfPages(save_path)
 
-        axon_ns = axon_dict.keys()
+        axon_ns = list(axon_dict.keys())
         axon_ns.sort()
 
         for axon_n in axon_ns:
@@ -4059,7 +4059,7 @@ class BoutonClassifier(object):
             raise ValueError('time window should be from early time to late time.')
 
         probe_onsets_path = 'analysis/photodiode_onsets/{}'.format(lsn_stim_n)
-        probe_ns = nwb_f[probe_onsets_path].keys()
+        probe_ns = list(nwb_f[probe_onsets_path].keys())
         probe_ns.sort()
 
         trace_ts = nwb_f['processing/motion_correction/MotionCorrection/{}/corrected/timestamps'.format(plane_n)]
@@ -4146,7 +4146,7 @@ class BoutonClassifier(object):
             dgc_stim_n = dgc_stim_n[0]
 
         grating_onsets_path = 'analysis/photodiode_onsets/{}'.format(dgc_stim_n)
-        grating_ns = nwb_f[grating_onsets_path].keys()
+        grating_ns = list(nwb_f[grating_onsets_path].keys())
         grating_ns.sort()
         # print('\n'.join(grating_ns))
 
@@ -4564,7 +4564,7 @@ class BoutonClassifier(object):
             raise ValueError('time window should be from early time to late time.')
 
         probe_onsets_path = 'analysis/photodiode_onsets/{}'.format(lsn_stim_n)
-        probe_ns = nwb_f[probe_onsets_path].keys()
+        probe_ns = list(nwb_f[probe_onsets_path].keys())
         probe_ns.sort()
 
         plane_ns = get_plane_ns(nwb_f)
@@ -4653,7 +4653,7 @@ class BoutonClassifier(object):
             dgc_stim_n = dgc_stim_n[0]
 
         grating_onsets_path = 'analysis/photodiode_onsets/{}'.format(dgc_stim_n)
-        grating_ns = nwb_f[grating_onsets_path].keys()
+        grating_ns = list(nwb_f[grating_onsets_path].keys())
         grating_ns.sort()
         # print('\n'.join(grating_ns))
 

@@ -263,7 +263,7 @@ def get_dgc_response_matrix_from_nwb(h5_grp, roi_ind, trace_type='sta_f_center_s
 
     dgcrm = DataFrame([], columns=['alt', 'azi', 'sf', 'tf', 'dire', 'con', 'rad', 'onset_ts', 'matrix'])
 
-    condi_ns = h5_grp.keys()
+    condi_ns = list(h5_grp.keys())
     condi_ns.sort()
 
     for condi_i, condi_n in enumerate(condi_ns):
