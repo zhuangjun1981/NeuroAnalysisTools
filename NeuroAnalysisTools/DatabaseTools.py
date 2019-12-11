@@ -3748,11 +3748,11 @@ class BoutonClassifier(object):
         save_f.create_dataset('matrix_distance_reorg', data=mat_dis_reorg)
         save_f.create_dataset('matrix_corr_coef_thr_reorg', data=mat_corr_reorg)
         save_f.create_dataset('linkage_z', data=linkage_z)
-        save_f.create_dataset('responsive_roi_ns', data=roi_ns_res)
+        save_f.create_dataset('responsive_roi_ns', data=[r.encode('utf-8') for r in roi_ns_res])
         save_f.create_dataset('cluster_indices', data=clu_axon)
         axon_grp = save_f.create_group('axons')
         for axon_n, roi_lst in axon_dict.items():
-            axon_grp.create_dataset(axon_n, data=roi_lst)
+            axon_grp.create_dataset(axon_n, data=[r.encode('utf-8') for r in roi_lst])
 
         # adding rois and traces
         trace_grp = nwb_f['processing/rois_and_traces_{}/Fluorescence'.format(plane_n)]
@@ -3800,7 +3800,7 @@ class BoutonClassifier(object):
         axon_traces_sub = np.array(axon_traces_sub)
         rat_grp = save_f.create_group('rois_and_traces')
         rat_grp.attrs['description'] = 'this group only list axons with more than one rois'
-        rat_grp.create_dataset('axon_list', data=axon_lst)
+        rat_grp.create_dataset('axon_list', data=[a.encode('utf-8') for a in axon_lst])
         rat_grp.create_dataset('masks_center', data=axon_masks)
         rat_grp.create_dataset('traces_center_raw', data=axon_traces_raw)
         rat_grp.create_dataset('traces_center_subtracted', data=axon_traces_sub)
@@ -4288,7 +4288,7 @@ class BoutonClassifier(object):
         # get axon clusters
         axon_dict, clu_axon = self.get_axon_dict(linkage_z=linkage_z, roi_ns=roi_ns_res)
 
-        axon_ns = axon_dict.keys()
+        axon_ns = list(axon_dict.keys())
         axon_ns.sort()
         roi_num_per_axon = [len(axon_dict[axon_n]) for axon_n in axon_ns]
         # print(roi_num_per_axon)
@@ -4313,11 +4313,11 @@ class BoutonClassifier(object):
         save_f.create_dataset('matrix_distance_reorg', data=mat_dis_reorg)
         save_f.create_dataset('matrix_corr_coef_thr_reorg', data=mat_corr_reorg)
         save_f.create_dataset('linkage_z', data=linkage_z)
-        save_f.create_dataset('responsive_roi_ns', data=roi_ns_res)
+        save_f.create_dataset('responsive_roi_ns', data=[n.encode('utf-8') for n in roi_ns_res])
         save_f.create_dataset('cluster_indices', data=clu_axon)
         axon_grp = save_f.create_group('axons')
         for axon_n, roi_lst in axon_dict.items():
-            axon_grp.create_dataset(axon_n, data=roi_lst)
+            axon_grp.create_dataset(axon_n, data=[r.encode('utf-8') for r in roi_lst])
 
         # adding rois and traces
         axon_lst = []
@@ -4365,7 +4365,7 @@ class BoutonClassifier(object):
         axon_traces_sub = np.array(axon_traces_sub)
         rat_grp = save_f.create_group('rois_and_traces')
         rat_grp.attrs['description'] = 'this group only list axons with more than one rois'
-        rat_grp.create_dataset('axon_list', data=axon_lst)
+        rat_grp.create_dataset('axon_list', data=[a.encode('utf-8') for a in axon_lst])
         rat_grp.create_dataset('traces_center_raw', data=axon_traces_raw)
         rat_grp.create_dataset('traces_center_subtracted', data=axon_traces_sub)
         save_f.close()
@@ -4463,7 +4463,7 @@ class BoutonClassifier(object):
 
         trace_f = PdfPages(save_path)
 
-        axon_ns = axon_dict.keys()
+        axon_ns = list(axon_dict.keys())
         axon_ns.sort()
 
         for axon_n in axon_ns:
