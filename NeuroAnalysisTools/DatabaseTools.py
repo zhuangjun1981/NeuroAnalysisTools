@@ -3942,11 +3942,11 @@ class BoutonClassifier(object):
                 for roi_n in roi_lst:
                     curr_roi = get_roi(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
                     pt.plot_mask_borders(curr_roi.get_binary_mask(), plotAxis=ax, color=curr_color[0],
-                                         lw=0.5)
+                                         borderWidth=0.5)
             if len(roi_lst) == 1:
                 curr_roi = get_roi(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_lst[0])
                 pt.plot_mask_borders(curr_roi.get_binary_mask(), plotAxis=ax, color='#aaaaaa',
-                                     lw=0.5)
+                                     borderWidth=0.5)
         return f
 
     def plot_traces_single_plane(self, save_path, axon_dict, nwb_f, plane_n, roi_num_per_axon, mat_corr_reorg,
@@ -4437,7 +4437,7 @@ class BoutonClassifier(object):
                 curr_roi = get_roi(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
                 plane_i = plane_ns.index(plane_n)
                 pt.plot_mask_borders(curr_roi.get_binary_mask(), plotAxis=ax[plane_i], color='#aaaaaa',
-                                     lw=0.5)
+                                     borderWidth=0.5)
             elif len(roi_lst) > 1:
                 curr_color = pt.random_color(1)
                 for plane_roi_n in roi_lst:
@@ -4446,7 +4446,7 @@ class BoutonClassifier(object):
                     curr_roi = get_roi(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
                     plane_i = plane_ns.index(plane_n)
                     pt.plot_mask_borders(curr_roi.get_binary_mask(), plotAxis=ax[plane_i], color=curr_color[0],
-                                         lw=0.5)
+                                         borderWidth=0.5)
             else:
                 raise ValueError('no roi in the axon.')
 
