@@ -238,7 +238,7 @@ def get_strf_from_nwb(h5_grp, roi_ind, trace_type='sta_f_center_subtracted', loc
 
     sta_ts = h5_grp.attrs['sta_timestamps']
 
-    probe_ns = h5_grp.keys()
+    probe_ns = list(h5_grp.keys())
     probe_ns.sort()
 
     locations = []
@@ -252,7 +252,7 @@ def get_strf_from_nwb(h5_grp, roi_ind, trace_type='sta_f_center_subtracted', loc
         signs.append(int(probe_n[24:26]))
 
         traces.append(h5_grp['{}/{}'.format(probe_n, trace_type)][roi_ind, :, :])
-        trigger_ts.append(h5_grp['{}/global_trigger_timestamps'.format(probe_n)].value)
+        trigger_ts.append(h5_grp['{}/global_trigger_timestamps'.format(probe_n)][()])
 
     return SpatialTemporalReceptiveField(locations=locations, signs=signs, traces=traces, time=sta_ts,
                                          trigger_ts=trigger_ts, name='roi_{:04d}'.format(roi_ind),
