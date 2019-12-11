@@ -425,7 +425,7 @@ def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputSha
 
     if rotation:
         newImg = expand_image_cv2(newImg)
-        newImg = rotate_image(newImg, rotation, borderValue=minValue)
+        newImg = rotate_image(newImg, rotation, borderValue=fill_value)
 
     if (outputShape is None) and (offset is None):
         return newImg
@@ -1545,13 +1545,27 @@ class ROI(object):
         self.dimension = mask.shape
         self.pixels = np.where(np.logical_and(mask!=0, ~np.isnan(mask)))
 
-        if pixelSize is None: self.pixelSizeX = self.pixelSizeY = pixelSize
-        elif (not hasattr(pixelSize, '__len__')): self.pixelSizeX = self.pixelSizeY = pixelSize
-        elif len(pixelSize)==2: self.pixelSizeY = pixelSize[0]; self.pixelSizeX = pixelSize[1]
-        else: raise LookupError('pixel size should be either None or scalar or list(array) of two sclars!!')
+        if pixelSize is None:
+            self.pixelSizeX = self.pixelSizeY = pixelSize
+            self.pixelSizeUnit = None
+        elif (not hasattr(pixelSize, '__len__')):
+            self.pixelSizeX = self.pixelSizeY = pixelSize
+        elif len(pixelSize)==2:
+            self.pixelSizeY = pixelSize[0]; self.pixelSizeX = pixelSize[1]
+        else:
+            raise LookupError('pixel size should be either None or scalar or list(array) of two sclars!!')
 
-        if self.pixelSizeY is None: self.pixelSizeUnit=None
-        else: self.pixelSizeUnit = pixelSizeUnit
+        if isinstance(pixelSizeUnit, str) :
+            self.pixelSizeUnit = pixelSizeUnit
+        elif pixelSizeUnit is None:
+            self.pixelSizeUnit = None
+        else:
+            try:
+                self.pixelSizeUnit = pixelSizeUnit.decode('utf-8')
+            except Exception as e:
+                print('Do not understand input "pixelSizeUnit": {}. Setting it to None'.format(pixelSizeUnit))
+                print(e)
+                self.pixelSizeUnit = None
 
     def __str__(self):
         return 'NeuroAnalysisTools.core.ImageAnalysis.ROI object'
@@ -1635,7 +1649,11 @@ class ROI(object):
         '''
         return the center coordinates [Y, X] of the centroid of the mask
         '''
-        return np.mean(np.array(self.pixels,dtype=np.float).transpose(),axis=0)
+        center = np.mean(np.array(self.pixels,dtype=np.float).transpose(),axis=0)
+        if self.pixelSizeX is not None and self.pixelSizeY is not None:
+            return center * np.array([self.pixelSizeY, self.pixelSizeX])
+        else:
+            return center
 
     def get_binary_trace(self, mov):
         '''

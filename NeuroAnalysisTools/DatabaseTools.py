@@ -195,6 +195,8 @@ def get_scope(nwb_f):
     except KeyError:
         device = nwb_f['general/optophysiology/imaging_plane_0/device'][()]
 
+    device = device.decode('utf-8')
+
     if device in ['DeepScope', 'Deep Scope', 'deepscope', 'Deepscope', 'deep scope', 'Deep scope']:
         return 'deepscope'
     elif device in ['Sutter', 'sutter'] or 'Sutter' in device:
