@@ -2493,7 +2493,7 @@ class DriftingGratingResponseTable(DataFrame):
             tf_tuning_2['resp_mean_rec'] = tf_tuning_2['resp_mean']
             tf_tuning_2.loc[tf_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0.
 
-            peak_tf_raw_ind = tf_tuning_2['resp_mean'].argmax()
+            peak_tf_raw_ind = tf_tuning_2['resp_mean'].idxmax()
             peak_tf_raw = tf_tuning_2.loc[peak_tf_raw_ind, 'tf']
 
             tfs = tf_tuning_2['tf'].astype(np.float)
@@ -2561,7 +2561,7 @@ class DriftingGratingResponseTable(DataFrame):
             sf_tuning_2['resp_mean_rec'] = sf_tuning_2['resp_mean']
             sf_tuning_2.loc[sf_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0.
 
-            peak_sf_raw_ind = sf_tuning_2['resp_mean'].argmax()
+            peak_sf_raw_ind = sf_tuning_2['resp_mean'].idxmax()
             peak_sf_raw = sf_tuning_2.loc[peak_sf_raw_ind, 'sf']
 
             sfs = sf_tuning_2['sf'].astype(np.float)
