@@ -573,40 +573,56 @@ class SpatialReceptiveField(ia.WeightedROI):
         dimension = h5Group.attrs['dimension']
         pixelSizeUnit = h5Group.attrs['pixelSizeUnit']
         if pixelSizeUnit == 'None': pixelSizeUnit = None
-        pixels = h5Group['pixels'].value
-        weights = h5Group['weights'].value
+        pixels = h5Group['pixels'][()]
+        weights = h5Group['weights'][()]
         mask = np.zeros(dimension, dtype=np.float32)
         mask[tuple(pixels)] = weights
 
-        altPos = h5Group['altPos'].value
+        altPos = h5Group['altPos'][()]
+        if isinstance(altPos, bytes):
+            altPos = altPos.decode('utf-8')
         if altPos == 'None':
             altPos = None
 
-        aziPos = h5Group['aziPos'].value
+        aziPos = h5Group['aziPos'][()]
+        if isinstance(aziPos, bytes):
+            aziPos = aziPos.decode('utf-8')
         if aziPos == 'None':
             aziPos = None
 
-        sign = h5Group['sign'].value
+        sign = h5Group['sign'][()]
+        if isinstance(sign, bytes):
+            sign = sign.decode('utf-8')
         if sign == 'None':
             sign = None
 
-        temporalWindow = h5Group['temporalWindow'].value
+        temporalWindow = h5Group['temporalWindow'][()]
+        if isinstance(temporalWindow, bytes):
+            temporalWindow = temporalWindow.decode('utf-8')
         if temporalWindow == 'None':
             temporalWindow = None
 
-        dataType = h5Group['dataType'].value
+        dataType = h5Group['dataType'][()]
+        if isinstance(dataType, bytes):
+            dataType = dataType.decode('utf-8')
         if dataType == 'None':
             dataType = None
 
-        thr = h5Group['thr'].value
+        thr = h5Group['thr'][()]
+        if isinstance(thr, bytes):
+            thr = thr.decode()
         if thr == 'None':
             thr = None
 
-        filter_sigma = h5Group['filter_sigma'].value
+        filter_sigma = h5Group['filter_sigma'][()]
+        if isinstance(filter_sigma, bytes):
+            filter_sigma = filter_sigma.decode('utf-8')
         if filter_sigma == 'None':
             filter_sigma = None
 
-        interpolate_rate = h5Group['interpolate_rate'].value
+        interpolate_rate = h5Group['interpolate_rate'][()]
+        if isinstance(interpolate_rate, bytes):
+            interpolate_rate = interpolate_rate.decode('utf-8')
         if interpolate_rate == 'None':
             interpolate_rate = None
 
@@ -618,10 +634,10 @@ class SpatialReceptiveField(ia.WeightedROI):
             if key not in ['pixels', 'weights', 'altPos', 'aziPos', 'dataType', 'filter_sigma',
                            'interpolate_rate', 'sign', 'temporalWindow', 'thr']:
 
-                if h5Group[key].value == 'None':
+                if h5Group[key][()] == 'None':
                     setattr(srf, key, None)
                 else:
-                    setattr(srf, key, h5Group[key].value)
+                    setattr(srf, key, h5Group[key][()])
 
         return srf
 
@@ -787,7 +803,8 @@ class SpatialTemporalReceptiveField(object):
 
         values = [(location[0], location[1], signs[i], traces[i], trigger_ts[i]) for i, location in
                   enumerate(locations)]
-        if not values: raise ValueError('Can not find input traces!')
+        if not values:
+            raise ValueError('Can not find input traces!')
 
         df_to_add = DataFrame(values, columns=['altitude', 'azimuth', 'sign', 'traces', 'trigger_ts'])
 
