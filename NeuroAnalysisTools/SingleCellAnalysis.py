@@ -610,7 +610,7 @@ class SpatialReceptiveField(ia.WeightedROI):
 
         thr = h5Group['thr'][()]
         if isinstance(thr, bytes):
-            thr = thr.decode()
+            thr = thr.decode('utf-8')
         if thr == 'None':
             thr = None
 

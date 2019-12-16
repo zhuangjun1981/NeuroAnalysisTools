@@ -405,8 +405,8 @@ def get_dgcrm(nwb_f, plane_n, roi_ind, trace_type):
 
 def get_rf_properties(srf,
                       polarity,
-                      sigma=ANALYSIS_PARAMS['gaussian_filter_sigma_rf'],
-                      interpolate_rate=ANALYSIS_PARAMS['interpolate_rate_rf'],
+                      sigma=None, # ANALYSIS_PARAMS['gaussian_filter_sigma_rf'],
+                      interpolate_rate=None, #ANALYSIS_PARAMS['interpolate_rate_rf'],
                       z_thr_abs=ANALYSIS_PARAMS['rf_z_thr_abs'],
                       z_thr_rel=ANALYSIS_PARAMS['rf_z_thr_rel']):
     """
@@ -423,8 +423,11 @@ def get_rf_properties(srf,
                      thresholded receptive field
     """
 
-    srf_new = srf.gaussian_filter(sigma=sigma)
-    srf_new = srf_new.interpolate(ratio=interpolate_rate)
+    if sigma is not None:
+        srf_new = srf.gaussian_filter(sigma=sigma)
+
+    if interpolate_rate is not None:
+        srf_new = srf_new.interpolate(ratio=interpolate_rate)
 
     if polarity == 'positive':
         rf_z = np.max(srf_new.weights)
