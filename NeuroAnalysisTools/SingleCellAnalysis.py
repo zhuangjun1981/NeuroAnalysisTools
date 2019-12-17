@@ -377,6 +377,18 @@ class SpatialReceptiveField(ia.WeightedROI):
     def __str__(self):
         return 'NeuroAnalysisTools.SingleCellAnalysis.SpatialReceptiveField object'
 
+    def copy(self):
+        return SpatialReceptiveField(mask=self.get_weighted_mask(),
+                                     altPos=self.altPos,
+                                     aziPos=self.aziPos,
+                                     sign=self.sign,
+                                     temporalWindow=self.temporalWindow,
+                                     pixelSizeUnit=self.pixelSizeUnit,
+                                     dataType=self.dataType,
+                                     thr=self.thr,
+                                     filter_sigma=self.filter_sigma,
+                                     interpolate_rate=self.interpolate_rate)
+
     def get_name(self):
 
         name = []
@@ -2047,6 +2059,7 @@ class DriftingGratingResponseMatrix(DataFrame):
                 else:
                     pass
         return f
+
 
 class DriftingGratingResponseTable(DataFrame):
     """

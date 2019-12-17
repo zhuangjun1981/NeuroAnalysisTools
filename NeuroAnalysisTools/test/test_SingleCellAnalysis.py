@@ -291,6 +291,7 @@ class TestSingleCellAnalysis(unittest.TestCase):
                         [0., 0., 0., 0., 0.]])
 
         srf = sca.SpatialReceptiveField(mask=map, altPos=alts, aziPos=azis, sign='ON')
+        # print(srf.get_weighted_rf_center())
         assert(srf.get_weighted_rf_center() == [0.5, 0.5])
 
         srf2 = sca.SpatialReceptiveField(mask=map, altPos=alts[::-1], aziPos=azis, sign='ON')
@@ -306,6 +307,16 @@ class TestSingleCellAnalysis(unittest.TestCase):
         srf_fi = srf_f.interpolate(ratio=2, method='linear')
         # print(srf_fi.get_weighted_mask())
         # print(srf_fi.get_weighted_rf_center())
+
+        # import matplotlib.pyplot as plt
+        # f=plt.figure()
+        # ax=f.add_subplot(111)
+        # srf_fi.plot_rf(plot_axis=ax, tick_spacing=1)
+        # plt.show()
+
+        srf_fit = srf_fi.threshold(thr=0.4)
+        # print(srf_fit.get_weighted_rf_center())
+        assert(srf_fit.get_weighted_rf_center()[0] - 0.5 < 0.05)
 
         srf2_fi = srf2_f.interpolate(ratio=2, method='linear')
         # print(srf2_fi.get_weighted_mask())

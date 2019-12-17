@@ -423,8 +423,10 @@ def get_rf_properties(srf,
                      thresholded receptive field
     """
 
+    srf_new = srf.copy()
+
     if sigma is not None:
-        srf_new = srf.gaussian_filter(sigma=sigma)
+        srf_new = srf_new.gaussian_filter(sigma=sigma)
 
     if interpolate_rate is not None:
         srf_new = srf_new.interpolate(ratio=interpolate_rate)
