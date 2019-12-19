@@ -1,11 +1,10 @@
 import os
 import h5py
 import numpy as np
-import matplotlib.pyplot as plt
 import tifffile as tf
-import corticalmapping.NwbTools as nt
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.NwbTools as nt
+import NeuroAnalysisTools.core.FileTools as ft
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 # for deepscope
 # plane_ns = ['plane0', 'plane1', 'plane2']
@@ -47,7 +46,7 @@ def add_rois_and_traces(data_folder, nwb_f, plane_n, imaging_depth,
     rf_img_max = tf.imread(os.path.join(data_folder, 'corrected_max_projection.tif'))
     rf_img_mean = tf.imread(os.path.join(data_folder, 'corrected_mean_projection.tif'))
 
-    print 'adding segmentation results ...'
+    print('adding segmentation results ...')
     rt_mo = nwb_f.create_module('rois_and_traces_' + plane_n)
     rt_mo.set_value('imaging_depth_micron', imaging_depth)
     is_if = rt_mo.create_interface('ImageSegmentation')
@@ -80,7 +79,7 @@ def add_rois_and_traces(data_folder, nwb_f, plane_n, imaging_depth,
     # print seg_if_path
     ts_path = mov_path + '/' + plane_n + '/corrected'
 
-    print 'adding center fluorescence raw'
+    print ('adding center fluorescence raw')
     trace_raw_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_center_raw')
     trace_raw_ts.set_data(traces_center_raw, unit='au', conversion=np.nan, resolution=np.nan)
     trace_raw_ts.set_value('data_format', 'roi (row) x time (column)')
@@ -94,7 +93,7 @@ def add_rois_and_traces(data_folder, nwb_f, plane_n, imaging_depth,
     trace_f_if.add_timeseries(trace_raw_ts)
     trace_raw_ts.finalize()
 
-    print 'adding neuropil fluorescence raw'
+    print ('adding neuropil fluorescence raw')
     trace_sur_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_surround_raw')
     trace_sur_ts.set_data(traces_surround_raw, unit='au', conversion=np.nan, resolution=np.nan)
     trace_sur_ts.set_value('data_format', 'roi (row) x time (column)')
@@ -121,7 +120,7 @@ def add_rois_and_traces(data_folder, nwb_f, plane_n, imaging_depth,
     # trace_f_if.add_timeseries(trace_demix_ts)
     # trace_demix_ts.finalize()
 
-    print 'adding center fluorescence after neuropil subtraction'
+    print ('adding center fluorescence after neuropil subtraction')
     trace_sub_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_center_subtracted')
     trace_sub_ts.set_data(traces_center_subtracted, unit='au', conversion=np.nan, resolution=np.nan)
     trace_sub_ts.set_value('data_format', 'roi (row) x time (column)')

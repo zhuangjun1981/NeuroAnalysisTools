@@ -1,14 +1,14 @@
 import os
+import io.StringIO as StringIO
 import numpy as np
 import h5py
 import scipy.ndimage as ni
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.PlottingTools as pt
 import cv2
 import PIL
-from cStringIO import StringIO
 
 plt.ioff()
 

@@ -1,9 +1,6 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-import corticalmapping.NwbTools as nt
+import NeuroAnalysisTools.NwbTools as nt
 import retinotopic_mapping.DisplayLogAnalysis as dla
-import corticalmapping.core.TimingAnalysis as ta
 
 # for deepscope
 vsync_frame_path='acquisition/timeseries/digital_vsync_stim_rise'

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 channels = ['DAPI', 'GCaMP', 'mRuby', 'NeuN']
 downsample_rate = 0.1

@@ -1,11 +1,11 @@
 import os
 import numpy as np
 import tifffile as tf
-import stia.motion_correction as mc
-import stia.utility.image_analysis as ia
+import NeuroAnalysisTools.MotionCorrection as mc
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
-fn = 'stack1_final.tif'
-scope = 'deepscope' # 'sutter' or 'deepscope' or 'scientifica'
+fn = 'zstack_green_aligned.tif'
+scope = 'sutter' # 'sutter' or 'deepscope' or 'scientifica'
 
 curr_folder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(curr_folder)
@@ -18,12 +18,12 @@ if scope == 'sutter':
 elif scope == 'deepscope':
 	h_new = int(stack.shape[1] * np.sqrt(2))
 	w_new = int(stack.shape[2] * np.sqrt(2))
-	stack_r = ia.rigid_transform_cv2(stack, rotation=140, output_shape=(h_new, w_new))[:, :, ::-1]
+	stack_r = ia.rigid_transform_cv2(stack, rotation=140, outputShape=(h_new, w_new))[:, :, ::-1]
 
 elif scope == 'scientifica':
 	h_new = int(stack.shape[1] * np.sqrt(2))
 	w_new = int(stack.shape[2] * np.sqrt(2))
-	stack_r = ia.rigid_transform_cv2(stack[:,::-1,:], rotation=135, output_shape=(h_new, w_new))
+	stack_r = ia.rigid_transform_cv2(stack[:,::-1,:], rotation=135, outputShape=(h_new, w_new))
 
 else:
 	raise LookupError("Do not understand scope type. Should be 'sutter' or 'deepscope' or 'scientifica'.")

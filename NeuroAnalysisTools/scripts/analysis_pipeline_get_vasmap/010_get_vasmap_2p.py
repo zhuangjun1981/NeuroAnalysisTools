@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 import matplotlib.pyplot as plt
 import cv2
 
 
-data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\181213-M421211-2p"
+data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\191217-M500582-2p"
 scope = 'sutter' # 'sutter', 'deepscope' or 'scientifica'
 identifier = "vasmap_2p"
 channels = ['green', 'red']
@@ -21,7 +21,11 @@ for chn in channels:
 
 file_ns = [f for f in os.listdir(data_folder) if identifier in f]
 file_ns.sort()
-print('\n'.join(file_ns))
+
+if len(file_ns) == 0:
+    raise LookupError('Cannot find file.')
+else:
+    print('\n'.join(file_ns))
 
 for file_n in file_ns:
     print(file_n)

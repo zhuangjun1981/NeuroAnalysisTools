@@ -2,12 +2,12 @@ import os
 import h5py
 import numpy as np
 import tifffile as tf
-import stia.motion_correction as mc
-import stia.utility.image_analysis as ia
+import NeuroAnalysisTools.MotionCorrection as mc
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
-identifier = 'zstack1'
-ch_ref = 'red'
-ch_app = ['green', 'red']
+identifier = 'zstack'
+ch_ref = 'green'
+ch_app = ['green']
 
 curr_folder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(curr_folder)

@@ -9,9 +9,8 @@ import os
 import numpy as np
 import h5py
 import tifffile as tf
-import allensdk_internal.brain_observatory.mask_set as mask_set
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.PlottingTools as pt
 import scipy.ndimage as ni
 import matplotlib.pyplot as plt
 
@@ -32,7 +31,7 @@ def run():
     if not os.path.isdir(save_folder):
         os.makedirs(save_folder)
 
-    print 'reading cells file ...'
+    print('reading cells file ...')
     data_f = h5py.File(data_file_name, 'r')
 
     cell_ns = data_f.keys()
@@ -49,9 +48,9 @@ def run():
     data_f.close()
     binary_mask_array = np.array(binary_mask_array)
     weight_mask_array = np.array(weight_mask_array)
-    print 'starting mask_array shape:', weight_mask_array.shape
+    print('starting mask_array shape:', weight_mask_array.shape)
 
-    print 'getting total mask ...'
+    print('getting total mask ...')
     total_mask = np.zeros((binary_mask_array.shape[1], binary_mask_array.shape[2]), dtype=np.uint8)
     for curr_mask in binary_mask_array:
         total_mask = np.logical_or(total_mask, curr_mask)
@@ -61,7 +60,7 @@ def run():
     plt.title('total_mask')
     # plt.show()
 
-    print 'getting and surround masks ...'
+    print('getting and surround masks ...')
     binary_surround_array = []
     for binary_center in binary_mask_array:
         curr_surround = np.logical_xor(ni.binary_dilation(binary_center, iterations=surround_limit[1]),
@@ -72,7 +71,7 @@ def run():
         # plt.show()
     binary_surround_array = np.array(binary_surround_array)
 
-    print "saving rois ..."
+    print("saving rois ...")
     center_areas = []
     surround_areas = []
     for mask_ind in range(binary_mask_array.shape[0]):
@@ -83,7 +82,7 @@ def run():
     roi_f['masks_surround'] = binary_surround_array
 
     roi_f.close()
-    print 'minimum surround area:', min(surround_areas), 'pixels.'
+    print('minimum surround area:', min(surround_areas), 'pixels.')
 
     f = plt.figure(figsize=(10, 10))
     ax_center = f.add_subplot(211)
@@ -94,7 +93,7 @@ def run():
     ax_surround.set_title('roi surround area distribution')
     # plt.show()
 
-    print 'plotting ...'
+    print('plotting ...')
     colors = pt.random_color(weight_mask_array.shape[0])
     bg = ia.array_nor(np.max(tf.imread(background_file_name), axis=0))
 
@@ -117,7 +116,7 @@ def run():
 
     # plt.show()
 
-    print 'saving figures ...'
+    print('saving figures ...')
     pt.save_figure_without_borders(f_c_bg, os.path.join(save_folder, '2P_ROIs_with_background.png'), dpi=300)
     pt.save_figure_without_borders(f_c_nbg, os.path.join(save_folder, '2P_ROIs_without_background.png'), dpi=300)
     pt.save_figure_without_borders(f_s_nbg, os.path.join(save_folder, '2P_ROI_surrounds_background.png'), dpi=300)

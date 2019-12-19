@@ -1,13 +1,6 @@
 import os
-import corticalmapping.NwbTools as nt
-import corticalmapping.core.ImageAnalysis as ia
-import matplotlib.pyplot as plt
-import tifffile as tf
-
-
-import os
-import corticalmapping.NwbTools as nt
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.NwbTools as nt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 import matplotlib.pyplot as plt
 import tifffile as tf
 

@@ -2,9 +2,8 @@ import os
 import numpy as np
 import h5py
 import tifffile as tf
-import allensdk_internal.brain_observatory.mask_set as mask_set
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.PlottingTools as pt
 import scipy.ndimage as ni
 import matplotlib.pyplot as plt
 
@@ -47,7 +46,7 @@ for i, mask in enumerate(masks):
     for roi_key, roi_mask in curr_mask_dict.items():
         final_roi_dict.update({roi_key: ia.WeightedROI(roi_mask * mask)})
 
-print 'Total number of ROIs:',len(final_roi_dict)
+print ('Total number of ROIs:',len(final_roi_dict))
 
 f = plt.figure(figsize=(15, 8))
 ax1 = f.add_subplot(121)

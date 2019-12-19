@@ -1,11 +1,11 @@
 import os
 import numpy as np
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.FileTools as ft
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 import tifffile as tf
 
 save_name = 'vasmap_wf'
-data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\190228-M426525-2p\vasmap_wf"
+data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\191217-M500582-2p\vasmap_wf"
 
 saveFolder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(saveFolder)

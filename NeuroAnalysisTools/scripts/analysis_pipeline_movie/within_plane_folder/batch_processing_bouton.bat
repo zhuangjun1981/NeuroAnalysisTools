@@ -1,6 +1,6 @@
-call activate bigmess
+call activate analysis
 
-set PYTHONPATH=%PYTHONPATH%;E:\data\python_packages\corticalmapping;E:\data\python_packages\allensdk_internal;E:\data\python_packages\ainwb\ainwb
+:: set PYTHONPATH=%PYTHONPATH%;E:\data\github_packages\NeuroAnalysisTools
 
 Echo Launch dir: "%~dp0"
 Echo Current dir: "%CD%"

@@ -2,11 +2,8 @@ import os
 import numpy as np
 import h5py
 import time
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
-import corticalmapping.core.FileTools as ft
-import corticalmapping.NwbTools as nt
-import matplotlib.pyplot as plt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.FileTools as ft
 from multiprocessing import Pool
 
 CHUNK_SIZE = 2000

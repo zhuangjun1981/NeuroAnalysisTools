@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tifffile as tf
 import matplotlib.pyplot as plt
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 data_fn = 'zstack_2p_zoom2_red_aligned.tif'
 save_fn = '2018-08-16-M376019-depth-profile-red.png'

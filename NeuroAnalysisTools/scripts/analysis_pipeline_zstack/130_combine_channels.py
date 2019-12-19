@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import tifffile as tf
-import cv2
 
 fn_lst = ['FOV2_projection_site_zstack_green_aligned.tif',
           'FOV2_projection_site_zstack_red_aligned.tif']

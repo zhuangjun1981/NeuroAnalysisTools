@@ -2,8 +2,8 @@ import os
 import numpy as np
 import tifffile as tf
 import h5py
-import corticalmapping.NwbTools as nt
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.NwbTools as nt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 movie_2p_fn = '190503_M439939_110_2p_movies.hdf5'
 plane_num = 1

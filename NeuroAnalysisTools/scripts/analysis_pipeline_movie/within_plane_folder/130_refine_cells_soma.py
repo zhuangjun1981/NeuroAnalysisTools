@@ -9,12 +9,10 @@ import h5py
 import numpy as np
 import operator
 import matplotlib.pyplot as plt
-import scipy.ndimage as ni
 import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.PlottingTools as pt
-import corticalmapping.SingleCellAnalysis as sca
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.FileTools as ft
+import NeuroAnalysisTools.core.PlottingTools as pt
 
 plt.ioff()
 
@@ -47,7 +45,7 @@ def run():
     for cellname in dfile.iterkeys():
         cells.update({cellname:ia.WeightedROI.from_h5_group(dfile[cellname])})
 
-    print 'total number of cells:', len(cells)
+    print('total number of cells:', len(cells))
 
     # get the names of cells which are on the edge
     edge_cells = []
@@ -65,8 +63,8 @@ def run():
 
             edge_cells.append(cellname)
 
-    print '\ncells to be removed because they are on the edges:'
-    print '\n'.join(edge_cells)
+    print('\ncells to be removed because they are on the edges:')
+    print('\n'.join(edge_cells))
 
     # remove edge cells
     for edge_cell in edge_cells:
@@ -83,8 +81,8 @@ def run():
     for cellname, cellarea in cell_areas.items():
         if cellarea < area_range[0] or cellarea > area_range[1]:
             invalid_cell_ns.append(cellname)
-    print "cells to be removed because they do not meet area criterion:"
-    print "\n".join(invalid_cell_ns)
+    print("cells to be removed because they do not meet area criterion:")
+    print("\n".join(invalid_cell_ns))
     for invalid_cell_n in invalid_cell_ns:
         cell_areas.pop(invalid_cell_n)
 
@@ -110,7 +108,7 @@ def run():
             if float(curr_overlap) / cell1_area > overlap_thr:
                 remove_cells.append(cell1_name)
                 is_remove = 1
-                print cell1_name, ':', cell1_mask.get_binary_area(), ': removed'
+                print(cell1_name, ':', cell1_mask.get_binary_area(), ': removed')
 
                 # f = plt.figure(figsize=(10,10))
                 # ax = f.add_subplot(111)
@@ -122,12 +120,11 @@ def run():
 
         if is_remove == 0:
             retain_cells.append(cell1_name)
-            print cell1_name, ':', cell1_mask.get_binary_area(), ': retained'
+            print(cell1_name, ':', cell1_mask.get_binary_area(), ': retained')
 
-    print '\ncells to be removed because of overlapping:'
-    print '\n'.join(remove_cells)
-
-    print '\ntotal number of reatined cells:', len(retain_cells)
+    print('\ncells to be removed because of overlapping:')
+    print('\n'.join(remove_cells))
+    print('\ntotal number of reatined cells:', len(retain_cells))
 
     # plotting
     colors = pt.random_color(len(cells.keys()))
@@ -156,7 +153,7 @@ def run():
     save_file = h5py.File(save_file_name, 'w')
     i = 0
     for retain_cell in retain_cells:
-        print retain_cell, ':', cells[retain_cell].get_binary_area()
+        print(retain_cell, ':', cells[retain_cell].get_binary_area())
 
         currGroup = save_file.create_group('cell' + ft.int2str(i, 4))
         currGroup.attrs['name'] = retain_cell

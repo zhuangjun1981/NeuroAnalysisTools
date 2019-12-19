@@ -1,5 +1,5 @@
 import os
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
 import time
 import pandas as pd
 import numpy as np

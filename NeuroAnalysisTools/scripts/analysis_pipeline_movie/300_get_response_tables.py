@@ -1,6 +1,5 @@
 import os
-import corticalmapping.NwbTools as nt
-import corticalmapping.core.TimingAnalysis as ta
+import NeuroAnalysisTools.NwbTools as nt
 
 
 strf_t_win = [-0.5, 2.]

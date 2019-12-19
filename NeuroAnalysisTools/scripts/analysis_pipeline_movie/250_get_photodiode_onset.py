@@ -1,9 +1,7 @@
 import os
 import numpy as np
-import tifffile as tf
-import matplotlib.pyplot as plt
-import corticalmapping.NwbTools as nt
-import corticalmapping.HighLevel as hl
+import NeuroAnalysisTools.NwbTools as nt
+import NeuroAnalysisTools.HighLevel as hl
 
 # photodiode
 digitizeThr = 0.15 # deepscope: 0.15 or 0.055, sutter: -0.15

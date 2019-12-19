@@ -1,10 +1,6 @@
 import os
-import numpy as np
 import h5py
-import corticalmapping.DatabaseTools as dt
-import corticalmapping.SingleCellAnalysis as sca
-import matplotlib.pyplot as plt
-import pandas as pd
+import NeuroAnalysisTools.DatabaseTools as dt
 
 
 nwb_folder = "nwbs"
@@ -22,7 +18,7 @@ peri_event_dur = (-1., 3.)
 corr_len_thr = 30.
 corr_abs_thr = 0.7
 corr_std_thr = 3.
-is_cosine_similarity = False
+distance_measure='dis_corr_coef'
 distance_metric = 'euclidean'
 linkage_method = 'weighted'
 distance_thr = 1.3
@@ -46,7 +42,7 @@ bc = dt.BoutonClassifier(skew_filter_sigma=skew_filter_sigma,
                          corr_len_thr=corr_len_thr,
                          corr_abs_thr=corr_abs_thr,
                          corr_std_thr=corr_std_thr,
-                         is_cosine_similarity=is_cosine_similarity,
+                         distance_measure=distance_measure,
                          distance_metric=distance_metric,
                          linkage_method=linkage_method,
                          distance_thr=distance_thr)

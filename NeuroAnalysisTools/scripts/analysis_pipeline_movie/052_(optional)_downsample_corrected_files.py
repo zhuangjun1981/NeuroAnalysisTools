@@ -1,9 +1,7 @@
 import os
 import numpy as np
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 import tifffile as tf
-import warnings
 import shutil
 
 data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\190104-M417949-2p\110_LSNDGC_reorged"
@@ -19,7 +17,7 @@ def downsample_folder(working_folder,
     file_list = [f for f in os.listdir(working_folder) if file_identifier in f and f[-14:] == '_corrected.tif']
     file_list.sort()
     print('\t\tall files:')
-    print '\n'.join(['\t\t' + f for f in file_list])
+    print('\n'.join(['\t\t' + f for f in file_list]))
 
     print('\n\t\tmoving files to "not_downsampled" folder:')
     file_paths = [os.path.join(working_folder, f) for f in file_list]

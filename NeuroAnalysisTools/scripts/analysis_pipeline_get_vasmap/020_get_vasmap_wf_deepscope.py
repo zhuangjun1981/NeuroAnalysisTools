@@ -1,10 +1,8 @@
 import os
 import numpy as np
 import tifffile as tf
-import skimage.io as io
-import skimage.color as color
 import matplotlib.pyplot as plt
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 vasmap_wf_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\181102-M412052-deepscope\vasmap_wf"
 

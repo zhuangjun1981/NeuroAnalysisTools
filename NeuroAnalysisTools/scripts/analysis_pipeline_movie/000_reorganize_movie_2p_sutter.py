@@ -1,9 +1,8 @@
 import os
 import numpy as np
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 import tifffile as tf
-import warnings
+
 data_folder = r'\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\190503-M439939-2p\movie'
 file_identifier = '110_LSNDGC'
 ch_ns = ['green', 'red']
@@ -15,7 +14,7 @@ os.chdir(curr_folder)
 
 file_list = [f for f in os.listdir(data_folder) if file_identifier in f and f[-4:] == '.tif']
 file_list.sort()
-print '\n'.join(file_list)
+print('\n'.join(file_list))
 
 file_paths = [os.path.join(data_folder, f) for f in file_list]
 

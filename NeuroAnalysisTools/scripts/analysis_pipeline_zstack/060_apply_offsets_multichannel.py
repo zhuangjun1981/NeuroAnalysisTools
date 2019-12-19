@@ -1,8 +1,6 @@
 import os
-import stia.motion_correction as mc
-import numpy as np
+import NeuroAnalysisTools.MotionCorrection as mc
 import h5py
-import tifffile as tf
 from multiprocessing import Pool
 
 def run():

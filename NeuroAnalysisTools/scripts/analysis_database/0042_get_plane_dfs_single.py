@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import h5py
 import datetime
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
 from multiprocessing import Pool
 from shutil import copyfile
 

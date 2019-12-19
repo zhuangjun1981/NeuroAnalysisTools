@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 base_name = '363669_1_01'
 save_name = '363669_1_section02.tif'

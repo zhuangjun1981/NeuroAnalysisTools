@@ -1,8 +1,6 @@
 import os
-import numpy as np
 import tifffile as tf
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.FileTools as ft
 
 
 data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\181102-M412052-deepscope\zstack1"

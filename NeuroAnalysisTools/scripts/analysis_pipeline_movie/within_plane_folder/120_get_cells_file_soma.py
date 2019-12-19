@@ -2,11 +2,10 @@ import os
 import numpy as np
 import h5py
 import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.core.PlottingTools as pt
-import scipy.ndimage as ni
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.PlottingTools as pt
 import matplotlib.pyplot as plt
-import corticalmapping.HighLevel as hl
+import NeuroAnalysisTools.HighLevel as hl
 
 plt.ioff()
 
@@ -38,7 +37,7 @@ def run():
             final_roi_dict.update({'roi_{:04d}'.format(roi_ind): mask_roi})
             roi_ind += 1
 
-    print 'Total number of ROIs:',len(final_roi_dict)
+    print('Total number of ROIs:',len(final_roi_dict))
 
     f = plt.figure(figsize=(15, 8))
     ax1 = f.add_subplot(121)

@@ -1,12 +1,11 @@
 import os
 import h5py
 import numpy as np
-import tifffile as tf
 import matplotlib.pyplot as plt
-import corticalmapping.core.PlottingTools as pt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
+import NeuroAnalysisTools.core.PlottingTools as pt
 
 trace_type = 'f_center_subtracted'
 response_table_path = 'analysis/response_table_003_DriftingGratingCircleRetinotopicMapping'

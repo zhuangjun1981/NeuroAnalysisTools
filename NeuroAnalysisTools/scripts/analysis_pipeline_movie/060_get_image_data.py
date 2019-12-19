@@ -1,7 +1,7 @@
 import os
 import h5py
 import numpy as np
-import skimage.external.tifffile as tf
+import tifffile as tf
 
 date_recorded = '190503'
 mouse_id = 'M439939'

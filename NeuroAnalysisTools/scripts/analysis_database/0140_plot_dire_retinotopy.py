@@ -2,8 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import corticalmapping.core.PlottingTools as pt
-import corticalmapping.DatabaseTools as dt
 from matplotlib.backends.backend_pdf import PdfPages
 
 # df_path = r"G:\bulk_LGN_database\dataframe_190530171338.csv"

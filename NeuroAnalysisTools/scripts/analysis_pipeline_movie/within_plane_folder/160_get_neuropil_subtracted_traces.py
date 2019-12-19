@@ -2,8 +2,8 @@ import sys
 import os
 import h5py
 import numpy as np
-import corticalmapping.HighLevel as hl
-import corticalmapping.core.FileTools as ft
+import NeuroAnalysisTools.HighLevel as hl
+import NeuroAnalysisTools.core.FileTools as ft
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
@@ -80,7 +80,7 @@ def run():
         curr_trace_c = traces_raw[i]
         curr_trace_s = traces_srround[i]
         curr_r, curr_err, curr_trace_sub = hl.neural_pil_subtraction(curr_trace_c, curr_trace_s, lam=lam)
-        print "roi_%s \tr = %.4f; error = %.4f." % (ft.int2str(i, 5), curr_r, curr_err)
+        print("roi_%s \tr = %.4f; error = %.4f." % (ft.int2str(i, 5), curr_r, curr_err))
         traces_subtracted[i] = curr_trace_sub
         ratio[i] = curr_r
         err[i] = curr_err

@@ -1,10 +1,8 @@
 import os
-import corticalmapping.DatabaseTools as dt
-import pandas as pd
+import NeuroAnalysisTools.DatabaseTools as dt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import h5py
-import datetime
 
 area_lim = 100.
 trace_type = 'f_center_raw'

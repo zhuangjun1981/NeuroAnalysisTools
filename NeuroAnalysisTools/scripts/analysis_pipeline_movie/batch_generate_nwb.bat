@@ -1,6 +1,6 @@
-call activate bigmess
+call activate analysis
 
-set PYTHONPATH=%PYTHONPATH%;E:\data\python_packages\corticalmapping;E:\data\python_packages\allensdk_internal;E:\data\python_packages\ainwb\ainwb;E:\data\github_packages\retinotopic_mapping;
+:: set PYTHONPATH=%PYTHONPATH%;E:\data\github_packages\NeuroAnalysisTools
 
 python 200_generate_nwb.py
 python 210_add_vasmap.py

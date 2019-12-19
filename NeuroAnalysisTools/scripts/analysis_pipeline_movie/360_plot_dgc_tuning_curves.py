@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
 
 trace_type = 'f_center_subtracted'
 response_table_path = 'analysis/response_table_003_DriftingGratingCircleRetinotopicMapping'

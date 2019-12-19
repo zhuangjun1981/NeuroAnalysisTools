@@ -1,5 +1,5 @@
 import os
-import stia.motion_correction as mc
+import NeuroAnalysisTools.MotionCorrection as mc
 
 date_recorded = '190503'
 mouse_id = 'M439939'

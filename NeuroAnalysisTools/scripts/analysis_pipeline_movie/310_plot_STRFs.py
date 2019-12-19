@@ -2,12 +2,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
-import corticalmapping.core.TimingAnalysis as ta
-import corticalmapping.SingleCellAnalysis as sca
-import corticalmapping.core.FileTools as ft
-import corticalmapping.core.ImageAnalysis as ia
 from matplotlib.backends.backend_pdf import PdfPages
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
+import NeuroAnalysisTools.SingleCellAnalysis as sca
 
 trace_type = 'sta_f_center_subtracted'
 save_folder = 'figures'

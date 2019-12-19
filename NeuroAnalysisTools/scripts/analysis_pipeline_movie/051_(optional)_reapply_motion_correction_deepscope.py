@@ -1,5 +1,5 @@
 import os
-import stia.motion_correction as mc
+import NeuroAnalysisTools.MotionCorrection as mc
 
 data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\190118-M417949-deepscope\movie\110_LSNDGC"
 

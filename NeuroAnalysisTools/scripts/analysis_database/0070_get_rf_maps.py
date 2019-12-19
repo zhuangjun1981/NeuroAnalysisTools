@@ -1,13 +1,12 @@
-import sys
-sys.path.extend(['/home/junz/PycharmProjects/corticalmapping'])
+# import sys
+# sys.path.extend(['/home/junz/PycharmProjects/corticalmapping'])
 import os
 import numpy as np
 import h5py
 import datetime
 import pandas as pd
-import corticalmapping.DatabaseTools as dt
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.SingleCellAnalysis as sca
+import NeuroAnalysisTools.DatabaseTools as dt
+import NeuroAnalysisTools.SingleCellAnalysis as sca
 from shutil import copyfile
 
 table_folder = 'dataframes_190529210731'

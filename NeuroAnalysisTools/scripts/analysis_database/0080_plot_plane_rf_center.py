@@ -1,12 +1,12 @@
-import sys
-sys.path.extend(['/home/junz/PycharmProjects/corticalmapping'])
+# import sys
+# sys.path.extend(['/home/junz/PycharmProjects/corticalmapping'])
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
-import corticalmapping.core.ImageAnalysis as ia
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.core.ImageAnalysis as ia
+import NeuroAnalysisTools.DatabaseTools as dt
 
 table_name = 'big_roi_table_test.xlsx'
 sheet_name = 'f_center_subtracted'

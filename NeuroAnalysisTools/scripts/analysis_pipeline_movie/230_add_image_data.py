@@ -1,6 +1,6 @@
 import os
 import h5py
-import corticalmapping.NwbTools as nt
+import NeuroAnalysisTools.NwbTools as nt
 
 dset_ns = ['plane0'] # ['plane0', 'plane1', 'plane2']
 imaging_depths = [150]

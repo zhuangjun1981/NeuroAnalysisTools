@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import h5py
-import corticalmapping.NwbTools as nt
+import NeuroAnalysisTools.NwbTools as nt
 
 diagonal_length = 9.0 # mm, the length of diagonal line of eyetracking field of view
 side = 'right' # right eye or left eye

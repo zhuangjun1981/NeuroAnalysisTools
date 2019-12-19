@@ -1,6 +1,6 @@
 import os
 import retinotopic_mapping.DisplayLogAnalysis as dla
-import corticalmapping.NwbTools as nt
+import NeuroAnalysisTools.NwbTools as nt
 
 curr_folder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(curr_folder)

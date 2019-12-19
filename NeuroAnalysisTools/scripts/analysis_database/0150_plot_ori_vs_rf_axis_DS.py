@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import corticalmapping.SingleCellAnalysis as sca
+import NeuroAnalysisTools.SingleCellAnalysis as sca
 import scipy.stats as stats
 import h5py
 

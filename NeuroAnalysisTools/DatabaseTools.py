@@ -3214,7 +3214,7 @@ class BoutonClassifier(object):
 
     def __init__(self, skew_filter_sigma=5., skew_thr=0.6, lowpass_sigma=0.1, detrend_sigma=3.,
                  event_std_thr=3., peri_event_dur=(-3., 3.), corr_len_thr=300., corr_abs_thr=0.5,
-                 corr_std_thr=3., distance_measure='corr_coef', distance_metric='euclidean',
+                 corr_std_thr=3., distance_measure='dis_corr_coef', distance_metric='euclidean',
                  linkage_method='weighted', distance_thr=1.0):
         """
         initiate the object. setup a bunch of analysis parameters.

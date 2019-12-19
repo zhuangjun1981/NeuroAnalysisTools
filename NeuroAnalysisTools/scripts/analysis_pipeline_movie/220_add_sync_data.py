@@ -1,5 +1,5 @@
 import os
-import corticalmapping.NwbTools as nt
+import NeuroAnalysisTools.NwbTools as nt
 
 record_date = '190503'
 mouse_id = '439939'

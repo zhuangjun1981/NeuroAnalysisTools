@@ -1,11 +1,7 @@
 import os
 import numpy as np
 import tifffile as tf
-
-import os
-import numpy as np
-import tifffile as tf
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 date_recorded = '190503'
 mouse_id = 'M439939'

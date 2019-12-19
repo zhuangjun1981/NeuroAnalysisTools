@@ -1,7 +1,7 @@
 import os
 import h5py
 import pandas as pd
-import corticalmapping.DatabaseTools as dt
+import NeuroAnalysisTools.DatabaseTools as dt
 
 nwb_folder = r"G:\bulk_LGN_database\nwbs"
 clu_folder = r"intermediate_results\bouton_clustering\AllStimuli_DistanceThr_1.30"

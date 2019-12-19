@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tifffile as tf
 import matplotlib.pyplot as plt
-import corticalmapping.core.ImageAnalysis as ia
+import NeuroAnalysisTools.core.ImageAnalysis as ia
 
 data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\190822-M471944-deepscope\movie"
 identifier = '110_LSNDGCUC'
