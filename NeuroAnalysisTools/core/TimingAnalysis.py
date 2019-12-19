@@ -8,19 +8,40 @@ import numbers
 plt.ioff()
 
 def up_crossings(data, threshold=0):
+    """
+    find the index where the data up cross the threshold. return the indices of all up crossings (the onset data point
+    that is greater than threshold, 1d-array). The input data should be 1d array.
+    """
+    if len(data.shape) != 1:
+        raise ValueError('Input data should be 1-d array.')
+
     pos = data > threshold
-    return (~pos[:-1] & pos[1:]).nonzero()[0]
+    return (~pos[:-1] & pos[1:]).nonzero()[0] + 1
 
 
 def down_crossings(data, threshold=0):
-    pos = data > threshold
-    return (pos[:-1] & ~pos[1:]).nonzero()[0]
+    """
+    find the index where the data down cross the threshold. return the indices of all down crossings (the onset data
+    point that is less than threshold, 1d-array). The input data should be 1d array.
+    """
+    if len(data.shape) != 1:
+        raise ValueError('Input data should be 1-d array.')
+
+    pos = data < threshold
+    return (~pos[:-1] & pos[1:]).nonzero()[0] + 1
 
 
 def all_crossings(data, threshold=0):
-    pos = data > threshold
-    npos = ~pos
-    return ((pos[:-1] & npos[1:]) | (npos[:-1] & pos[1:])).nonzero()[0]
+    """
+    find the index where the data cross the threshold in either directions. return the indices of all crossings (the
+    onset data point that is less or greater than threshold, 1d-array). The input data should be 1d array.
+    """
+    if len(data.shape) != 1:
+        raise ValueError('Input data should be 1-d array.')
+
+    pos_up = data > threshold
+    pos_down = data < threshold
+    return ((~pos_up[:-1] & pos_up[1:]) | (~pos_down[:-1] & pos_down[1:])).nonzero()[0] + 1
 
 
 def threshold_onset(data, threshold=0, direction='up', fs=10000.):

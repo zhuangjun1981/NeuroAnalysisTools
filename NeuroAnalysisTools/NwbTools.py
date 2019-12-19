@@ -9,7 +9,7 @@ from .core import TimingAnalysis as ta
 from .core import PlottingTools as pt
 from . import HighLevel as hl
 from . import CamstimTools as ct
-from .nwb.nwb import NWB as NWB 
+from .nwb.nwb import NWB as NWB
 
 DEFAULT_GENERAL = {
     'session_id': '',
@@ -146,7 +146,7 @@ class RecordedFile(NWB):
             if is_manual_check:
                 keyboard_input = ''
                 while keyboard_input != 'y' and keyboard_input != 'n':
-                    keyboard_input = raw_input('\nthe path "' + filename + '" already exists. Modify it? (y/n) \n')
+                    keyboard_input = input('\nthe path "' + filename + '" already exists. Modify it? (y/n) \n')
                     if keyboard_input == 'y':
                         super(RecordedFile, self).__init__(filename=filename, modify=True, **kwargs)
                     elif keyboard_input == 'n':
