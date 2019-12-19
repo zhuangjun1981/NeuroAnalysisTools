@@ -41,8 +41,9 @@ def get_color_str(R, G, B):
         raise TypeError('Input R, G and B should be integer!')
 
     if not ((0 <= R <= 255) and (0 <= G <= 255) and (
-            0 <= B <= 255)): raise ValueError('Input R, G and B should between 0 and 255!')
-    
+            0 <= B <= 255)):
+        raise ValueError('Input R, G and B should between 0 and 255!')
+
     # ================== old =========================
     # return '#' + ''.join(map(chr, (R, G, B))).encode('hex')
     # ================================================
@@ -70,12 +71,12 @@ def binary_2_rgba(img, foregroundColor='#ff0000', backgroundColor='#000000', for
     else:
         raise TypeError('Data type of input image should be either np.bool or integer.')
 
-    if type(foregroundAlpha) is int:
+    if isinstance(foregroundAlpha, int):
         if foregroundAlpha < 0 or foregroundAlpha > 255: raise ValueError('Value of foreGroundAlpha should be between 0 and 255.')
     else:
         raise TypeError('Data type of foreGroundAlpha should be integer.')
 
-    if type(backgroundAlpha) is int:
+    if isinstance(backgroundAlpha, int):
         if backgroundAlpha < 0 or backgroundAlpha > 255: raise ValueError('Value of backGroundAlpha should be between 0 and 255.')
     else:
         raise TypeError('Data type of backGroundAlpha should be integer.')
