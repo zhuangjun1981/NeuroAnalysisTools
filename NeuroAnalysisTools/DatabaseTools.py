@@ -145,9 +145,9 @@ def get_normalized_binary_roi(roi, scope, canvas_size=300., pixel_res=600, is_ce
     if roi.pixelSizeX != roi.pixelSizeY:
         raise NotImplementedError('rois with non-square pixels are not supported.')
 
-    if roi.pixelSizeUnit == 'meter':
+    if roi.pixelSizeUnit == 'meter' or roi.pixelSizeUnit == b'meter':
         pixel_size_s = float(roi.pixelSizeX) * 1e6
-    elif roi.pixelSizeUnit == 'micron':
+    elif roi.pixelSizeUnit == 'micron' or roi.pixelSizeUnit == b'micron':
         pixel_size_s = float(roi.pixelSizeX)
     else:
         raise LookupError("the pixelSizeUnit attribute of input roi should be either 'meter' or 'micron'. "
@@ -1662,7 +1662,7 @@ def get_axon_ind_from_clu_f(clu_f, axon_n):
             return None
         else:
             # print('\tThere are {} rois in the axon ({}).'.format(len(roi_lst), axon_n))
-            axon_ind = list(clu_f['rois_and_traces/axon_list']).index(axon_n)
+            axon_ind = list(clu_f['rois_and_traces/axon_list']).index(axon_n.encode('utf-8'))
             return axon_ind
     else:
         print('\taxon ({}) not in the clu_f file. Returning None.'.format(axon_n))
@@ -1823,7 +1823,9 @@ def get_axon_roi(clu_f, nwb_f, plane_n, axon_n):
     pixel_size_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size'.format(plane_n)][()]
     pixel_size_u_s = nwb_f['acquisition/timeseries/2p_movie_{}/pixel_size_unit'.format(plane_n)][()]
 
-    if axon_n in clu_f['rois_and_traces/axon_list'][()]:
+    # print(clu_f['rois_and_traces/axon_list'][()])
+
+    if axon_n.encode('utf-8') in clu_f['rois_and_traces/axon_list'][()]:
         axon_roi = get_axon_roi_from_clu_f(clu_f=clu_f, axon_n=axon_n)
         axon_roi.pixelSizeX = pixel_size_s[1]
         axon_roi.pixelSizeY = pixel_size_s[0]
