@@ -1645,12 +1645,17 @@ class ROI(object):
         '''
         return len(self.pixels[0])
 
-    def get_center(self):
+    def get_center(self, is_real_size=False):
         '''
         return the center coordinates [Y, X] of the centroid of the mask
+
+        :param is_real_size: bool, if True and there is information about pixel size,
+                             the values will reflect pixel size; else return values at
+                             index scale.
         '''
         center = np.mean(np.array(self.pixels,dtype=np.float).transpose(),axis=0)
-        if self.pixelSizeX is not None and self.pixelSizeY is not None:
+
+        if is_real_size and self.pixelSizeX is not None and self.pixelSizeY is not None:
             return center * np.array([self.pixelSizeY, self.pixelSizeX])
         else:
             return center

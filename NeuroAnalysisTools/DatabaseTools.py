@@ -20,6 +20,12 @@ from .core import PlottingTools as pt
 from .core import DataAnalysis as da
 from .core import TimingAnalysis as ta
 
+# import NeuroAnalysisTools.SingleCellAnalysis as sca
+# import NeuroAnalysisTools.core.ImageAnalysis as ia
+# import NeuroAnalysisTools.core.PlottingTools as pt
+# import NeuroAnalysisTools.core.DataAnalysis as da
+# import NeuroAnalysisTools.core.TimingAnalysis as ta
+
 
 ANALYSIS_PARAMS = {
     'trace_type': 'f_center_subtracted',
@@ -185,7 +191,7 @@ def get_normalized_binary_roi(roi, scope, canvas_size=300., pixel_res=600, is_ce
         mask_nor[mask_nor > 0] = 1
         mask_nor = mask_nor.astype(np.uint8)
         roi_nor = ia.ROI(mask_nor, pixelSize=pixel_size_t, pixelSizeUnit='micron')
-    return roi_nor
+        return roi_nor
 
 
 def get_scope(nwb_f):
