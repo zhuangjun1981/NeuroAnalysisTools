@@ -1189,7 +1189,7 @@ class RecordedFile(NWB):
         """
 
         stim_dict = stim_log.get_stim_dict()
-        stim_ns = stim_dict.keys()
+        stim_ns = list(stim_dict.keys())
         stim_ns.sort()
         for stim_n in stim_ns:
             curr_stim_dict = stim_dict[stim_n]
@@ -1515,8 +1515,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('stimulus separator displayed by retinotopic_mapping package')
         stim_ts.set_source(ss_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, ss_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in ss_dict[key]])
         stim_ts.set_value('indicator_on_frame_num', ss_dict['indicator_on_frame_num'])
         stim_ts.set_value('indicator_off_frame_num', ss_dict['indicator_off_frame_num'])
         stim_ts.set_value('cycle_num', ss_dict['cycle_num'])
@@ -1549,8 +1551,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('uniform contrast displayed by retinotopic_mapping package')
         stim_ts.set_source(uc_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, uc_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in uc_dict[key]])
         stim_ts.set_value('duration', uc_dict['duration'])
         stim_ts.set_value('color', uc_dict['color'])
         stim_ts.finalize()
@@ -1581,8 +1585,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('flashing circle displayed by retinotopic_mapping package')
         stim_ts.set_source(fc_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, fc_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in fc_dict[key]])
         stim_ts.set_value('is_smooth_edge', fc_dict['is_smooth_edge'])
         stim_ts.set_value('smooth_width_ratio', fc_dict['smooth_width_ratio'])
         stim_ts.set_value('center', fc_dict['center'])
@@ -1635,8 +1641,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('drifting grating circle displayed by retinotopic_mapping package')
         stim_ts.set_source(dgc_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, dgc_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in dgc_dict[key]])
         stim_ts.set_value('is_smooth_edge', dgc_dict['is_smooth_edge'])
         stim_ts.set_value('smooth_width_ratio', dgc_dict['smooth_width_ratio'])
         stim_ts.set_value('center', dgc_dict['center'])
@@ -1683,8 +1691,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('static grating circle displayed by retinotopic_mapping package')
         stim_ts.set_source(sgc_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, sgc_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in sgc_dict[key]])
         stim_ts.set_value('is_smooth_edge', sgc_dict['is_smooth_edge'])
         stim_ts.set_value('smooth_width_ratio', sgc_dict['smooth_width_ratio'])
         stim_ts.set_value('center', sgc_dict['center'])
@@ -1746,8 +1756,11 @@ class RecordedFile(NWB):
         stim_ts.set_source(sn_dict['source'])
         for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, sn_dict[key])
-        stim_ts.set_value('frame_config', ['is_display', 'indicator color[-1., 1.]']) # modified frame config
-        stim_ts.set_value('probe_config', ['altitude (deg)', 'azimuth (deg)', 'polarity']) # modified probe config
+        stim_ts.set_value('frame_config', ['is_display'.encode('utf-8'),
+                                           'indicator color[-1., 1.]'.encode('utf-8')]) # modified frame config
+        stim_ts.set_value('probe_config', ['altitude (deg)'.encode('utf-8'),
+                                           'azimuth (deg)'.encode('utf-8'),
+                                           'polarity'.encode('utf-8')]) # modified probe config
         stim_ts.set_value('is_include_edge', sn_dict['is_include_edge'])
         stim_ts.set_value('probe_frame_num', sn_dict['probe_frame_num'])
         stim_ts.set_value('subregion', sn_dict['subregion'])
@@ -1812,8 +1825,10 @@ class RecordedFile(NWB):
         stim_ts.set_source(lsn_dict['source'])
         for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, lsn_dict[key])
-        stim_ts.set_value('frame_config', ['is_display', 'indicator color[-1., 1.]'])  # modified frame config
-        stim_ts.set_value('probe_config', ['frame_num x probe_num x probe_info (altitude_deg, azimuth_deg, polarity)'])  # modified probe config
+        stim_ts.set_value('frame_config', ['is_display'.encode('utf-8'),
+                                           'indicator color[-1., 1.]'.encode('utf-8')])  # modified frame config
+        stim_ts.set_value('probe_config', 'frame_num x probe_num x probe_info '
+                                          '(altitude_deg, azimuth_deg, polarity)'.encode('utf-8'))  # modified probe config
         stim_ts.set_value('is_include_edge', lsn_dict['is_include_edge'])
         stim_ts.set_value('probe_frame_num', lsn_dict['probe_frame_num'])
         stim_ts.set_value('subregion', lsn_dict['subregion'])
@@ -1861,8 +1876,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('static images displayed by retinotopic_mapping package')
         stim_ts.set_source(si_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, si_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in si_dict[key]])
         stim_ts.set_value('altitude_dewrapped', si_dict['altitude_dewrapped'])
         stim_ts.set_value('azimuth_dewrapped', si_dict['azimuth_dewrapped'])
         stim_ts.set_value('img_center', si_dict['img_center'])
@@ -1906,8 +1923,10 @@ class RecordedFile(NWB):
                              'field.')
         stim_ts.set_description('sinusoidal luminance displayed by retinotopic_mapping package')
         stim_ts.set_source(sl_dict['source'])
-        for key in ['frame_config', 'stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
+        for key in ['stim_name', 'pregap_dur', 'postgap_dur', 'coordinate', 'background']:
             stim_ts.set_value(key, sl_dict[key])
+        for key in ['frame_config']:
+            stim_ts.set_value(key, [s.encode('utf-8') for s in sl_dict[key]])
         stim_ts.set_value('cycle_num', sl_dict['cycle_num'])
         stim_ts.set_value('max_level', sl_dict['max_level'])
         stim_ts.set_value('start_phase', sl_dict['start_phase'])
