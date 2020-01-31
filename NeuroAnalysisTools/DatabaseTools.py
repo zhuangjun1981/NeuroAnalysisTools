@@ -409,8 +409,8 @@ def get_dgcrm(nwb_f, plane_n, roi_ind, trace_type):
         return None
 
 
-def get_roi_dgcrt_with_state(nwb_f, plane_n, roi_ind,
-                             trace_type='sta_' + ANALYSIS_PARAMS['trace_type'],
+def get_roi_dgcrt_with_state(nwb_f, plane_n,
+                             trace_type=ANALYSIS_PARAMS['trace_type'],
                              bias=ANALYSIS_PARAMS['trace_abs_minimum'],
                              response_window=ANALYSIS_PARAMS['response_window_dgc'],
                              baseline_window=ANALYSIS_PARAMS['baseline_window_dgc'],
@@ -420,10 +420,11 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n, roi_ind,
                              running_speed_thr_neg=-20,
                              running_gauss_sig=1.,
                              pupil_module_name='eye_tracking_right',
-                             ell_thr=0.5,
-                             median_win=3.):
+                             pupil_ell_thr=0.5,
+                             pupil_median_win=3.):
     """
-    get drifting grating response table with behavior state measurements of a given roi
+    get drifting grating response table with behavior state measurements on trial-by-trial basis for
+    all rois in a given plane of a given .nwb file
 
     the returned dataframes will have same structure of the results from
     NeuroAnalysisTools.SingleCellAnalysis.DriftingGratingResponseMatrix.get_df_response_table()
@@ -450,34 +451,123 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n, roi_ind,
     :param running_speed_thr_neg: float, threshold for negative running speed, , see get_running_speed() function
     :param running_gauss_sig: float, sigma of gaussian filter of running speed, see get_running_speed() function
     :param pupil_module_name: str, module name for pupil information in the .nwb file, see get_pupil_area() function
-    :param ell_thr: float, smaller than 1, elliptic threshold, see get_pupil_area() function
-    :param median_win: float, sec, window length of median filter, see get_pupil_area() function
+    :param pupil_ell_thr: float, smaller than 1, elliptic threshold, see get_pupil_area() function
+    :param pupil_median_win: float, sec, window length of median filter, see get_pupil_area() function
 
-    :return dgcrt_df:
-    :return dgcrt_dff:
-    :return dgcrt_z:
+    :return dgcrt: dataframe, each line is a display block (one drifting grating presentation)
+                   columns:
+                      condi_n: database standard condition name for drifting gratings
+                      global_reponse_window: tuple of two floats, time window for responses on global time clock
+                      global_baseline_window: tuple of two floats, time window for baseline on global time clock
+                      df: 1d array, mean df in the global_response_window for all rois
+                      dff: 1d array, mean dff in the global_response_window for all rois
+                      mean_running_speed: cm/s, mean running speed in the global_response_window
+                      mean_pupil_area: mm^2, mean pupil area in the global_response_window
     """
 
-    trace, _ = get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n='roi_{:04d}'.format(roi_ind),
-                                trace_type=trace_type)
+    # get trace biases for positive baseline
+    traces, _ = get_traces(nwb_f=nwb_f, plane_n=plane_n, trace_type=trace_type)
+    add_to_traces = []
+    for trace in traces:
 
-    if np.min(trace) < bias:
-        add_to_trace = bias - np.min(trace)
-    else:
-        add_to_trace = 0.
+        if np.min(trace) < bias:
+            add_to_traces.append(bias - np.min(trace))
+        else:
+            add_to_traces.append(0.)
 
-    dgcrm = get_dgcrm(nwb_f=nwb_f, plane_n=plane_n, roi_ind=roi_ind, trace_type=trace_type)
-
-    if dgcrm is None:
-        print('This .nwb file has not DrifintGrating data. Skip.')
+    # get dgcrm group
+    dgcrm_group_key = get_dgcrm_grp_key(nwb_f=nwb_f)
+    if dgcrm_group_key is None:
+        print('this nwb file has no processed drifting grating response matrix. Returning None.')
         return None
+    dgcrm_grp = nwb_f['analysis/{}/{}'.format(dgcrm_group_key, plane_n)]
+    # print(dgcrm_group_key)
+
+    # get running speed
+    running, running_ts = get_running_speed(nwb_f=nwb_f, disk_radius=running_disk_radius,
+                                            fs_final=running_fs_final, speed_thr_pos=running_speed_thr_pos,
+                                            speed_thr_neg=running_speed_thr_neg, gauss_sig=running_gauss_sig)
+
+    # get pupil area
+    pupil_area, pupil_ts = get_pupil_area(nwb_f=nwb_f, module_name=pupil_module_name, ell_thr=pupil_ell_thr,
+                                          median_win=pupil_median_win)
 
 
+    # constrcting lists for final dataframe output
+    condi_ns = []
+    global_response_windows = []
+    global_baseline_windows = []
+    dfs = []
+    dffs = []
+    runnings = []
+    pupils = []
 
 
-    #todo finish this
+    # get the masks for baseline and response for each trial
+    local_ts = dgcrm_grp.attrs['sta_timestamps']
+    baseline_ind = np.logical_and(local_ts > baseline_window[0], local_ts <= baseline_window[1])
+    response_ind = np.logical_and(local_ts > response_window[0], local_ts <= response_window[1])
 
-    pass
+    # loop through all conditions
+    for condi_n, condi_grp in dgcrm_grp.items():
+        # print(condi_n)
+
+        condi_matrix = condi_grp['sta_{}'.format(trace_type)][()]
+        trial_num = condi_matrix.shape[1]
+        trial_onsets = condi_grp.attrs['global_trigger_timestamps']
+        # print(trial_num)
+
+        # loop through all trials
+        for trial_i in range(trial_num):
+
+            # get single trial df and dff for every roi
+            traces = condi_matrix[:, trial_i, :] # roi x timepoint
+            traces = traces + np.array([add_to_traces]).T
+            baselines = np.mean(traces[:, baseline_ind], axis=1)
+            responses = np.mean(traces[:, response_ind], axis=1)
+            df_trial = responses - baselines # dfs of all rois in this trial
+            dff_trial = (responses - baselines) / baselines # df/fs of all rois in this trial
+
+            # print(dffs.shape)
+
+            # get global response window for this trail
+            curr_onset = trial_onsets[trial_i]
+            res_start_global = curr_onset + response_window[0]
+            res_end_global = curr_onset + response_window[1]
+            bas_start_global = curr_onset + baseline_window[0]
+            bas_end_global = curr_onset + baseline_window[1]
+
+            # get pupil area for this trial
+            if pupil_area is None:
+                curr_pupil = np.nan
+            else:
+                pupil_msk = np.logical_and(pupil_ts>=res_start_global, pupil_ts<res_end_global)
+                curr_pupil = np.nanmean(pupil_area[pupil_msk])
+
+            # get running speed for this trial
+            if running is None:
+                curr_running = np.nan
+            else:
+                running_msk = np.logical_and(running_ts>=res_start_global, running_ts<res_end_global)
+                curr_running = np.nanmean(running[running_msk])
+
+            condi_ns.append(condi_n)
+            global_response_windows.append([res_start_global, res_end_global])
+            global_baseline_windows.append([bas_start_global, bas_end_global])
+            dfs.append(df_trial)
+            dffs.append(dff_trial)
+            runnings.append(curr_running)
+            pupils.append(curr_pupil)
+
+    dgcrt = pd.DataFrame({'condi_n': condi_ns,
+                          'global_response_window': global_response_windows,
+                          'global_baseline_window': global_baseline_windows,
+                          'df': dfs,
+                          'dff': dffs,
+                          'mean_running_speed': runnings,
+                          'mean_pupil_area': pupils})
+
+    return dgcrt
 
 
 def get_rf_properties(srf,
@@ -836,32 +926,63 @@ def plot_roi_retinotopy(coords_roi, coords_rf, ax_alt, ax_azi, alt_range=None, a
 
 def get_pupil_area(nwb_f, module_name, ell_thr=0.5, median_win=3.):
 
-    pupil_shape = nwb_f['processing/{}/PupilTracking/eyetracking/pupil_shape'.format(module_name)][()]
-    pupil_ts = nwb_f['processing/{}/PupilTracking/eyetracking/timestamps'.format(module_name)][()]
+    try:
+        pupil_ts = nwb_f['processing/{}/PupilTracking/eyetracking/timestamps'.format(module_name)][()]
+        fs = 1. / np.mean(np.diff(pupil_ts))
+        # print(fs)
 
-    fs = 1. / np.mean(np.diff(pupil_ts))
-    # print(fs)
+        if 'pupil_shape' in nwb_f['processing/{}/PupilTracking/eyetracking'.format(module_name)].keys():
+            pupil_shape = nwb_f['processing/{}/PupilTracking/eyetracking/pupil_shape'.format(module_name)][()]
+            pupil_area = da.get_pupil_area(pupil_shapes=pupil_shape, fs=fs, ell_thr=ell_thr, median_win=median_win)
+            return pupil_area, pupil_ts
 
-    pupil_area = da.get_pupil_area(pupil_shapes=pupil_shape, fs=fs, ell_thr=ell_thr, median_win=median_win)
-    return pupil_area, pupil_ts
+        elif 'pupil_area' in nwb_f['processing/{}/PupilTracking/eyetracking'.format(module_name)].keys():
+            pupil_x = np.abs(nwb_f['processing/{}/PupilTracking/eyetracking/pupil_x'.format(module_name)][()])
+            pupil_y = np.abs(nwb_f['processing/{}/PupilTracking/eyetracking/pupil_y'.format(module_name)][()])
+            pupil_area = nwb_f['processing/{}/PupilTracking/eyetracking/pupil_area'.format(module_name)][()]
+
+            # print(np.nanmin([pupil_x, pupil_y], axis=0))
+            # print(np.nanmax([pupil_x, pupil_y], axis=0))
+
+            ell = np.nanmin([pupil_x, pupil_y], axis=0) / np.nanmax([pupil_x, pupil_y], axis=0)
+            pupil_area[np.isnan(ell)] = np.nan
+            pupil_area[ell < ell_thr] = np.nan
+            pupil_area = da.interpolate_nans(pupil_area)
+            pupil_area = ni.median_filter(pupil_area, int(fs * median_win))
+
+            return pupil_area, pupil_ts
+        else:
+            print('cannot find pupil information')
+            return None, None
+
+    except Exception as e:
+        print('Fail to extract pupil area information.')
+        print(e)
+        return None, None
 
 
 def get_running_speed(nwb_f, disk_radius=8., fs_final=30., speed_thr_pos=100., speed_thr_neg=-20.,
                       gauss_sig=1.):
 
-    ref = nwb_f['acquisition/timeseries/analog_running_ref/data'][()]
-    sig = nwb_f['acquisition/timeseries/analog_running_sig/data'][()]
-    starting_time = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'][()]
-    ts_rate = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'].attrs['rate']
-    num_sample = nwb_f['acquisition/timeseries/analog_running_ref/num_samples'][()]
+    try:
+        ref = nwb_f['acquisition/timeseries/analog_running_ref/data'][()]
+        sig = nwb_f['acquisition/timeseries/analog_running_sig/data'][()]
+        starting_time = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'][()]
+        ts_rate = nwb_f['acquisition/timeseries/analog_running_ref/starting_time'].attrs['rate']
+        num_sample = nwb_f['acquisition/timeseries/analog_running_ref/num_samples'][()]
 
-    ts = starting_time + np.arange(num_sample) / ts_rate
+        ts = starting_time + np.arange(num_sample) / ts_rate
 
-    speed, speed_ts = da.get_running_speed(sig=sig, ts=ts, ref=ref, disk_radius=disk_radius, fs_final=fs_final,
-                                           speed_thr_pos=speed_thr_pos, speed_thr_neg=speed_thr_neg,
-                                           gauss_sig=gauss_sig)
+        speed, speed_ts = da.get_running_speed(sig=sig, ts=ts, ref=ref, disk_radius=disk_radius, fs_final=fs_final,
+                                               speed_thr_pos=speed_thr_pos, speed_thr_neg=speed_thr_neg,
+                                               gauss_sig=gauss_sig)
 
-    return speed, speed_ts
+        return speed, speed_ts
+
+    except Exception as e:
+        print('Fail to extract running information.')
+        print(e)
+        return None, None
 
 
 def plot_roi_contour_on_background(nwb_f, plane_n, plot_ax, **kwargs):
