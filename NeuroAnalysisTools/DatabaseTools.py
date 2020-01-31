@@ -409,6 +409,77 @@ def get_dgcrm(nwb_f, plane_n, roi_ind, trace_type):
         return None
 
 
+def get_roi_dgcrt_with_state(nwb_f, plane_n, roi_ind,
+                             trace_type='sta_' + ANALYSIS_PARAMS['trace_type'],
+                             bias=ANALYSIS_PARAMS['trace_abs_minimum'],
+                             response_window=ANALYSIS_PARAMS['response_window_dgc'],
+                             baseline_window=ANALYSIS_PARAMS['baseline_window_dgc'],
+                             running_disk_radius=8.,
+                             running_fs_final=30.,
+                             running_speed_thr_pos=100.,
+                             running_speed_thr_neg=-20,
+                             running_gauss_sig=1.,
+                             pupil_module_name='eye_tracking_right',
+                             ell_thr=0.5,
+                             median_win=3.):
+    """
+    get drifting grating response table with behavior state measurements of a given roi
+
+    the returned dataframes will have same structure of the results from
+    NeuroAnalysisTools.SingleCellAnalysis.DriftingGratingResponseMatrix.get_df_response_table()
+    NeuroAnalysisTools.SingleCellAnalysis.DriftingGratingResponseMatrix.get_dff_response_table()
+    NeuroAnalysisTools.SingleCellAnalysis.DriftingGratingResponseMatrix.get_zscore_response_table()
+
+    But will break response measurements into each trial and with three additional columns:
+        'trial_ind': int, the index of the trial
+        'running_speed': float, mean running speed (cm/s) for this particular presentation
+        'pupil_area': float, mean pupil area (mm^2) for this particular presentation
+
+    :param nwb_f: h5py.File object
+    :param plane_n: str, name of imaging plane
+    :param roi_ind: int, index of the roi in the given imaging plane
+    :param trace_type: str, type of trace to be extracted
+    :param bias: float, absolute minimum value of the extracted trace, if the minimum value of original trace
+                 is smaller than this value, a constant will be added to the whole trace to make the minimum
+                 this value, else do nothing
+    :param response_window: tuple of two floats, relative temporal window to measure response
+    :param baseline_window: tuple of two floats, relative temporal window to measure baseline
+    :param running_disk_radius: float, radius of running disk (cm), see get_running_speed() function
+    :param running_fs_final: float, returned sampling rate for running speed, see get_running_speed() function
+    :param running_speed_thr_pos: float, threshold for positive running speed, see get_running_speed() function
+    :param running_speed_thr_neg: float, threshold for negative running speed, , see get_running_speed() function
+    :param running_gauss_sig: float, sigma of gaussian filter of running speed, see get_running_speed() function
+    :param pupil_module_name: str, module name for pupil information in the .nwb file, see get_pupil_area() function
+    :param ell_thr: float, smaller than 1, elliptic threshold, see get_pupil_area() function
+    :param median_win: float, sec, window length of median filter, see get_pupil_area() function
+
+    :return dgcrt_df:
+    :return dgcrt_dff:
+    :return dgcrt_z:
+    """
+
+    trace, _ = get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n='roi_{:04d}'.format(roi_ind),
+                                trace_type=trace_type)
+
+    if np.min(trace) < bias:
+        add_to_trace = bias - np.min(trace)
+    else:
+        add_to_trace = 0.
+
+    dgcrm = get_dgcrm(nwb_f=nwb_f, plane_n=plane_n, roi_ind=roi_ind, trace_type=trace_type)
+
+    if dgcrm is None:
+        print('This .nwb file has not DrifintGrating data. Skip.')
+        return None
+
+
+
+
+    #todo finish this
+
+    pass
+
+
 def get_rf_properties(srf,
                       polarity,
                       sigma=None, # ANALYSIS_PARAMS['gaussian_filter_sigma_rf'],
