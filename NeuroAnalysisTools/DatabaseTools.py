@@ -414,6 +414,10 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
                              bias=ANALYSIS_PARAMS['trace_abs_minimum'],
                              response_window=ANALYSIS_PARAMS['response_window_dgc'],
                              baseline_window=ANALYSIS_PARAMS['baseline_window_dgc'],
+                             window_before=(ANALYSIS_PARAMS['response_window_dgc'][0] - 1,
+                                            ANALYSIS_PARAMS['response_window_dgc'][0]),
+                             window_after=(ANALYSIS_PARAMS['response_window_dgc'][1],
+                                           ANALYSIS_PARAMS['response_window_dgc'][1] + 1),
                              running_disk_radius=8.,
                              running_fs_final=30.,
                              running_speed_thr_pos=100.,
@@ -421,7 +425,8 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
                              running_gauss_sig=1.,
                              pupil_module_name='eye_tracking_right',
                              pupil_ell_thr=0.5,
-                             pupil_median_win=3.):
+                             pupil_median_win=3.,
+                             ):
     """
     get drifting grating response table with behavior state measurements on trial-by-trial basis for
     all rois in a given plane of a given .nwb file
@@ -445,6 +450,10 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
                  this value, else do nothing
     :param response_window: tuple of two floats, relative temporal window to measure response
     :param baseline_window: tuple of two floats, relative temporal window to measure baseline
+    :param window_before: tuple of two floats, a time window relative to trial onset for calculating running
+                          speed and pupil area before the trial
+    :param window_after: tuple of two floats, a time window relative to trial onset for calculating running
+                         speed and pupil area after the trial
     :param running_disk_radius: float, radius of running disk (cm), see get_running_speed() function
     :param running_fs_final: float, returned sampling rate for running speed, see get_running_speed() function
     :param running_speed_thr_pos: float, threshold for positive running speed, see get_running_speed() function
@@ -454,15 +463,19 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
     :param pupil_ell_thr: float, smaller than 1, elliptic threshold, see get_pupil_area() function
     :param pupil_median_win: float, sec, window length of median filter, see get_pupil_area() function
 
+
     :return dgcrt: dataframe, each line is a display block (one drifting grating presentation)
                    columns:
                       condi_n: database standard condition name for drifting gratings
-                      global_reponse_window: tuple of two floats, time window for responses on global time clock
-                      global_baseline_window: tuple of two floats, time window for baseline on global time clock
+                      global_onset_ts: float, trial onset timestamp on global clock
                       df: 1d array, mean df in the global_response_window for all rois
                       dff: 1d array, mean dff in the global_response_window for all rois
-                      mean_running_speed: cm/s, mean running speed in the global_response_window
-                      mean_pupil_area: mm^2, mean pupil area in the global_response_window
+                      mean_running_speed: float, cm/s, mean running speed in the global_response_window
+                      mean_running_speed_before: float, cm/s mean running speed in the window_before
+                      mean_running_speed_after: float, cm/s mean running speed in the window_after
+                      mean_pupil_area: float, mm^2, mean pupil area in the global_response_window
+                      mean_pupil_area_before: float, mm^2, mean pupil area in the window_before
+                      mean_pupil_area_after: float, mm^2, mean pupil area in the window_after
     """
 
     # get trace biases for positive baseline
@@ -495,12 +508,17 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
 
     # constrcting lists for final dataframe output
     condi_ns = []
-    global_response_windows = []
-    global_baseline_windows = []
+    # global_response_windows = []
+    # global_baseline_windows = []
+    global_onset_tss = []
     dfs = []
     dffs = []
     runnings = []
+    runnings_before = []
+    runnings_after = []
     pupils = []
+    pupils_before = []
+    pupils_after = []
 
 
     # get the masks for baseline and response for each trial
@@ -530,42 +548,73 @@ def get_roi_dgcrt_with_state(nwb_f, plane_n,
 
             # print(dffs.shape)
 
-            # get global response window for this trail
+            # get the global onset timestemp for this trail
             curr_onset = trial_onsets[trial_i]
-            res_start_global = curr_onset + response_window[0]
-            res_end_global = curr_onset + response_window[1]
-            bas_start_global = curr_onset + baseline_window[0]
-            bas_end_global = curr_onset + baseline_window[1]
+            win_res_global = [curr_onset + response_window[0],
+                              curr_onset + response_window[1]]
+            win_before_global = [curr_onset + window_before[0],
+                                 curr_onset + window_before[1]]
+            win_after_global = [curr_onset + window_after[0],
+                                curr_onset + window_after[1]]
+
 
             # get pupil area for this trial
             if pupil_area is None:
                 curr_pupil = np.nan
+                curr_pupil_before = np.nan
+                curr_pupil_after = np.nan
             else:
-                pupil_msk = np.logical_and(pupil_ts>=res_start_global, pupil_ts<res_end_global)
+                pupil_msk = np.logical_and(pupil_ts >= win_res_global[0],
+                                           pupil_ts < win_res_global[1])
                 curr_pupil = np.nanmean(pupil_area[pupil_msk])
+
+                pupil_before_msk = np.logical_and(pupil_ts >= win_before_global[0],
+                                                  pupil_ts < win_before_global[1])
+                curr_pupil_before = np.nanmean(pupil_area[pupil_before_msk])
+
+                pupil_after_msk = np.logical_and(pupil_ts >= win_after_global[0],
+                                                 pupil_ts < win_after_global[1])
+                curr_pupil_after = np.nanmean(pupil_area[pupil_after_msk])
 
             # get running speed for this trial
             if running is None:
                 curr_running = np.nan
+                curr_running_before = np.nan
+                curr_running_after = np.nan
             else:
-                running_msk = np.logical_and(running_ts>=res_start_global, running_ts<res_end_global)
+                running_msk = np.logical_and(running_ts >= win_res_global[0],
+                                             running_ts < win_res_global[1])
                 curr_running = np.nanmean(running[running_msk])
 
+                running_msk_before = np.logical_and(running_ts >= win_before_global[0],
+                                                    running_ts >= win_before_global[1])
+                curr_running_before = np.nanmean(running[running_msk_before])
+
+                running_msk_after = np.logical_and(running_ts >= win_after_global[0],
+                                                   running_ts >= win_after_global[1])
+                curr_running_after = np.nanmean(running[running_msk_after])
+
             condi_ns.append(condi_n)
-            global_response_windows.append([res_start_global, res_end_global])
-            global_baseline_windows.append([bas_start_global, bas_end_global])
+            global_onset_tss.append(curr_onset)
             dfs.append(df_trial)
             dffs.append(dff_trial)
             runnings.append(curr_running)
+            runnings_before.append(curr_running_before)
+            runnings_after.append(curr_running_after)
             pupils.append(curr_pupil)
+            pupils_before.append(curr_pupil_before)
+            pupils_after.append(curr_pupil_after)
 
     dgcrt = pd.DataFrame({'condi_n': condi_ns,
-                          'global_response_window': global_response_windows,
-                          'global_baseline_window': global_baseline_windows,
+                          'global_onset_ts': global_onset_tss,
                           'df': dfs,
                           'dff': dffs,
                           'mean_running_speed': runnings,
-                          'mean_pupil_area': pupils})
+                          'mean_running_speed_before': runnings_before,
+                          'mean_running_speed_after': runnings_after,
+                          'mean_pupil_area': pupils,
+                          'mean_pupil_area_before': pupils_before,
+                          'mean_pupil_area_after': pupils_after})
 
     return dgcrt
 
