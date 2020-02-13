@@ -1348,7 +1348,7 @@ def merge_binary_rois(roi1, roi2):
 
 def get_peak_weighted_roi(arr, thr):
     """
-    return: a WeightROI object representing the mask which contains the peak of arr and cut by the thr (thr)
+    return: a WeightROI object representing the mask which contains the peak of arr and cut by the lev_thr (lev_thr)
     """
     nanLabel = np.isnan(arr)
     arr2 = arr.copy()
@@ -1929,7 +1929,7 @@ class Ellipse(object):
         """
         ellipse object
 
-        :param center: tuple of two floats, (center height, center width)
+        :param center: tuple of two floats, (center row, center col)
         :param axes: tuple of two positive floats, (radius of the long axis, radius of short axis)
         :param angle: float, degree, counterclockwise rotation of long axis, from right direction
         """

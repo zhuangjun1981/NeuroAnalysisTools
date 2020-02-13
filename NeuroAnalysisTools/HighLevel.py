@@ -45,17 +45,17 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
     matchingDecimation = float(matchingDecimation);
     referenceDecimation = float(referenceDecimation)
 
-    if matchingParams['Xoffset'] % matchingDecimation != 0: 
+    if matchingParams['Xoffset'] % matchingDecimation != 0:
         print ('Original Xoffset is not divisble by movDecimation. Taking the floor integer.')
-    if matchingParams['Yoffset'] % matchingDecimation != 0: 
+    if matchingParams['Yoffset'] % matchingDecimation != 0:
         print ('Original Yoffset is not divisble by movDecimation. Taking the floor integer.')
 
     offset = [int(matchingParams['Xoffset'] / matchingDecimation),
               int(matchingParams['Yoffset'] / matchingDecimation)]
 
-    if matchingParams['ReferenceMapHeight'] % matchingDecimation != 0: 
+    if matchingParams['ReferenceMapHeight'] % matchingDecimation != 0:
         print('Original ReferenceMapHeight is not divisble by movDecimation. Taking the floor integer.')
-    if matchingParams['ReferenceMapWidth'] % matchingDecimation != 0: 
+    if matchingParams['ReferenceMapWidth'] % matchingDecimation != 0:
         print('Original ReferenceMapWidth is not divisble by movDecimation. Taking the floor integer.')
 
     outputShape = [int(matchingParams['ReferenceMapHeight'] / matchingDecimation),
@@ -67,7 +67,7 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
     if matchingDecimation / referenceDecimation != 1:
         movT = ia.rigid_transform_cv2(movT, zoom=matchingDecimation / referenceDecimation)
 
-    if verbose: 
+    if verbose:
         print('shape of output movie:', movT.shape)
 
     return movT
@@ -91,17 +91,17 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
 
 #     inputMov = BinarySlicer(inputPath)
 
-#     if outputDtype is None: 
+#     if outputDtype is None:
 #         outputDtype = inputMov.dtype.str
 
-#     if len(inputMov.shape) != 3: 
+#     if len(inputMov.shape) != 3:
 #         raise ValueError('Input movie should be 3-d!')
 
 #     frameNum = inputMov.shape[0]
 
 #     if outputPath[-4:] != '.npy': outputPath += '.npy'
 
-#     if verbose: 
+#     if verbose:
 #         print('\nInput movie shape:', inputMov.shape)
 
 #     chunkNum = frameNum // chunkLength
@@ -110,7 +110,7 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
 #             print('Translating in chunks: ' + str(chunkNum) + ' x ' + str(chunkLength) + ' frame(s)')
 #     else:
 #         chunkNum += 1
-#         if verbose: 
+#         if verbose:
 #             print('Translating in chunks: ' + str(chunkNum - 1) + ' x ' + str(chunkLength) + \
 #                   ' frame(s)' + ' + ' + str(frameNum % chunkLength) + ' frame(s)')
 
@@ -120,7 +120,7 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
 #     plt.imshow(frameT1, cmap='gray')
 #     plt.show()
 
-#     if verbose: 
+#     if verbose:
 #         print('Output movie shape:', (frameNum, frameT1.shape[0], frameT1.shape[1]), '\n')
 
 #     with open(outputPath, 'wb') as f:
@@ -132,7 +132,7 @@ def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, refere
 #             indEnd = (i + 1) * chunkLength
 #             if indEnd > frameNum: indEnd = frameNum
 #             currMov = inputMov[indStart:indEnd, :, :]
-#             if verbose: 
+#             if verbose:
 #                 print('Translating frame ' + str(indStart) + ' to frame ' + str(indEnd) + '.\t' + \
 #                       str(i * 100. / chunkNum) + '%')
 #             currMovT = translateMovieByVasculature(currMov, parameterPath=parameterPath,
@@ -278,7 +278,7 @@ def getVasMap(vasMapPaths,
     vasMap = mergeMethod(vasMaps, axis=0)
 
     return vasMap
-    
+
 
 # def analysisMappingDisplayLog(display_log):
 #     '''
@@ -309,15 +309,15 @@ def getVasMap(vasMapPaths,
 #         raise ValueError('log should be either dictionary or a path string!')
 
 #     # check display order
-#     if log['presentation']['displayOrder'] == -1: 
+#     if log['presentation']['displayOrder'] == -1:
 #         raise ValueError('Display order is -1 (should be 1)!')
 #     refreshRate = float(log['monitor']['refreshRate'])
 
 #     # check display visual frame interval
 #     interFrameInterval = np.mean(np.diff(log['presentation']['timeStamp']))
-#     if interFrameInterval > (1.01 / refreshRate): 
+#     if interFrameInterval > (1.01 / refreshRate):
 #         raise ValueError('Mean visual display too long: ' + str(interFrameInterval) + 'sec')  # check display
-#     if interFrameInterval < (0.99 / refreshRate): 
+#     if interFrameInterval < (0.99 / refreshRate):
 #         raise ValueError('Mean visual display too short: ' + str(interFrameInterval) + 'sec')  # check display
 
 #     # get sweep start time relative to display onset
@@ -1489,8 +1489,8 @@ def get_masks_from_caiman(spatial_com, dims, thr=0, thr_method='nrg', swap_dim=F
                Spatial dimensions of movie (row, col)
          thr: scalar between 0 and 1
               Energy threshold for computing contours (default 0.9)
-              if thr_method is 'nrg': higher thr will make bigger hole inside the mask
-              if thr_method is 'max': (usually does not work very well), higher thr will make smaller mask
+              if thr_method is 'nrg': higher lev_thr will make bigger hole inside the mask
+              if thr_method is 'max': (usually does not work very well), higher lev_thr will make smaller mask
                                       near the center.
          thr_method: [optional] string
                      Method of thresholding:

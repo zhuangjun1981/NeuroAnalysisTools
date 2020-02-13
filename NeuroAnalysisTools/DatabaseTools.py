@@ -4126,7 +4126,7 @@ class BoutonClassifier(object):
         ax_corr_thr = f_mat.add_axes([0.34, 0.66, 0.3, 0.3])
         fig_corr_thr = ax_corr_thr.imshow(mat_corr_thr, cmap='plasma', vmin=0, vmax=1, interpolation='nearest')
         f_mat.colorbar(fig_corr_thr)
-        ax_corr_thr.set_ylabel('corr coef thr')
+        ax_corr_thr.set_ylabel('corr coef lev_thr')
         ax_corr_thr.set_xticks([])
         ax_corr_thr.set_yticks([])
 

@@ -54,7 +54,7 @@ def get_sparse_noise_onset_index(sparseNoiseDisplayLog):
 
 def get_peak_weighted_roi(arr, thr):
     """
-    return: a WeightROI object representing the mask which contains the peak of arr and cut by the thr (thr)
+    return: a WeightROI object representing the mask which contains the peak of arr and cut by the lev_thr (lev_thr)
     """
     nanLabel = np.isnan(arr)
     arr2 = arr.copy()
@@ -343,11 +343,11 @@ class SpatialReceptiveField(ia.WeightedROI):
         sign: sign of the receptive, stf, 'ON', 'OFF', 'ON_OFF', None if not defined
         dataType: type of data stored, str, example can be 'df/f', 'zscore', or 'firing_rate' ...
 
-        thr: None, float, if not applied
+        lev_thr: None, float, if not applied
         filter_sigma: gaussian filter sigma in pixel, float, None if not applied
         interpolate_rate: rate for interpolation, int, None if not applied
 
-        the correct way to process RF: gaussian filter first, interpolation second, and thr third
+        the correct way to process RF: gaussian filter first, interpolation second, and lev_thr third
         """
         super(SpatialReceptiveField, self).__init__(mask, pixelSize=None, pixelSizeUnit=pixelSizeUnit)
         self.altPos = altPos
@@ -401,9 +401,9 @@ class SpatialReceptiveField(ia.WeightedROI):
         name.append('RF')
 
         if self.thr is not None:
-            name.append('thr:' + str(self.thr)[0:3])
+            name.append('lev_thr:' + str(self.thr)[0:3])
         else:
-            name.append('thr:None')
+            name.append('lev_thr:None')
 
         if self.filter_sigma is not None:
             name.append('sigma:' + str(self.filter_sigma))
@@ -620,7 +620,7 @@ class SpatialReceptiveField(ia.WeightedROI):
         if dataType == 'None':
             dataType = None
 
-        thr = h5Group['thr'][()]
+        thr = h5Group['lev_thr'][()]
         if isinstance(thr, bytes):
             thr = thr.decode('utf-8')
         if thr == 'None':
@@ -644,7 +644,7 @@ class SpatialReceptiveField(ia.WeightedROI):
 
         for key in h5Group.keys():
             if key not in ['pixels', 'weights', 'altPos', 'aziPos', 'dataType', 'filter_sigma',
-                           'interpolate_rate', 'sign', 'temporalWindow', 'thr']:
+                           'interpolate_rate', 'sign', 'temporalWindow', 'lev_thr']:
 
                 if h5Group[key][()] == 'None':
                     setattr(srf, key, None)

@@ -88,7 +88,7 @@ for plane_n in plane_ns:
         ax_single.set_yticks(range(len(rf_on.altPos))[::20])
         ax_single.set_yticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.altPos[::-1][::20]])
         ax_single.set_aspect('equal')
-        ax_single.set_title('{}: {}. t_window: {}; ON thr:{}; OFF thr:{}.'.format(plane_n, roi_n, roi_t_window,
+        ax_single.set_title('{}: {}. t_window: {}; ON lev_thr:{}; OFF lev_thr:{}.'.format(plane_n, roi_n, roi_t_window,
                                                                                   rf_on.thr, rf_off.thr))
         pdff.savefig(f_single)
         f_single.clear()
