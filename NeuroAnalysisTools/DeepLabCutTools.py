@@ -108,12 +108,12 @@ def get_confidence_dist(df_pts,
     return hist, bin_edges
 
 
-def fit_ellips(df_pts,
-               obj='pup',
-               lev_thr=0.8,
-               num_thr=11,
-               fit_func=cv2.fitEllipse,
-               is_verbose=True):
+def fit_ellipse(df_pts,
+                obj='pup',
+                lev_thr=0.8,
+                num_thr=11,
+                fit_func=cv2.fitEllipse,
+                is_verbose=True):
     """
     fit ellipse for a given object in all frames. For a given frame, if the number of points
     with confidence level higher than lev_thr higher than num_thr, a ellipse will be fitted.
@@ -123,7 +123,7 @@ def fit_ellips(df_pts,
     :param obj: str, object of interest, 'led', 'eye' or 'pup' for pupil
     :param lev_thr: float, [0., 1.,], threshold for confidence level,
                     only the points that have confidence level higher than this value will
-                    used for ellips fitting
+                    used for ellipse fitting
     :param num_thr: int, no less than
     :param fit_func: opencv function for ellipse fitting, could be:
                      cv2.fitEllipse, cv2.fitEllipseAMS or cv2.fitEllipseDirect
@@ -179,18 +179,18 @@ def fit_ellips(df_pts,
                                  '{}_angle_deg'.format(obj)])
 
 
-def get_all_ellips(df_pts,
-                   lev_thr=0.8,
-                   num_thr=11,
-                   fit_func=cv2.fitEllipse,
-                   is_verbose=True):
+def get_all_ellipse(df_pts,
+                    lev_thr=0.8,
+                    num_thr=11,
+                    fit_func=cv2.fitEllipse,
+                    is_verbose=True):
 
-    ells_pup = fit_ellips(df_pts=df_pts, obj='pup', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
-                          is_verbose=is_verbose)
-    ells_led = fit_ellips(df_pts=df_pts, obj='led', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
-                          is_verbose=is_verbose)
-    ells_eye = fit_ellips(df_pts=df_pts, obj='eye', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
-                          is_verbose=is_verbose)
+    ells_pup = fit_ellipse(df_pts=df_pts, obj='pup', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
+                           is_verbose=is_verbose)
+    ells_led = fit_ellipse(df_pts=df_pts, obj='led', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
+                           is_verbose=is_verbose)
+    ells_eye = fit_ellipse(df_pts=df_pts, obj='eye', lev_thr=lev_thr, num_thr=num_thr, fit_func=fit_func,
+                           is_verbose=is_verbose)
 
     return pd.concat([ells_led, ells_eye, ells_pup], axis=1)
 
@@ -243,9 +243,12 @@ def generate_labeled_movie(mov_path_raw,
         print('\tnumber of frames: {}'.format(frame_num))
         print('\tshape of frames (width, height): {}'.format(frame_shape))
 
-    ells_led = np.array(df_ell[['led_center_row', 'led_center_col', 'led_axis_long', 'led_axis_short', 'led_angle_deg']])
-    ells_eye = np.array(df_ell[['eye_center_row', 'eye_center_col', 'eye_axis_long', 'eye_axis_short', 'eye_angle_deg']])
-    ells_pup = np.array(df_ell[['pup_center_row', 'pup_center_col', 'pup_axis_long', 'pup_axis_short', 'pup_angle_deg']])
+    ells_led = np.array(df_ell[['led_center_row', 'led_center_col', 'led_axis_long', 'led_axis_short',
+                                'led_angle_deg']])
+    ells_eye = np.array(df_ell[['eye_center_row', 'eye_center_col', 'eye_axis_long', 'eye_axis_short',
+                                'eye_angle_deg']])
+    ells_pup = np.array(df_ell[['pup_center_row', 'pup_center_col', 'pup_axis_long', 'pup_axis_short',
+                                'pup_angle_deg']])
 
     output = cv2.VideoWriter(filename=mov_path_lab,
                              fourcc=cv2.VideoWriter_fourcc(*fourcc),

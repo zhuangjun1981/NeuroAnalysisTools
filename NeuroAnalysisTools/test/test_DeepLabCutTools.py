@@ -25,19 +25,19 @@ class TestSingleCellAnalysis(unittest.TestCase):
                                            bins=12)
         assert(np.array_equal(hist, [0,0,0,0,0,0,0,0,0,0,0,10]))
 
-    def test_fit_ellips(self):
+    def test_fit_ellipse(self):
         import cv2
         df_pts = dlct.read_data_file(self.test_h5_path, is_verbose=False)
-        ells = dlct.fit_ellips(df_pts=df_pts, obj='pup', lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
-                               is_verbose=False)
+        ells = dlct.fit_ellipse(df_pts=df_pts, obj='pup', lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
+                                is_verbose=False)
         # print(ells)
         assert(ells.shape == (10, 5))
 
     def test_get_all_ellipses(self):
         import cv2
         df_pts = dlct.read_data_file(self.test_h5_path, is_verbose=False)
-        df_ell = dlct.get_all_ellips(df_pts=df_pts, lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
-                                     is_verbose=False)
+        df_ell = dlct.get_all_ellipse(df_pts=df_pts, lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
+                                      is_verbose=False)
         # print(df_ell)
         assert(df_ell.shape == (10, 15))
 
@@ -50,8 +50,8 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
         is_verbose = False
         df_pts = dlct.read_data_file(self.test_h5_path, is_verbose=is_verbose)
-        df_ell = dlct.get_all_ellips(df_pts=df_pts, lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
-                                     is_verbose=is_verbose)
+        df_ell = dlct.get_all_ellipse(df_pts=df_pts, lev_thr=0.8, num_thr=11, fit_func=cv2.fitEllipse,
+                                      is_verbose=is_verbose)
         dlct.generate_labeled_movie(mov_path_raw=self.test_mov_path,
                                     mov_path_lab=save_path,
                                     df_ell=df_ell,
