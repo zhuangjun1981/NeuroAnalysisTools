@@ -510,3 +510,51 @@ class Preprocessor(object):
                     ref_ch_n=reference_channel_name,
                     apply_ch_ns=apply_channel_names)
 
+    @staticmethod
+    def reapply_motion_correction_multiplane(data_folder,
+                                             reference_plane_name,
+                                             reference_channel_name,
+                                             apply_plane_names,
+                                             apply_channel_names):
+        """
+        In case the motion correction failed on some planes but succeeded on one plane,
+        or the universal correction to the whole column. This function allows you to apply
+        the correction offsets from the good plane to other planes. Only applicable to
+        multi-plane interleaved imaging.
+
+        you rarely need to use this
+
+        :param data_folder:
+        :param reference_plane_name:
+        :param reference_channle_name:
+        :param apply_plane_names:
+        :param apply_channel_names:
+        :return:
+        """
+
+        ref_folder = os.path.join(data_folder, reference_plane_name, reference_channel_name)
+        offsets_path = os.path.join(ref_folder, 'corrected', 'correction_offsets.hdf5')
+        ref_paths = [f for f in os.listdir(ref_folder) if f[-4:] == '.tif']
+        ref_paths.sort()
+        ref_paths = [os.path.join(ref_folder, f) for f in ref_paths]
+        print('\nreference paths:')
+        print('\n'.join(ref_paths))
+
+        for apply_plane_n in apply_plane_names:
+            for apply_ch_n in apply_channel_names:
+                print('\n\tapply to {}, channel: {}'.format(apply_plane_n, apply_ch_n))
+                working_folder = os.path.join(data_folder, apply_plane_n, apply_ch_n)
+                apply_paths = [f for f in os.listdir(working_folder) if f[-4:] == '.tif']
+                apply_paths.sort()
+                apply_paths = [os.path.join(working_folder, f) for f in apply_paths]
+                print('\n\tapply paths:')
+                print('\t' + '\n\t'.join(apply_paths))
+
+                mc.apply_correction_offsets(offsets_path=offsets_path,
+                                            path_pairs=zip(ref_paths, apply_paths),
+                                            output_folder=os.path.join(working_folder, 'corrected'),
+                                            process_num=6,
+                                            fill_value=0.,
+                                            avi_downsample_rate=10,
+                                            is_equalizing_histogram=False)
+
