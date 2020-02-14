@@ -1,7 +1,10 @@
 """
-run it in command line with new caiman v1.5.3
+This not a part of NeuroAnalysisTools
+run it in an environment with caiman v1.5.3 installed
+in command line
 
->>> activate caiman_new
+for example:
+>>> activate ciaman
 """
 
 import os

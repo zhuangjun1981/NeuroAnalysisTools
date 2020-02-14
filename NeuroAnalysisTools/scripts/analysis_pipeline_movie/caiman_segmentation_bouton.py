@@ -1,6 +1,9 @@
 """
-run it in command line with old caiman v1.0
+This not a part of NeuroAnalysisTools
+run it in an environment with caiman v1.0 installed
+in command line
 
+for example:
 >>> activate ciaman
 """
 
