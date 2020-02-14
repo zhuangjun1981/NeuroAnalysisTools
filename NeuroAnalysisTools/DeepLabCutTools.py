@@ -133,6 +133,11 @@ def fit_ellipse(df_pts,
                         see NeuroAnalysisTools.core.ImageAnalysis.Ellipse class
     """
 
+    if num_thr < 5:
+        print('Ellipse fitting require at least 5 points. '
+              'The given "num_thr" is less than 5 ({}). Set it to 5.'.format(num_thr))
+        num_thr = 5
+
     if is_verbose:
         print('fitting ellipse for {} ...'.format(obj))
 
