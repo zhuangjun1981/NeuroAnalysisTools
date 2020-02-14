@@ -858,7 +858,7 @@ class Preprocessor(object):
             mov_join = np.concatenate(mov_join, axis=0)
 
             # save_name = '{}_{}_{}_{}_downsampled_for_caiman.hdf5'.format(date_recorded, mouse_id, sess_id, plane_n)
-            save_f = h5py.File(os.path.join(plane_folder, save_name))
+            save_f = h5py.File(os.path.join(plane_folder, save_name), 'w')
             save_f.create_dataset('mov', data=mov_join)
             save_f.close()
 
@@ -914,7 +914,7 @@ class Preprocessor(object):
             mov_join_mmap.flush()
             del mov_join_mmap
 
-            save_file = h5py.File(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'))
+            save_file = h5py.File(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'), 'w')
             save_file['bias_added_to_movie'] = add_to_mov
             save_file.close()
 

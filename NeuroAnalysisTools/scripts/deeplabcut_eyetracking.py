@@ -41,6 +41,5 @@ path_mov = "test_mov_dlc.avi"
 curr_folder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(curr_folder)
 
-video_file_path = 'full path to video file'
 deeplabcut.analyze_videos(path_config,[path_mov])  #can accept list of video files
 deeplabcut.create_labeled_video(path_config,[path_mov]) #can accept list of video files
