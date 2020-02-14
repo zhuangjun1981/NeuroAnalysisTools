@@ -1,5 +1,6 @@
 import os
 import shutil
+import h5py
 import numpy as np
 import tifffile as tf
 import NeuroAnalysisTools.core.FileTools as ft
@@ -698,8 +699,8 @@ class Preprocessor(object):
                 shutil.copyfile(os.path.join(plane_folder, cf), os.path.join(plane_save_folder, cf))
 
     @staticmethod
-    def generate_downsampled_small_movies(data_folder, save_folder, identifier, xy_downsample_rate=2,
-                                          t_downsample_rate=10, channel_names=('green', 'red')):
+    def get_downsampled_small_movies(data_folder, save_folder, identifier, xy_downsample_rate=2,
+                                     t_downsample_rate=10, channel_names=('green', 'red')):
 
         """
         mostly this will be used to heavily downsample motion corrected movies
@@ -750,6 +751,72 @@ class Preprocessor(object):
                 mov_d = np.concatenate(mov_d, axis=0)
                 save_n = '{}_{}_{}_downsampled.tif'.format(os.path.split(data_folder)[1], plane_n, ch_n)
                 tf.imsave(os.path.join(plane_save_folder, save_n), mov_d)
+
+        print('Done.')
+
+    @staticmethod
+    def get_2p_data_file_for_nwb(data_folder, save_folder, identifier, file_prefix, channel='green'):
+
+        # file_prefix = '{}_{}_{}'.format(date_recorded, mouse_id, sess_id)
+
+        print('Getting 2p data as an hdf5 file ready to be linked to nwb file ...')
+
+        plane_fns = [f for f in os.listdir(data_folder) if f[:5] == 'plane']
+        plane_fns.sort()
+        print('\n'.join(plane_fns))
+
+        data_f = h5py.File(os.path.join(save_folder, file_prefix + '_2p_movies.hdf5'))
+
+        for plane_fn in plane_fns:
+            print('\nprocessing {} ...'.format(plane_fn))
+            plane_folder = os.path.join(data_folder, plane_fn, channel, 'corrected')
+            # mov_fns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
+            mov_fns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
+            mov_fns.sort()
+            print('\n'.join(mov_fns))
+
+            # get shape of concatenated movie
+            z1, y, x = tf.imread(os.path.join(plane_folder, mov_fns[0])).shape
+            z0, _, _ = tf.imread(os.path.join(plane_folder, mov_fns[-1])).shape
+            z = z0 + z1 * (len(mov_fns) - 1)
+
+            # for mov_fn in mov_fns:
+            #     print('reading {} ...'.format(mov_fn))
+            #     curr_z, curr_y, curr_x = tf.imread(os.path.join(plane_folder, mov_fn)).shape
+            #
+            #     if y is None:
+            #         y = curr_y
+            #     else:
+            #         if y != curr_y:
+            #             raise ValueError('y dimension ({}) of file "{}" does not agree with previous file(s) ({}).'
+            #                              .format(curr_y, mov_fn, y))
+            #
+            #     if x is None:
+            #         x = curr_x
+            #     else:
+            #         if x != curr_x:
+            #             raise ValueError('x dimension ({}) of file "{}" does not agree with previous file(s) ({}).'
+            #                              .format(curr_x, mov_fn, x))
+            #
+            #     z = z + curr_z
+
+            # print((z, y, x))
+            dset = data_f.create_dataset(plane_fn, (z, y, x), dtype=np.int16, compression='lzf')
+
+            start_frame = 0
+            end_frame = 0
+            for mov_fn in mov_fns:
+                print('reading {} ...'.format(mov_fn))
+                curr_mov = tf.imread(os.path.join(plane_folder, mov_fn))
+                end_frame = start_frame + curr_mov.shape[0]
+                dset[start_frame: end_frame] = curr_mov
+                start_frame = end_frame
+
+            dset.attrs['conversion'] = 1.
+            dset.attrs['resolution'] = 1.
+            dset.attrs['unit'] = 'arbiturary_unit'
+
+        data_f.close()
 
         print('Done.')
 
