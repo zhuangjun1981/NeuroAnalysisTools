@@ -469,10 +469,10 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
     chunk_offsets = []
     for chunk_offset_fn in chunk_offset_fns:
         chunk_offset_f = h5py.File(os.path.join(correction_temp_folder, chunk_offset_fn), 'r')
-        mean_projections.append(chunk_offset_f['mean_projection'].value)
-        # max_projections.append(chunk_offset_f['max_projection'].value)
-        chunk_offsets.append(chunk_offset_f['offsets'].value)
-        file_paths.append(chunk_offset_f['file_path'].value)
+        mean_projections.append(chunk_offset_f['mean_projection'][()])
+        # max_projections.append(chunk_offset_f['max_projection'][()])
+        chunk_offsets.append(chunk_offset_f['offsets'][()])
+        file_paths.append(chunk_offset_f['file_path'][()])
 
     _ = align_single_chunk_iterate_anchor(chunk=np.array(mean_projections),
                                           anchor_frame_ind=anchor_frame_ind_projection,
@@ -680,7 +680,7 @@ def apply_correction_offsets(offsets_path,
         offset = None
         for offset_name, offset_dest in offsets_f.items():
             if offset_name != 'path_list' and offset_dest.attrs['path'] == source_path:
-                offset = offset_dest.value
+                offset = offset_dest[()]
                 break
         if offset is None:
             raise LookupError('can not find source file ({}) in the offsets file for target file: ({}).'
