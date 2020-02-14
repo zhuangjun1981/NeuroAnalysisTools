@@ -19,14 +19,23 @@ import h5py
 from shutil import copyfile
 
 def run():
-    date_recorded = '190503'
-    mouse_id = 'M439939'
-    play_movie = False
-    resolution = 512
+    date_recorded = '200210'
+    mouse_id = '504408'
+    scope = 'sutter'
+    session_n = '110_LSVDGCUC'
     channel = 'green'
 
-    data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-{}-2p" \
-                  r"\110_LSNDGC_reorged".format(date_recorded, mouse_id)
+    play_movie = False
+    resolution = 512
+
+    if scope == 'sutter':
+        data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-M{}-2p" \
+                      r"\{}_reorged".format(date_recorded, mouse_id, session_n)
+    elif scope == 'deepscope':
+        data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-M{}-deepscope" \
+                      r"\{}_reorged".format(date_recorded, mouse_id, session_n)
+    else:
+        raise ValueError('Do not understand scope.')
 
     curr_folder = os.path.dirname(os.path.realpath(__file__))
 
