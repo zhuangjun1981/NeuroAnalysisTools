@@ -820,3 +820,103 @@ class Preprocessor(object):
 
         print('Done.')
 
+    @staticmethod
+    def get_hdf5_files_for_caiman_soma(data_folder, save_name, identifier, temporal_downsample_rate=3,
+                                       channel_name='green'):
+
+        print('Getting .hdf5 files for soma segmentation by caiman v1.5.3')
+
+        plane_ns = [p for p in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, p))]
+        plane_ns.sort()
+        print('planes:')
+        print('\n'.join(plane_ns))
+
+        for plane_n in plane_ns:
+            print('\nprocessing {} ...'.format(plane_n))
+
+            plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
+            os.chdir(plane_folder)
+
+            # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
+            f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
+            f_ns.sort()
+            print('\n'.join(f_ns))
+
+            mov_join = []
+            for f_n in f_ns:
+                print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
+
+                curr_mov = tf.imread(os.path.join(plane_folder, f_n))
+
+                if curr_mov.shape[0] % temporal_downsample_rate != 0:
+                    print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
+                          .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
+
+                curr_mov_d = ia.z_downsample(curr_mov, downSampleRate=temporal_downsample_rate, is_verbose=False)
+                mov_join.append(curr_mov_d)
+
+            mov_join = np.concatenate(mov_join, axis=0)
+
+            # save_name = '{}_{}_{}_{}_downsampled_for_caiman.hdf5'.format(date_recorded, mouse_id, sess_id, plane_n)
+            save_f = h5py.File(os.path.join(plane_folder, save_name))
+            save_f.create_dataset('mov', data=mov_join)
+            save_f.close()
+
+        print('done!')
+
+    @staticmethod
+    def get_mmap_files_for_caiman_bouton(data_folder, save_name_base, identifier, temporal_downsample_rate=5,
+                                         channel_name='green'):
+
+        print('Getting .mmap files for bouton segmentation by caiman v1.0')
+
+        plane_ns = [p for p in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, p))]
+        plane_ns.sort()
+        print('planes:')
+        print('\n'.join(plane_ns))
+
+        for plane_n in plane_ns:
+            print('\nprocessing {} ...'.format(plane_n))
+
+            plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
+            os.chdir(plane_folder)
+
+            # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
+            f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
+            f_ns.sort()
+            print('\n'.join(f_ns))
+
+            mov_join = []
+            for f_n in f_ns:
+                print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
+
+                curr_mov = tf.imread(os.path.join(plane_folder, f_n))
+
+                if curr_mov.shape[0] % temporal_downsample_rate != 0:
+                    print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
+                          .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
+
+                curr_mov_d = ia.z_downsample(curr_mov, downSampleRate=temporal_downsample_rate,
+                                             is_verbose=False)
+                mov_join.append(curr_mov_d)
+
+            mov_join = np.concatenate(mov_join, axis=0)
+            add_to_mov = 10 - np.amin(mov_join)
+
+            save_name = '{}_d1_{}_d2_{}_d3_1_order_C_frames_{}_.mmap' \
+                .format(save_name_base, mov_join.shape[2], mov_join.shape[1], mov_join.shape[0])
+
+            mov_join = mov_join.reshape((mov_join.shape[0], mov_join.shape[1] * mov_join.shape[2]),
+                                        order='F').transpose()
+            mov_join_mmap = np.memmap(os.path.join(plane_folder, save_name), shape=mov_join.shape, order='C',
+                                      dtype=np.float32, mode='w+')
+            mov_join_mmap[:] = mov_join + add_to_mov
+            mov_join_mmap.flush()
+            del mov_join_mmap
+
+            save_file = h5py.File(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'))
+            save_file['bias_added_to_movie'] = add_to_mov
+            save_file.close()
+
+        print('done!')
+
