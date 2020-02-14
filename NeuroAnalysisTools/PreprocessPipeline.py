@@ -343,7 +343,15 @@ class Preprocessor(object):
                     print('\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
                     tf.imsave(save_path, curr_mov_ch)
 
-            print('\n\tDone!')
+            print('\n\tcopying non-tif files:')
+            ntif_file_list = [f for f in os.listdir(data_folder) if identifier in f and f[-4:] != '.tif']
+            ntif_save_folder = os.path.join(save_folder, identifier + '_reorged')
+            if not os.path.isdir(ntif_save_folder):
+                os.makedirs(ntif_save_folder)
+            for ntif_f in ntif_file_list:
+                shutil.copyfile(os.path.join(data_folder, ntif_f), os.path.join(ntif_save_folder, ntif_f))
+
+            print('\nDone!')
         elif scope == 'deepscope':
 
             print('\nReorganize raw two-photon data...')
@@ -433,7 +441,15 @@ class Preprocessor(object):
                     tf.imsave(os.path.join(save_folder_ch, save_name), curr_mov_ch)
                     print('\tcurrent file ind: {:05d}; channel: {}'.format(curr_file_ind, ch_n))
 
-            print('\n\tDone!')
+            print('\n\tcopying non-tif files:')
+            ntif_file_list = [f for f in os.listdir(data_folder) if identifier in f and f[-4:] != '.tif']
+            ntif_save_folder = os.path.join(save_folder, identifier + '_reorged')
+            if not os.path.isdir(ntif_save_folder):
+                os.makedirs(ntif_save_folder)
+            for ntif_f in ntif_file_list:
+                shutil.copyfile(os.path.join(data_folder, ntif_f), os.path.join(ntif_save_folder, ntif_f))
+
+            print('\tDone!')
         else:
             raise LookupError('Do not understand scope: "{}". Should be "sutter" or "deepscope".'.format(scope))
 
