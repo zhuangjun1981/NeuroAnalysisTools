@@ -171,7 +171,7 @@ def fit_ellipse(df_pts,
         else:
             ellipses.append([np.nan] * 5)
 
-    return pd.DataFrame(data=np.array(ellipses, dtype=np.float32),
+    return pd.DataFrame(data=np.array(ellipses, dtype=np.float64),
                         columns=['{}_center_row'.format(obj),
                                  '{}_center_col'.format(obj),
                                  '{}_axis_long'.format(obj),
