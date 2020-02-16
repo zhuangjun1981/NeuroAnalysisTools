@@ -103,7 +103,7 @@ for plane_n in plane_ns:
 
     roi_num = cnm.estimates.A.shape[1]
     print('saving ...')
-    save_f = h5py.File('caiman_segmentation_results.hdf5')
+    save_f = h5py.File('caiman_segmentation_results.hdf5', 'a')
     save_f['masks'] = np.array(cnm.estimates.A.todense()).T.reshape((roi_num, resolution[0], resolution[1]), order='F')
     save_f['traces'] = cnm.estimates.C
     save_f.close()
