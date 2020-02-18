@@ -18,14 +18,14 @@ plt.ioff()
 
 def run():
     # pixels, masks with center location within this pixel region at the image border will be discarded
-    center_margin = [10, 20, 25, 10] # [top margin, bottom margin, left margin, right margin]
+    center_margin = [10, 30, 35, 10] # [top margin, bottom margin, left margin, right margin]
 
     # area range, range of number of pixels of a valid roi
-    area_range = [150, 1000]
+    area_range = [10, 100] # [10, 100] for bouton, [150, 100] for soma
 
     # for the two masks that are overlapping, if the ratio between overlap and the area of the smaller mask is larger than
     # this value, the smaller mask will be discarded.
-    overlap_thr = 0.2
+    overlap_thr = 0 # 0.2
 
     save_folder = 'figures'
 
@@ -40,16 +40,16 @@ def run():
         os.makedirs(save_folder)
 
     # read cells
-    dfile = h5py.File(data_file_name)
+    dfile = h5py.File(data_file_name, 'r')
     cells = {}
-    for cellname in dfile.iterkeys():
+    for cellname in dfile.keys():
         cells.update({cellname:ia.WeightedROI.from_h5_group(dfile[cellname])})
 
     print('total number of cells:', len(cells))
 
     # get the names of cells which are on the edge
     edge_cells = []
-    for cellname, cellmask in cells.iteritems():
+    for cellname, cellmask in cells.items():
         dimension = cellmask.dimension
         center = cellmask.get_center()
         if center[0] < center_margin[0] or \
@@ -72,7 +72,7 @@ def run():
 
     # get dictionary of cell areas
     cell_areas = {}
-    for cellname, cellmask in cells.iteritems():
+    for cellname, cellmask in cells.items():
         cell_areas.update({cellname: cellmask.get_binary_area()})
 
 
@@ -161,7 +161,7 @@ def run():
         cells[retain_cell].to_h5_group(roiGroup)
         i += 1
 
-    for attr, value in dfile.attrs.iteritems():
+    for attr, value in dfile.attrs.items():
         save_file.attrs[attr] = value
 
     save_file.close()

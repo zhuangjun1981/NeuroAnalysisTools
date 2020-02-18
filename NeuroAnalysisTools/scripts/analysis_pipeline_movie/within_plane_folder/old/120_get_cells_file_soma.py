@@ -12,7 +12,7 @@ plt.ioff()
 def run():
     isSave = True
 
-    filter_sigma = 2.  # parameters only used if filter the rois
+    filter_sigma = 2.  # 2. for soma, 1. for bouton
     thr_high = 0.0
     thr_low = 0.1
 
@@ -22,7 +22,7 @@ def run():
     curr_folder = os.path.dirname(os.path.realpath(__file__))
     os.chdir(curr_folder)
 
-    data_f = h5py.File('caiman_segmentation_results.hdf5')
+    data_f = h5py.File('caiman_segmentation_results.hdf5', 'r')
     masks = data_f['masks'].value
     data_f.close()
 
@@ -68,7 +68,7 @@ def run():
         cell_file = h5py.File('cells.hdf5', 'w')
 
         i = 0
-        for key, value in sorted(final_roi_dict.iteritems()):
+        for key, value in sorted(final_roi_dict.items()):
             curr_grp = cell_file.create_group('cell{:04d}'.format(i))
             curr_grp.attrs['name'] = key
             value.to_h5_group(curr_grp)
