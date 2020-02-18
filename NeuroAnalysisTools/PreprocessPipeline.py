@@ -6,6 +6,7 @@ import tifffile as tf
 import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
+import NeuroAnalysisTools.NwbTools as nt
 import matplotlib.pyplot as plt
 import cv2
 import NeuroAnalysisTools.MotionCorrection as mc
@@ -927,60 +928,146 @@ class Preprocessor(object):
 
         print('done!')
 
-    # since it is almost impossible to install the vintage caiman 1.0. This method seems useless
-    # @staticmethod
-    # def get_mmap_files_for_caiman_bouton(data_folder, save_name_base, identifier, temporal_downsample_rate=5,
-    #                                      channel_name='green'):
-    #
-    #     print('Getting .mmap files for bouton segmentation by caiman v1.0')
-    #
-    #     plane_ns = [p for p in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, p))]
-    #     plane_ns.sort()
-    #     print('planes:')
-    #     print('\n'.join(plane_ns))
-    #
-    #     for plane_n in plane_ns:
-    #         print('\nprocessing {} ...'.format(plane_n))
-    #
-    #         plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
-    #         os.chdir(plane_folder)
-    #
-    #         # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
-    #         f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
-    #         f_ns.sort()
-    #         print('\n'.join(f_ns))
-    #
-    #         mov_join = []
-    #         for f_n in f_ns:
-    #             print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
-    #
-    #             curr_mov = tf.imread(os.path.join(plane_folder, f_n))
-    #
-    #             if curr_mov.shape[0] % temporal_downsample_rate != 0:
-    #                 print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
-    #                       .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
-    #
-    #             curr_mov_d = ia.z_downsample(curr_mov, downSampleRate=temporal_downsample_rate,
-    #                                          is_verbose=False)
-    #             mov_join.append(curr_mov_d)
-    #
-    #         mov_join = np.concatenate(mov_join, axis=0)
-    #         add_to_mov = 10 - np.amin(mov_join)
-    #
-    #         save_name = '{}_d1_{}_d2_{}_d3_1_order_C_frames_{}_.mmap' \
-    #             .format(save_name_base, mov_join.shape[2], mov_join.shape[1], mov_join.shape[0])
-    #
-    #         mov_join = mov_join.reshape((mov_join.shape[0], mov_join.shape[1] * mov_join.shape[2]),
-    #                                     order='F').transpose()
-    #         mov_join_mmap = np.memmap(os.path.join(plane_folder, save_name), shape=mov_join.shape, order='C',
-    #                                   dtype=np.float32, mode='w+')
-    #         mov_join_mmap[:] = mov_join + add_to_mov
-    #         mov_join_mmap.flush()
-    #         del mov_join_mmap
-    #
-    #         save_file = h5py.File(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'), 'w')
-    #         save_file['bias_added_to_movie'] = add_to_mov
-    #         save_file.close()
-    #
-    #     print('done!')
+    @staticmethod
+    def get_mmap_files_for_caiman_bouton(data_folder, save_name_base, identifier, temporal_downsample_rate=5,
+                                         channel_name='green'):
+
+        print('Getting .mmap files for bouton segmentation by caiman v1.0')
+
+        plane_ns = [p for p in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, p))]
+        plane_ns.sort()
+        print('planes:')
+        print('\n'.join(plane_ns))
+
+        for plane_n in plane_ns:
+            print('\nprocessing {} ...'.format(plane_n))
+
+            plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
+            os.chdir(plane_folder)
+
+            # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
+            f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
+            f_ns.sort()
+            print('\n'.join(f_ns))
+
+            mov_join = []
+            for f_n in f_ns:
+                print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
+
+                curr_mov = tf.imread(os.path.join(plane_folder, f_n))
+
+                if curr_mov.shape[0] % temporal_downsample_rate != 0:
+                    print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
+                          .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
+
+                curr_mov_d = ia.z_downsample(curr_mov, downSampleRate=temporal_downsample_rate,
+                                             is_verbose=False)
+                mov_join.append(curr_mov_d)
+
+            mov_join = np.concatenate(mov_join, axis=0)
+            add_to_mov = 10 - np.amin(mov_join)
+
+            save_name = '{}_d1_{}_d2_{}_d3_1_order_C_frames_{}_.mmap' \
+                .format(save_name_base, mov_join.shape[2], mov_join.shape[1], mov_join.shape[0])
+
+            mov_join = mov_join.reshape((mov_join.shape[0], mov_join.shape[1] * mov_join.shape[2]),
+                                        order='F').transpose()
+            mov_join_mmap = np.memmap(os.path.join(plane_folder, save_name), shape=mov_join.shape, order='C',
+                                      dtype=np.float32, mode='w+')
+            mov_join_mmap[:] = mov_join + add_to_mov
+            mov_join_mmap.flush()
+            del mov_join_mmap
+
+            save_file = h5py.File(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'), 'w')
+            save_file['bias_added_to_movie'] = add_to_mov
+            save_file.close()
+
+        print('done!')
+
+    @staticmethod
+    def generate_nwb_file(save_folder, date, mouse_id, session_id='unknown', experimenter='unknown', genotype='unknown',
+                          sex='unknown', age='unknown', indicator='unknown', imaging_rate='unknown',
+                          imaging_depth='unknown', imaging_location='unknown', imaging_device='unknown',
+                          imaging_excitation_lambda='unknown'):
+
+        print('\nGenerating .nwb file.')
+
+        notebook_path = os.path.join(save_folder, 'notebook.txt')
+        if os.path.isfile(notebook_path):
+            with open(notebook_path, 'r') as ff:
+                notes = ff.read()
+        else:
+            print('Cannot find notebook.txt in {}. Skip.'.format(os.path.realpath(notebook_path)))
+
+        general = nt.DEFAULT_GENERAL
+        general['experimenter'] = experimenter
+        general['subject']['subject_id'] = mouse_id
+        general['subject']['genotype'] = genotype
+        general['subject']['sex'] = sex
+        general['subject']['age'] = age
+        general['optophysiology'].update({'imaging_plane_0': {}})
+        general['optophysiology']['imaging_plane_0'].update({'indicator': indicator})
+        general['optophysiology']['imaging_plane_0'].update({'imaging_rate': imaging_rate})
+        general['optophysiology']['imaging_plane_0'].update({'imaging_depth': imaging_depth})
+        general['optophysiology']['imaging_plane_0'].update({'location': imaging_location})
+        general['optophysiology']['imaging_plane_0'].update({'device': imaging_device})
+        general['optophysiology']['imaging_plane_0'].update({'excitation_lambda': imaging_excitation_lambda})
+        general['notes'] = notes
+
+        file_name = '{}_M{}_{}.nwb'.format(date, mouse_id, session_id)
+
+        rf = nt.RecordedFile(os.path.join(save_folder, file_name), identifier=file_name[:-4], description='')
+        rf.add_general(general=general)
+        rf.close()
+
+        print('Done.')
+
+    @staticmethod
+    def get_nwb_path(nwb_folder):
+        nwb_fns = [fn for fn in os.listdir(nwb_folder) if fn[-4:] == '.nwb']
+        if len(nwb_fns) == 0:
+            print('Cannot find .nwb files in {}!'.format(os.path.realpath(nwb_folder)))
+            return None
+        elif len(nwb_fns) > 1:
+            print('More than one .nwb files found in {}!'.format(os.path.realpath(nwb_folder)))
+            return None
+        elif len(nwb_fns) == 1:
+            return nwb_fns[0]
+
+    def add_vasmap_to_nwb(self, nwb_folder, is_plot=False):
+
+        print('\nAdding vasculature images to .nwb file.')
+        vasmap_dict = {
+            'vasmap_wf': 'wide field surface vasculature map through cranial window original',
+            'vasmap_wf_rotated': 'wide field surface vasculature map through cranial window rotated',
+            'vasmap_2p_green': '2p surface vasculature map through cranial window green original, zoom1',
+            'vasmap_2p_green_rotated': '2p surface vasculature map through cranial window green rotated, zoom1',
+            'vasmap_2p_red': '2p surface vasculature map through cranial window red original, zoom1',
+            'vasmap_2p_red_rotated': '2p surface vasculature map through cranial window red rotated, zoom1'
+        }
+
+        nwb_path = self.get_nwb_path(nwb_folder)
+        nwb_f = nt.RecordedFile(nwb_path)
+
+        for mn, des in vasmap_dict.items():
+            try:
+                curr_m = ia.array_nor(tf.imread(mn + '.tif'))
+
+                if is_plot:
+                    f = plt.figure(figsize=(10, 10))
+                    ax = f.add_subplot(111)
+                    ax.imshow(curr_m, vmin=0., vmax=1., cmap='gray', interpolation='nearest')
+                    ax.set_axis_off()
+                    ax.set_title(mn)
+                    plt.show()
+
+                print('\tadding {} to nwb file.'.format(mn))
+                nwb_f.add_acquisition_image(mn, curr_m, description=des)
+
+            except Exception as e:
+                print(e)
+
+        nwb_f.close()
+        print('\tDone.')
+
 

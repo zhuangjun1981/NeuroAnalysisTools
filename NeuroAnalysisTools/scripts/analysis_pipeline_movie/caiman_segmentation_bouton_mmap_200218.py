@@ -85,7 +85,7 @@ def run():
       plane_folder = os.path.join(data_folder, plane_n, channel, 'corrected')
       os.chdir(plane_folder)
 
-      fn = [f for f in os.listdir(plane_folder) if len(f) > 16 and f[-16:] == '_for_caiman.hdf5']
+      fn = [f for f in os.listdir(plane_folder) if len(f) > 16 and f[-5:] == '.mmap']
       if len(fn) > 1:
           print('\n'.join(fn))
           raise LookupError('more than one file found.')

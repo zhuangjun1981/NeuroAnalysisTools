@@ -7,26 +7,23 @@ for example:
 >>> activate ciaman
 """
 
+
 import os
-import glob
 import numpy as np
-import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 import h5py
 from shutil import copyfile
 
-date_recorded = '200210'
-mouse_id = 'M504408'
+
+date_recorded = '190814'
+mouse_id = 'M471944'
 resolution = (512, 512)
 channel = 'green'
-data_folder_n = '110_LSVDGCUC_reorged'
-imaging_mode = '2p' # '2p' or 'deepscope'
-n_prosess = 4
+data_folder_n = '110_LSNDGCUC_reorged'
+imaging_mode = 'deepscope' # '2p' or 'deepscope'
 
 
-# =========================== caiman parameters for soma =================================================
-# ============ sutter scope, zoom 2, 5 frames online average, 5 frames offline average ===================
-# ============ deepscope, zoom 1.4, 2 frames online average, 3 frames offline average ====================
+# caiman parameters
 fr = 2  # frame rate (Hz)
 decay_time = 0.5  # approximate length of transient event in seconds
 gSig = (8, 8)  # expected half size of neurons
@@ -47,11 +44,8 @@ min_num_trial = 10  # number of candidate components per frame
 K = 2  # initial number of components
 epochs = 2  # number of passes over the data
 show_movie = False  # show the movie with the results as the data gets processed
-# =========================== caiman parameters for soma =================================================
 
 curr_folder = os.path.dirname(os.path.realpath(__file__))
-
-c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_process, single_thread=False)
 
 data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-{}-{}" \
               r"\{}".format(date_recorded, mouse_id, imaging_mode, data_folder_n)
@@ -107,26 +101,17 @@ for plane_n in plane_ns:
 
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
-    cnm1 = cnmf.CNMF(n_process, params=opts, dview=dview)
-    cnm1.fit_file(motion_correct=False)
+    cnm = cnmf.online_cnmf.OnACID(params=opts)
+    cnm.fit_online()
 
-    roi_num = cnm1.estimates.A.shape[1]
+    roi_num = cnm.estimates.A.shape[1]
     print('saving ...')
-    save_f = h5py.File('caiman_segmentation_results.hdf5', 'w')
+    save_f = h5py.File('caiman_segmentation_results.hdf5', 'x')
     save_f.create_dataset('masks',
-                          data=np.array(cnm1.estimates.A.todense()).T.reshape((roi_num, resolution[0], resolution[1]),
-                                                                              order='F'), compression='lzf')
-    save_f.create_dataset('traces', data=cnm1.estimates.C)
+                          data=np.array(cnm.estimates.A.todense()).T.reshape((roi_num, resolution[0], resolution[1]),
+                                                                             order='F'), compression='lzf')
+    save_f.create_dataset('traces', data=cnm.estimates.C)
     save_f.close()
 
     copyfile(os.path.join(plane_folder, 'caiman_segmentation_results.hdf5'),
              os.path.join(curr_folder, plane_n, 'caiman_segmentation_results.hdf5'))
-
-    # %% STOP CLUSTER and clean up log files
-    cm.stop_server(dview=dview)
-    log_files = glob.glob('*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
-
-
-
