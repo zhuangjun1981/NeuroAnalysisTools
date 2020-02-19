@@ -925,7 +925,7 @@ class RecordedFile(NWB):
         :return:
         """
 
-        img_file = h5py.File(image_file_path)
+        img_file = h5py.File(image_file_path, 'r')
         img_data = img_file[dataset_path]
         if timestamps.shape[0] != img_data.shape[0]:
             raise ValueError('Number of frames does not equal to the length of timestamps!')

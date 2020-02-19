@@ -297,7 +297,7 @@ class Preprocessor(object):
 
     @staticmethod
     def reorganize_raw_2p_data(data_folder, save_folder, identifier, scope, plane_num,
-                               channels, temporal_downsample_rate, frames_per_file,low_thr):
+                               channels, temporal_downsample_rate, frames_per_file, low_thr):
         """
 
         :param data_folder: str
@@ -1069,5 +1069,108 @@ class Preprocessor(object):
 
         nwb_f.close()
         print('\tDone.')
+
+    def add_sync_data_to_nwb(self, nwb_folder, sync_identifier):
+
+        print('\nAdding sync data to .nwb file.')
+        nwb_path = self.get_nwb_path(nwb_folder)
+
+        sync_fn = [f for f in os.listdir(nwb_folder) if f[-3:] == '.h5' and sync_identifier in f]
+        if len(sync_fn) == 0:
+            raise LookupError('Did not find sync .h5 file ...')
+        elif len(sync_fn) > 1:
+            raise LookupError('More than one sync .h5 files found.')
+        else:
+            sync_fn = sync_fn[0]
+
+        nwb_f = nt.RecordedFile(nwb_path)
+        nwb_f.add_sync_data(sync_fn)
+        nwb_f.close()
+
+        print('\tDone.')
+
+    def add_2p_image_to_nwb(self, nwb_folder, image_identifier, zoom, scope, plane_ns,
+                            image_depths, temporal_downsample_rate):
+        """
+
+        :param nwb_folder: str, folder containing .nwb file and the packaged 2p imaging .hdf5 file
+        :param image_identifier: str, for finding the the packaged 2p imaging .hdf5 file
+        :param zoom: float, zoom of 2p recording
+        :param scope: str, 'sutter' or 'deepscope'
+        :param plane_ns: list of str, ['plane0', 'plane1', 'plane2', ...]
+        :param image_depths: list of numbers, depth below pia for each imaging plane in microns
+                             the length of this list should match the number of imaging planes
+        :param temporal_downsample_rate: int, total temporal downsample rate,
+                                         td_rate_before_correction * tdrate_after_correction
+        :return:
+        """
+
+        print('\nAdding 2p imaging data to .nwb file ...')
+
+        if len(plane_ns) != len(image_depths):
+            raise ValueError('Length of "plane_ns" ({}) should match length of '
+                             '"image_depths" ({}).'.format(len(plane_ns), len(image_depths)))
+
+        nwb_path = self.get_nwb_path(nwb_folder)
+
+        description = '2-photon imaging data'
+
+        if scope == 'deepscope':
+            pixel_size = 0.0000009765 / zoom  # meter
+        elif scope == 'sutter':
+            pixel_size = 0.0000014 / zoom  # meter
+        else:
+            raise LookupError('do not understand scope type')
+
+        nwb_f = nt.RecordedFile(nwb_path)
+
+        ts_2p_tot = nwb_f.file_pointer['/acquisition/timeseries/digital_vsync_2p_rise/timestamps'][()]
+
+        # if scope == 'sutter':
+        #     ts_2p_tot = nwb_f.file_pointer['/acquisition/timeseries/digital_vsync_2p_rise/timestamps'].value
+        # elif scope == 'DeepScope':
+        #     ts_2p_tot = nwb_f.file_pointer['/acquisition/timeseries/digital_2p_vsync_rise/timestamps'].value
+        # else:
+        #     raise LookupError('do not understand scope type')
+        # print('total 2p timestamps count: {}'.format(len(ts_2p_tot)))
+
+        mov_fn = os.path.join(nwb_folder, '{}_2p_movies.hdf5'.format(image_identifier))
+        mov_f = h5py.File(mov_fn, 'r')
+
+        for mov_i, mov_dn in enumerate(plane_ns):
+
+            if mov_dn is not None:
+
+                curr_dset = mov_f[mov_dn]
+                if mov_dn is not None:
+                    mov_ts = ts_2p_tot[mov_i::len(plane_ns)]
+                    print('\n{}: total 2p timestamps count: {}'.format(mov_dn, len(mov_ts)))
+
+                    mov_ts_d = mov_ts[::temporal_downsample_rate]
+                    print('{}: downsampled 2p timestamps count: {}'.format(mov_dn, len(mov_ts_d)))
+                    print('{}: downsampled 2p movie frame num: {}'.format(mov_dn, curr_dset.shape[0]))
+
+                    # if len(mov_ts_d) == curr_dset.shape[0]:
+                    #     pass
+                    # elif len(mov_ts_d) == curr_dset.shape[0] + 1:
+                    #     mov_ts_d = mov_ts_d[0: -1]
+                    # else:
+                    #     raise ValueError('the timestamp count of {} movie ({}) does not equal (or is not greater by one) '
+                    #                      'the frame cound in the movie ({})'.format(mov_dn, len(mov_ts_d), curr_dset.shape[0]))
+                    mov_ts_d = mov_ts_d[:curr_dset.shape[0]]
+
+                    curr_description = '{}. Imaging depth: {} micron.'.format(description, image_depths[mov_i])
+                    nwb_f.add_acquired_image_series_as_remote_link('2p_movie_' + mov_dn, image_file_path=mov_fn,
+                                                                   dataset_path=mov_dn, timestamps=mov_ts_d,
+                                                                   description=curr_description, comments='',
+                                                                   data_format='zyx',
+                                                                   pixel_size=[pixel_size, pixel_size],
+                                                                   pixel_size_unit='meter')
+
+        mov_f.close()
+        nwb_f.close()
+
+
+
 
 
