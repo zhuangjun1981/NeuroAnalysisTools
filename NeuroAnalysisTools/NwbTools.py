@@ -254,15 +254,15 @@ class RecordedFile(NWB):
                  1-d array, time stamps
         """
         grp = self.file_pointer['acquisition/timeseries'][ch_n]
-        data = grp['data'].value
+        data = grp['data'][()]
         if not np.isnan(grp['data'].attrs['conversion']):
             data = data.astype(np.float32) * grp['data'].attrs['conversion']
         if 'timestamps' in grp.keys():
             t = grp['timestamps']
         elif 'starting_time' in grp.keys():
             fs = grp['starting_time'].attrs['rate']
-            sample_num = grp['num_samples'].value
-            t = np.arange(sample_num) / fs + grp['starting_time'].value
+            sample_num = grp['num_samples'][()]
+            t = np.arange(sample_num) / fs + grp['starting_time'][()]
         else:
             raise ValueError('can not find timing information of channel:' + ch_n)
         return data, t
@@ -315,7 +315,7 @@ class RecordedFile(NWB):
 
         fs = pd_grp['starting_time'].attrs['rate']
 
-        pd = pd_grp['data'].value * pd_grp['data'].attrs['conversion']
+        pd = pd_grp['data'][()] * pd_grp['data'].attrs['conversion']
 
         pd_onsets = hl.segmentPhotodiodeSignal(pd, digitizeThr=digitizeThr, filterSize=filterSize,
                                                segmentThr=segmentThr, Fs=fs, smallestInterval=smallestInterval)
@@ -633,7 +633,7 @@ class RecordedFile(NWB):
     #                                             'band-pass filtered with cutoff frequency (300, 6000) Hz.')
 
     #         #  add relevant information to current UnitTimes field
-    #         unit_times.append_unit_data(unit_name=unit, key='channel_name', value=peak_channel)
+    #         unit_times.append_unit_data(unit_name=unit, key='apply_channel_name', value=peak_channel)
     #         unit_times.append_unit_data(unit_name=unit, key='channel', value=peak_channel_ind)
     #         unit_times.append_unit_data(unit_name=unit, key='template_filtered', value=np.array(template).transpose())
     #         unit_times.append_unit_data(unit_name=unit, key='template',
@@ -1049,7 +1049,7 @@ class RecordedFile(NWB):
                 mov_dict['source'] = ''
 
             orig = self.file_pointer[mov_dict['original_timeseries_path']]
-            timestamps = orig['timestamps'].value
+            timestamps = orig['timestamps'][()]
             # print(timestamps.shape)
 
             img_file = h5py.File(mov_dict['corrected_file_path'], 'r')
@@ -1080,7 +1080,10 @@ class RecordedFile(NWB):
 
             for value_n in orig.keys():
                 if value_n not in ['image_data_path_within_file', 'image_file_path', 'data', 'timestamps']:
-                    corrected.set_value(value_n, orig[value_n].value)
+                    if isinstance(orig[value_n][()], bytes):
+                        corrected.set_value(value_n, orig[value_n][()].decode())
+                    else:
+                        corrected.set_value(value_n, orig[value_n][()])
 
             xy_translation = self.create_timeseries(ts_type='TimeSeries', name='xy_translation', modality='other')
             xy_translation.set_data(offsets, unit='pixel', conversion=np.nan,
@@ -1089,7 +1092,7 @@ class RecordedFile(NWB):
             xy_translation.set_value('num_samples', offsets.shape[0])
             xy_translation.set_description('Time series of x, y shifts applied to create motion '
                                            'stabilized image series')
-            xy_translation.set_value('feature_description', ['x_motion', 'y_motion'])
+            xy_translation.set_value('feature_description', [b'x_motion', b'y_motion'])
 
             mc_interf.add_corrected_image(mov_dict['field_name'], orig=mov_dict['original_timeseries_path'],
                                           xy_translation=xy_translation,
@@ -1105,8 +1108,8 @@ class RecordedFile(NWB):
     def add_display_frame_ts_camstim(self, pkl_dict, max_mismatch=0.1, verbose=True, refresh_rate=60.,
                                      allowed_jitter=0.01):
 
-        ts_pd_fall = self.file_pointer['acquisition/timeseries/digital_photodiode_fall/timestamps'].value
-        ts_display_rise = self.file_pointer['acquisition/timeseries/digital_vsync_visual_rise/timestamps'].value
+        ts_pd_fall = self.file_pointer['acquisition/timeseries/digital_photodiode_fall/timestamps'][()]
+        ts_display_rise = self.file_pointer['acquisition/timeseries/digital_vsync_visual_rise/timestamps'][()]
 
         ts_display_real, display_lag = ct.align_visual_display_time(pkl_dict=pkl_dict, ts_pd_fall=ts_pd_fall,
                                                                     ts_display_rise=ts_display_rise,
@@ -1234,24 +1237,24 @@ class RecordedFile(NWB):
         # get photodiode onset timestamps (after display)
         if pd_onset_ts_path is None:
             if 'acquisition/timeseries/digital_photodiode_rise' in self.file_pointer:
-                pd_ts_pd = self.file_pointer['acquisition/timeseries/digital_photodiode_rise/timestamps'].value
+                pd_ts_pd = self.file_pointer['acquisition/timeseries/digital_photodiode_rise/timestamps'][()]
             elif 'analysis/PhotodiodeOnsets' in self.file_pointer:
-                 pd_ts_pd = self.file_pointer['analysis/PhotodiodeOnsets/timestamps'].value
+                 pd_ts_pd = self.file_pointer['analysis/PhotodiodeOnsets/timestamps'][()]
             else:
                 raise LookupError('Cannot find photodiode onset timeseries.')
         else:
-            pd_ts_pd = self.file_pointer[pd_onset_ts_path + '/timestamps'].value
+            pd_ts_pd = self.file_pointer[pd_onset_ts_path + '/timestamps'][()]
 
         # get vsync TTL timestamps for displayed frames
         if vsync_frame_ts_path is None:
             if 'acquisition/timeseries/digital_vsync_stim_rise' in self.file_pointer:
-                vsync_ts = self.file_pointer['acquisition/timeseries/digital_vsync_stim_rise/timestamps'].value
+                vsync_ts = self.file_pointer['acquisition/timeseries/digital_vsync_stim_rise/timestamps'][()]
             elif 'acquisition/timeseries/digital_vsync_visual_rise' in self.file_pointer:
-                vsync_ts = self.file_pointer['acquisition/timeseries/digital_vsync_visual_rise/timestamps'].value
+                vsync_ts = self.file_pointer['acquisition/timeseries/digital_vsync_visual_rise/timestamps'][()]
             else:
                 raise LookupError('Cannot find vsync TTL signal for displayed frames.')
         else:
-            vsync_ts = self.file_pointer[vsync_frame_ts_path + '/timestamps'].value
+            vsync_ts = self.file_pointer[vsync_frame_ts_path + '/timestamps'][()]
 
         # check vsync_stim number and total frame number
         print('\nnumber of total frames in log file: {}'.format(stim_log.num_frame_tot))
@@ -1297,7 +1300,7 @@ class RecordedFile(NWB):
         :return: None
         """
 
-        vsync_stim_ts = self.file_pointer[vsync_frame_path]['timestamps'].value + display_delay
+        vsync_stim_ts = self.file_pointer[vsync_frame_path]['timestamps'][()] + display_delay
 
         stim_ns = pd_onsets_com.keys()
         stim_ns.sort()
@@ -1368,12 +1371,12 @@ class RecordedFile(NWB):
             traces = {}
             if 'processing/{}/DfOverF/dff_center'.format(curr_trace_name) in self.file_pointer:
                 traces['global_dff_center'] = self.file_pointer[
-                    'processing/{}/DfOverF/dff_center/data'.format(curr_trace_name)].value
+                    'processing/{}/DfOverF/dff_center/data'.format(curr_trace_name)][()]
             if 'processing/{}/Fluorescence'.format(curr_trace_name) in self.file_pointer:
                 f_types = self.file_pointer['processing/{}/Fluorescence'.format(curr_trace_name)].keys()
                 for f_type in f_types:
                     traces[f_type] = self.file_pointer['processing/{}/Fluorescence/{}/data'
-                        .format(curr_trace_name, f_type)].value
+                        .format(curr_trace_name, f_type)][()]
             # print(traces.keys())
 
             # frame_dur = np.mean(np.diff(trace_ts))
@@ -1394,7 +1397,7 @@ class RecordedFile(NWB):
 
                 curr_grating_grp = res_grp_plane.create_group(grating_n)
 
-                grating_onsets = onsets_grating_grp['pd_onset_ts_sec'].value
+                grating_onsets = onsets_grating_grp['pd_onset_ts_sec'][()]
 
                 curr_grating_grp.attrs['global_trigger_timestamps'] = grating_onsets
                 curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
@@ -1452,12 +1455,12 @@ class RecordedFile(NWB):
             traces = {}
             if 'processing/{}/DfOverF/dff_center'.format(curr_trace_name) in self.file_pointer:
                 traces['global_dff_center'] = self.file_pointer[
-                    'processing/{}/DfOverF/dff_center/data'.format(curr_trace_name)].value
+                    'processing/{}/DfOverF/dff_center/data'.format(curr_trace_name)][()]
             if 'processing/{}/Fluorescence'.format(curr_trace_name) in self.file_pointer:
                 f_types = self.file_pointer['processing/{}/Fluorescence'.format(curr_trace_name)].keys()
                 for f_type in f_types:
                     traces[f_type] = self.file_pointer['processing/{}/Fluorescence/{}/data'
-                        .format(curr_trace_name, f_type)].value
+                        .format(curr_trace_name, f_type)][()]
             # print(traces.keys())
 
             frame_dur = np.mean(np.diff(trace_ts))
@@ -1477,7 +1480,7 @@ class RecordedFile(NWB):
 
                 curr_probe_grp = strf_grp_plane.create_group(probe_n)
 
-                probe_onsets = onsets_probe_grp['pd_onset_ts_sec'].value
+                probe_onsets = onsets_probe_grp['pd_onset_ts_sec'][()]
 
                 curr_probe_grp['global_trigger_timestamps'] = h5py.SoftLink('/{}/{}/pd_onset_ts_sec'
                                                                             .format(probe_onsets_path, probe_n))
@@ -2546,7 +2549,7 @@ class RecordedFile(NWB):
             print('Cannot find field "{}" in "acquisition/timeseries".'.format(ts_path))
             return
         else:
-            ts = self.file_pointer['acquisition/timeseries'][ts_path]['timestamps'].value
+            ts = self.file_pointer['acquisition/timeseries'][ts_path]['timestamps'][()]
 
         ts_num = len(ts)
         print('number of eyet racking timestamps: {}'.format(ts.shape))

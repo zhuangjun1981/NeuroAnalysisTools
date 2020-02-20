@@ -1988,14 +1988,17 @@ class Ellipse(object):
     def draw(self, img, color=(0, 255, 0), thickness=3):
         """
         :param img: 3d array, (height x width x channel), opencv frame
-        :param color:
+        :param color: list or tuple of 3 integers (unsigned 8-bit). RGB color
         :param thickness:
         :return:
         """
 
         ell_cv2 = self.get_cv2_ellips()
+
+        # change color from RGB to BGR for opencv
+        new_color = (color[2], color[1], color[0])
         img_marked = cv2.ellipse(img=img, center=ell_cv2[0], axes=ell_cv2[1], angle=ell_cv2[2], startAngle=ell_cv2[3],
-                                 endAngle=ell_cv2[4], color=color, thickness=thickness)
+                                 endAngle=ell_cv2[4], color=new_color, thickness=thickness)
 
         # img_marked = cv2.ellipse(img, box=self.to_cv2_box(), color=color, thickness=thickness)
 
