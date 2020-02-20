@@ -21,7 +21,7 @@ def run():
     center_margin = [10, 30, 35, 10] # [top margin, bottom margin, left margin, right margin]
 
     # area range, range of number of pixels of a valid roi
-    area_range = [10, 100] # [10, 100] for bouton, [150, 100] for soma
+    area_range = [10, 1000] # [10, 100] for bouton, [150, 1000] for soma
 
     # for the two masks that are overlapping, if the ratio between overlap and the area of the smaller mask is larger than
     # this value, the smaller mask will be discarded.
@@ -150,7 +150,7 @@ def run():
     pt.save_figure_without_borders(f2, os.path.join(save_folder, '2P_refined_ROIs_without_background.png'), dpi=300)
 
     # save h5 file
-    save_file = h5py.File(save_file_name, 'w')
+    save_file = h5py.File(save_file_name, 'x')
     i = 0
     for retain_cell in retain_cells:
         print(retain_cell, ':', cells[retain_cell].get_binary_area())

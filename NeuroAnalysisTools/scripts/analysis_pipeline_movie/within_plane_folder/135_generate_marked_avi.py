@@ -1,5 +1,5 @@
 import os
-import io.StringIO as StringIO
+import io
 import numpy as np
 import h5py
 import scipy.ndimage as ni
@@ -89,7 +89,7 @@ def run():
 
     print('\n\tgenerating avi ...')
 
-    if cv2.__version__[0:3] == '3.1':
+    if cv2.__version__[0:3] == '3.1' or cv2.__version__[0] == '4':
         codex = 'XVID'
         fourcc = cv2.VideoWriter_fourcc(*codex)
         out = cv2.VideoWriter('marked_mov.avi', fourcc, 30, (frame_size * 100, frame_size * 100), isColor=True)
@@ -112,7 +112,7 @@ def run():
         ax.set_aspect('equal')
         # plt.show()
 
-        buffer_ = StringIO()
+        buffer_ = io.StringIO()
         pt.save_figure_without_borders(f, buffer_, dpi=100)
         buffer_.seek(0)
         image = PIL.Image.open(buffer_)
