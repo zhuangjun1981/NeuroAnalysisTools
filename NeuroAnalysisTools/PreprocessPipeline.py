@@ -7,6 +7,7 @@ import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
 import NeuroAnalysisTools.NwbTools as nt
+import NeuroAnalysisTools.HighLevel as hl
 import matplotlib.pyplot as plt
 import cv2
 import NeuroAnalysisTools.MotionCorrection as mc
@@ -1097,6 +1098,53 @@ class Preprocessor(object):
 
         print('\tDone.')
 
+    def get_photodiode_onset_in_nwb(self, nwb_folder, digitize_thr, filter_size, segment_thr,
+                                    smallest_interval, is_interact):
+        """
+        using the analog photodiode signal to extract the timing of indicator onset
+        please check NeuroAnalysisTools.HighLevel.segmentPhotodiodeSignal function
+
+        :param nwb_folder: str
+        :param digitize_thr: float, initial digitize threshold of the analog signal
+                              sutter scope, try -0.15
+                              deepscope, try 0.15
+        :param filter_size: float, seconds, gaussian filter sigma to filter digitized signal
+        :param segment_thr: float, threshold to segment filtered signal
+        :param smallest_interval: float, seconds, smallest allowed the intervals between two onsets
+        :param is_interact: bool, interact through keyboard or not
+        :return:
+        """
+        print('\nGenerating photodiode onset timestamps.')
+
+        nwb_path = self.get_nwb_path(nwb_folder)
+
+        nwb_f = nt.RecordedFile(nwb_path)
+        pd, pd_t = nwb_f.get_analog_data(ch_n='analog_photodiode')
+        fs = 1. / np.mean(np.diff(pd_t))
+        # print fs
+
+        pd_onsets = hl.segmentPhotodiodeSignal(pd, digitizeThr=digitize_thr, filterSize=filter_size,
+                                               segmentThr=segment_thr, Fs=fs, smallestInterval=smallest_interval)
+
+        if is_interact:
+            input('press enter to continue ...')
+
+        pdo_ts = nwb_f.create_timeseries('TimeSeries', 'digital_photodiode_rise', modality='other')
+        pdo_ts.set_time(pd_onsets)
+        pdo_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
+        pdo_ts.set_value('digitize_threshold', digitize_thr)
+        pdo_ts.set_value('filter_size', filter_size)
+        pdo_ts.set_value('segment_threshold', segment_thr)
+        pdo_ts.set_value('smallest_interval', smallest_interval)
+        pdo_ts.set_description('Real Timestamps (master acquisition clock) of photodiode onset. '
+                               'Extracted from analog photodiode signal by the function:'
+                               'corticalmapping.HighLevel.segmentPhotodiodeSignal() using parameters saved in the'
+                               'current timeseries.')
+        pdo_ts.set_path('/analysis')
+        pdo_ts.finalize()
+
+        nwb_f.close()
+
     def add_2p_image_to_nwb(self, nwb_folder, image_identifier, zoom, scope, plane_ns,
                             image_depths, temporal_downsample_rate):
         """
@@ -1235,6 +1283,40 @@ class Preprocessor(object):
                                                               module_name='motion_correction',
                                                               temporal_downsample_rate=post_correction_td_rate)
         nwb_f.close()
+
+    def add_visual_stimuli_to_nwb(self, nwb_folder, visual_stim_software='WarpedVisualStim'):
+        """
+
+        :param visual_stim_software: str, 'retinotopic_mapping' (python 2.7) or 'WrapedVisualStim' (python 3)
+        :return:
+        """
+        print('\nAdding visual stimulation log to nwb file.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+
+        stim_pkl_fns = [f for f in os.listdir(nwb_folder) if f[-4:] == '.pkl']
+        if len(stim_pkl_fns) == 0:
+            print('Cannot find visal stim log .pkl file. Skip.')
+            return
+        elif len(stim_pkl_fns) > 1:
+            print('Found more than one visual stim log .pkl files. Skip.')
+            return
+        else:
+            if visual_stim_software == 'retinotopic_mapping':
+                import retinotopic_mapping.DisplayLogAnalysis as dla
+            elif visual_stim_software == 'WarpedVisualStim':
+                import WarpedVisualStim.DisplayLogAnalysis as dla
+            else:
+                print('\tDo not understand visual_stim_softerware {}. Should be either'
+                      '"retinotopic_mapping" or "WarpedVisualStim"'.format(visual_stim_software))
+
+            stim_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
+            nwb_f = nt.RecordedFile(nwb_path)
+            nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=stim_log)
+            nwb_f.close()
+
+
+
 
 
 
