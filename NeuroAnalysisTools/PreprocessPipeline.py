@@ -1529,6 +1529,44 @@ class Preprocessor(object):
                                           description=description, source='')
 
 
+class PlaneProcessor(object):
+    """
+    pipeline to preprocess two-photon data with in each imaging plane
+    includes get roi info from caiman segmentation results,
+    filter those rois, generate marked movie, generate rois for neuropil,
+    extract calcium traces, perform neuropil subtraction, and
+    generate result file ready to be added into nwb files.
+
+    this is very high-level, may break easily
+    """
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_rois_from_caiman_results():
+        pass
+
+    @staticmethod
+    def filter_rois():
+        pass
+
+    @staticmethod
+    def generate_labeled_movie():
+        pass
+
+    @staticmethod
+    def get_weighted_rois_and_surrounds():
+        pass
+
+    @staticmethod
+    def get_raw_center_and_surround_traces():
+        pass
+
+    @staticmethod
+    def get_neuropil_subtracted_traces():
+        pass
+
 
 
 
