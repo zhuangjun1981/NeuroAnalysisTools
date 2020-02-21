@@ -229,7 +229,6 @@ def label_one_ellipse(frame,
 def generate_labeled_movie(mov_path_raw,
                            mov_path_lab,
                            df_ell,
-                           fps=30.,
                            fourcc='XVID',
                            is_verbose=True):
 
@@ -237,6 +236,7 @@ def generate_labeled_movie(mov_path_raw,
     frame_num = int(mov_cv2.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_shape = (int(mov_cv2.get(cv2.CAP_PROP_FRAME_WIDTH)),
                    int(mov_cv2.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    fps = mov_cv2.get(cv2.CAP_PROP_FPS)
 
     if frame_num != len(df_ell):
         raise ValueError('The number of frames in {} ({}) does not match the length of the '

@@ -53,16 +53,16 @@ pup_area = pup_shape[:, 0] * pup_shape[:, 1] * np.pi * pixel_size * pixel_size
 
 nwb_fn = [f for f in os.listdir(curr_folder) if f[-4:] == '.nwb'][0]
 nwb_f = nt.RecordedFile(nwb_fn)
-nwb_f.add_eyetracking_data(ts_path=eyetracking_ts_name,
-                           pupil_x=pup_x,
-                           pupil_y=pup_y,
-                           pupil_area=pup_area,
-                           module_name='eye_tracking',
-                           unit='millimeter',
-                           side=side,
-                           comments=comments,
-                           description='',
-                           source="Jun's eyetracker with adaptive thresholding",
-                           pupil_shape=pup_shape,
-                           pupil_shape_meta=pup_shape_meta)
+nwb_f.add_eyetracking_eyetracker3(ts_path=eyetracking_ts_name,
+                                  pupil_x=pup_x,
+                                  pupil_y=pup_y,
+                                  pupil_area=pup_area,
+                                  module_name='eye_tracking',
+                                  unit='millimeter',
+                                  side=side,
+                                  comments=comments,
+                                  description='',
+                                  source="Jun's eyetracker with adaptive thresholding",
+                                  pupil_shape=pup_shape,
+                                  pupil_shape_meta=pup_shape_meta)
 nwb_f.close()

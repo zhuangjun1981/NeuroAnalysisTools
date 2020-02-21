@@ -8,6 +8,7 @@ import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
 import NeuroAnalysisTools.NwbTools as nt
 import NeuroAnalysisTools.HighLevel as hl
+import NeuroAnalysisTools.DeepLabCutTools as dlct
 import matplotlib.pyplot as plt
 import cv2
 import NeuroAnalysisTools.MotionCorrection as mc
@@ -1382,6 +1383,150 @@ class Preprocessor(object):
                                                                      display_delay=display_delay,
                                                                      vsync_frame_path=vsync_frame_path)
             nwb_f.close()
+
+    def fit_ellipse_deeplabcut(self, eyetracking_folder, confidence_thr, point_num_thr, ellipse_fit_function,
+                               is_generate_labeled_movie):
+        """
+
+        :param eyetracking_folder:
+        :param confidence_thr:
+        :param point_num_thr:
+        :param ellipse_fit_function:
+        :param is_generate_labeled_movie: bool
+        :return:
+        """
+
+        dlc_result_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-3:] == '.h5' and
+                          'DLC_resnet50_universal_eye_tracking' in fn]
+        if len(dlc_result_fns) == 0:
+            print('\tNo deeplabcut result file found. Skip.')
+            return
+        elif len(dlc_result_fns) > 1:
+            print('\tMore than one deeplabcut resut files found. Skip.')
+            return
+        else:
+            dlc_result_fn = dlc_result_fns[0]
+
+            df_pts = dlct.read_data_file(os.path.join(eyetracking_folder, dlc_result_fn))
+
+            df_ell = dlct.get_all_ellipse(df_pts=df_pts, lev_thr=confidence_thr, num_thr=point_num_thr,
+                                          fit_func=ellipse_fit_function)
+
+            save_path = os.path.join(eyetracking_folder, os.path.splitext(dlc_result_fn)[0] + '_ellipse.hdf5')
+
+            if os.path.isfile(save_path):
+                raise IOError('Ellipse fit results already exists. Path: \n{}'.format(os.path.realpath(save_path)))
+
+            save_f = h5py.File(save_path, 'x')
+            dset = save_f.create_dataset('ellipse', data=np.array(df_ell))
+            dset.attrs['columns'] = list(df_ell.columns)
+            save_f.close()
+
+            movie_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-4:] == '.avi'
+                         and 'labeled' not in fn]
+            if len(movie_fns) == 0:
+                print('\t\tNo raw movie found. Skip.')
+                mov_shape = None
+            elif len(movie_fns) > 1:
+                print('\t\tMore than one raw movie files found. Skip.')
+                mov_shape =None
+            else:
+                movie_path = os.path.join(eyetracking_folder, movie_fns[0])
+
+                mov = cv2.VideoCapture(movie_path)
+                mov_shape = (int(mov.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                             int(mov.get(cv2.CAP_PROP_FRAME_WIDTH)))
+                mov.release()
+
+                if is_generate_labeled_movie:
+                    print('\tGenerating ellipse overlay movie.')
+                    dlct.generate_labeled_movie(mov_path_raw=movie_path,
+                                                mov_path_lab=os.path.splitext(movie_path)[0] + '_ellipse.avi',
+                                                df_ell=df_ell,
+                                                fourcc='XVID',
+                                                is_verbose=True)
+
+            return save_path, mov_shape
+
+    def add_eyetracking_to_nwb_deeplabcut(self, nwb_folder, eyetracking_folder, confidence_thr,
+                                          point_num_thr, ellipse_fit_function,
+                                          is_generate_labeled_movie, side,
+                                          nasal_dir, diagonal_length,
+                                          eyetracking_ts_name):
+        """
+
+        :param nwb_folder: str, folder of nwb file
+        :param eyetracking_folder: str, folder of deeplabcut eyetracking folder
+        :param confidence_thr: float, [0., 1.], threshold of confidence for including points for fitting,
+                               check NeuroAnalysisTools.DeepLabCutTools.fit_ellipse() function
+        :param point_num_thr: int, [5, 12], threhold of number of points for each ellipse fitting
+                              check NeuroAnalysisTools.DeepLabCutTools.fit_ellipse() function
+        :param ellipse_fit_function: cv2 function object, opencv function for ellipse fitting
+                                     check NeuroAnalysisTools.DeepLabCutTools.fit_ellipse() function
+        :param side: str, the side of the eye, 'left' or 'right', mostly 'right'
+        :param nasal_dir: str, the side of nasal direction in the movie, 'left' or 'right'
+        :param diagonal_length: float, mm, the length of diagonal line of eyetracking field of view
+        :return:
+        """
+
+        print('\nadding deeplabcut eye tracking results to nwb file.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        if nwb_path is None:
+            print('No nwb file found. Skip.')
+            return
+
+        _ = self.fit_ellipse_deeplabcut(eyetracking_folder=eyetracking_folder,
+                                        confidence_thr=confidence_thr,
+                                        point_num_thr=point_num_thr,
+                                        ellipse_fit_function=ellipse_fit_function,
+                                        is_generate_labeled_movie=is_generate_labeled_movie)
+
+        fit_result_path, mov_shape = _
+
+        if fit_result_path is not None:
+
+            ell_f = h5py.File(fit_result_path, 'r')
+            ell_data = ell_f['ellipse'][()]
+
+            description = '''This is a PupilTracking timeseries. The eyetracking movie is recorded by 
+            the pipeline stage and feature points were extracted by DeepLabCut using pipeline eyetracking
+            model. For each movie frame, each circumference of corneal reflection, eye lid and pupil were 
+            labeled by 12 points using DeepLabCut and the model. Then an ellipse was fit to each of the object. 
+            Each ellipse is represent by 5 numbers (see below). The tracking data is saved in the "data" 
+            field. Data should be an array with shape (n, 15). n is the eyetracking movie frame number. 
+            data[:, 0:5] is the fitted ellipses for the corneal reflection, data[:, 5:10] is the fitted ellipse 
+            for the eye, and data[:, 10:15] is the fitted ellipse for the pupil. Each five number of an ellipse 
+            represent:
+            center_elevation: in mm, small means ventral large means dorsal, this is relative to the movie FOV
+            center_azimuth: in mm, small means nasal, large means temporal, this is realtive to the movie FOV
+            long_axis_length: in mm
+            short_axis_lengt: in mm
+            angle_long_axis: in degrees, counterclockwise, 0 is the temporal.
+            '''
+
+            pixel_size = diagonal_length / np.sqrt(mov_shape[0] ** 2 + mov_shape[1] ** 2)
+            if nasal_dir == 'right':
+                pass
+            elif nasal_dir == 'left':
+                ell_data[:, 1] = mov_shape[1] - ell_data[:, 1]
+                ell_data[:, 6] = mov_shape[1] - ell_data[:, 6]
+                ell_data[:, 11] = mov_shape[1] - ell_data[:, 11]
+                ell_data[:, 4] = (180 - ell_data[:, 4]) % 360
+                ell_data[:, 9] = (180 - ell_data[:, 9]) % 360
+                ell_data[:, 14] = (180 - ell_data[:, 14]) % 360
+            else:
+                raise ValueError('\tDo not understand "nasal_dir" ({}). '
+                                 'Should be "left" or "right"'.format(nasal_dir))
+
+            ell_data[0:4] = ell_data[0:4] * pixel_size
+            ell_data[5:9] = ell_data[5:9] * pixel_size
+            ell_data[10:14] = ell_data[10:14] * pixel_size
+
+            nwb_f = nt.RecordedFile(nwb_path)
+            nwb_f.add_eyetracking_general(ts_path=eyetracking_ts_name, data=ell_data,
+                                          module_name='eye_tracking', side=side, comments='',
+                                          description=description, source='')
 
 
 

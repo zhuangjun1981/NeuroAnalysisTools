@@ -112,7 +112,7 @@ def run():
         ax.set_aspect('equal')
         # plt.show()
 
-        buffer_ = io.StringIO()
+        buffer_ = io.BytesIO()
         pt.save_figure_without_borders(f, buffer_, dpi=100)
         buffer_.seek(0)
         image = PIL.Image.open(buffer_)

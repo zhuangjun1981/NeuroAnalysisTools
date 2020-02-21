@@ -2527,9 +2527,9 @@ class RecordedFile(NWB):
 
 
     # ============================================eye tracking related==================================================
-    def add_eyetracking_data(self, ts_path='', pupil_x=None, pupil_y=None, pupil_area=None, module_name='eye_tracking',
-                             unit='unknown', side='leftright_unknown', comments='', description='', source='',
-                             pupil_shape=None, pupil_shape_meta=None):
+    def add_eyetracking_eyetracker3(self, ts_path='', pupil_x=None, pupil_y=None, pupil_area=None, module_name='eye_tracking',
+                                    unit='unknown', side='leftright_unknown', comments='', description='', source='',
+                                    pupil_shape=None, pupil_shape_meta=None):
         """
         add eyetrackin data as a module named 'eye_tracking'
         :param ts_path: str, timestamp path in the nwb file
@@ -2545,7 +2545,7 @@ class RecordedFile(NWB):
         :return:
         """
 
-        if ts_path not in self.file_pointer['acquisition/timeseries'].keys():
+        if ts_path not in list(self.file_pointer['acquisition/timeseries'].keys()):
             print('Cannot find field "{}" in "acquisition/timeseries".'.format(ts_path))
             return
         else:
@@ -2605,6 +2605,42 @@ class RecordedFile(NWB):
         et_interf = et_mod.create_interface("PupilTracking")
         et_interf.add_timeseries(pupil_series)
         pupil_series.finalize()
+        et_interf.finalize()
+        et_mod.finalize()
+
+    def add_eyetracking_general(self, ts_path='', data=None, module_name='eye_tracking',
+                                side='leftright_unknown', comments='', description='', source=''):
+        """
+
+        :param ts_path:
+        :param data:
+        :param module_name:
+        :param side:
+        :param comments:
+        :param description:
+        :param source:
+        :return:
+        """
+
+        if data is None:
+            return
+
+        ts = self.file_pointer['acquisition/timeseries'][ts_path]['timestamps'][()]
+        ts_num_min = min([len(ts), data.shape[0]])
+        ts_to_add = ts[0:ts_num_min]
+
+        et_series = self.create_timeseries('TimeSeries', name='eyetracking', modality='other')
+        et_series.set_data(data, unit='', conversion=np.nan, resolution=np.nan)
+        et_series.set_time(ts_to_add)
+        et_series.set_comments(comments)
+        et_series.set_description(description)
+        et_series.set_source(source)
+        et_series.set_value('side', side)
+
+        et_mod = self.create_module('{}_{}'.format(module_name, side))
+        et_interf = et_mod.create_interface("PupilTracking")
+        et_interf.add_timeseries(et_series)
+        et_series.finalize()
         et_interf.finalize()
         et_mod.finalize()
 
