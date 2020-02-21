@@ -1516,7 +1516,7 @@ class Preprocessor(object):
 
             if is_generate_labeled_movie:
                 ell_col = ell_f['ellipse'].attrs['columns']
-                ell_df = pd.DataFrame(data=ell_data, columns=ell_col)
+                ell_df = pd.DataFrame(data=ell_f['ellipse'][()], columns=ell_col)
 
                 et_ts = nwb_f.file_pointer['acquisition/timeseries'][eyetracking_ts_name]['timestamps'][()]
                 fps = 1. / np.mean(np.diff(et_ts))
