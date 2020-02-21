@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 isSave = True
 is_filter = True
 
-filter_sigma = 0.5 # parameters only used if filter the rois
+filter_sigma = 0. # parameters only used if filter the rois
 # dilation_iterations = 1. # parameters only used if filter the rois
 cut_thr = 0.1 # [0., 1.], low for more rois, high for less rois
 

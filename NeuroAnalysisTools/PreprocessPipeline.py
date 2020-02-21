@@ -1,9 +1,11 @@
 import os
 import shutil
+import operator
 import h5py
 import numpy as np
 import tifffile as tf
 import pandas as pd
+import scipy.ndimage as ni
 import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
@@ -1546,12 +1548,253 @@ class PlaneProcessor(object):
         pass
 
     @staticmethod
-    def get_rois_from_caiman_results():
-        pass
+    def get_rois_from_caiman_results(plane_folder, filter_sigma, cut_thr, bg_fn):
+
+        print('\nGetting rois from caiman segmentation.')
+
+        data_f = h5py.File(os.path.join(plane_folder,
+                                        'caiman_segmentation_results.hdf5'), 'r')
+        masks = data_f['masks'][()]
+        data_f.close()
+
+        if bg_fn[-4:] != '.tif':
+            print('\tCannot find background .tif file.')
+            bg = None
+        else:
+            bg = tf.imread(os.path.join(plane_folder, bg_fn))
+            if len(bg.shape) == 3:
+                bg = ia.array_nor(np.max(bg, axis=0))
+            elif len(bg.shape) == 2:
+                bg = ia.array_nor(bg)
+            else:
+                print('\tBackgound shape not right. Skip.')
+                bg = None
+
+        fig_folder = os.path.join(plane_folder, 'figures')
+        if not os.path.isdir(fig_folder):
+            os.makedirs(fig_folder)
+
+        final_roi_dict = {}
+
+        for i, mask in enumerate(masks):
+
+            msk_std = np.abs(np.std(mask.flatten()))
+
+            if msk_std > 0:
+                if filter_sigma is not None:
+                    mask_f = ni.filters.gaussian_filter(mask, filter_sigma)
+                    mask_f_nor = ia.array_nor(mask_f)
+                    mask_bin = np.zeros(mask_f_nor.shape, dtype=np.uint8)
+                    mask_bin[mask_f_nor > cut_thr] = 1
+                else:
+                    mask_bin = np.zeros(mask.shape, dtype=np.uint8)
+                    mask_bin[mask > 0] = 1
+            else:
+                continue
+
+            if np.max(mask_bin) == 1:
+                mask_labeled, mask_num = ni.label(mask_bin)
+                curr_mask_dict = ia.get_masks(labeled=mask_labeled, keyPrefix='caiman_mask_{:03d}'.format(i),
+                                              labelLength=5)
+                for roi_key, roi_mask in curr_mask_dict.items():
+                    final_roi_dict.update({roi_key: ia.WeightedROI(roi_mask * mask)})
+
+        print('\tTotal number of ROIs:', len(final_roi_dict))
+
+        f = plt.figure(figsize=(15, 8))
+        ax1 = f.add_subplot(121)
+
+        if bg is not None:
+            ax1.imshow(bg, vmin=0, vmax=0.5, cmap='gray', interpolation='nearest')
+
+        colors1 = pt.random_color(masks.shape[0])
+        for i, mask in enumerate(masks):
+            pt.plot_mask_borders(mask, plotAxis=ax1, color=colors1[i], borderWidth=1)
+        ax1.set_title('original ROIs')
+        ax1.set_axis_off()
+        ax2 = f.add_subplot(122)
+
+        if bg is not None:
+            ax2.imshow(bg, vmin=0, vmax=0.5, cmap='gray', interpolation='nearest')
+
+        colors2 = pt.random_color(len(final_roi_dict))
+        i = 0
+        for roi in final_roi_dict.values():
+            pt.plot_mask_borders(roi.get_binary_mask(), plotAxis=ax2, color=colors2[i], borderWidth=1)
+            i = i + 1
+        ax2.set_title('filtered ROIs')
+        ax2.set_axis_off()
+        # plt.show()
+
+        f.savefig(os.path.join(fig_folder, 'caiman_segmentation_filtering.pdf'), dpi=300)
+
+        cell_file = h5py.File(os.path.join(plane_folder, 'rois.hdf5'), 'x')
+
+        i = 0
+        for key, value in sorted(final_roi_dict.items()):
+            curr_grp = cell_file.create_group('cell{:04d}'.format(i))
+            curr_grp.attrs['name'] = key
+            value.to_h5_group(curr_grp)
+            i += 1
+
+        cell_file.close()
 
     @staticmethod
-    def filter_rois():
-        pass
+    def filter_rois(plane_folder, margin_pix_num, area_range, overlap_thr,
+                    bg_fn):
+
+        print('\nFilter rois.')
+
+        offsets_f = h5py.File(os.path.join(plane_folder, 'correction_offsets.hdf5'), 'r')
+        file_keys = list(offsets_f.keys())
+        if 'path_list' in file_keys:
+            file_keys.remove('path_list')
+        offsets = []
+        for file_key in file_keys:
+            offsets.append(offsets_f[file_key][()])
+        offsets = np.concatenate(offsets, axis=0)
+        max_offsets0 = np.max(offsets, axis=0)
+        max_offsets1 = np.abs(np.min(offsets, axis=0))
+
+        center_margin = [int(round(max_offsets0[0]) + margin_pix_num),
+                         int(round(max_offsets1[0]) + margin_pix_num),
+                         int(round(max_offsets0[1]) + margin_pix_num),
+                         int(round(max_offsets1[1]) + margin_pix_num)]
+
+        print('\tcenter margin due to motion: {}.'.format(center_margin))
+
+        if bg_fn[-4:] != '.tif':
+            print('\tCannot find background .tif file.')
+            bg = None
+        else:
+            bg = tf.imread(os.path.join(plane_folder, bg_fn))
+            if len(bg.shape) == 3:
+                bg = ia.array_nor(np.max(bg, axis=0))
+            elif len(bg.shape) == 2:
+                bg = ia.array_nor(bg)
+            else:
+                print('\tBackgound shape not right. Skip.')
+                bg = None
+
+        fig_folder = os.path.join(plane_folder, 'figures')
+        if not os.path.isdir(fig_folder):
+            os.makedirs(fig_folder)
+
+        roi_path = os.path.join(plane_folder, 'rois.hdf5')
+        roi_f = h5py.File(roi_path, 'r')
+        rois = {}
+        for roi_n in roi_f.keys():
+            rois.update({roi_n: ia.WeightedROI.from_h5_group(roi_f[roi_n])})
+
+        print('\ttotal number of cells:', len(rois))
+
+        # get the names of rois which are on the edge
+        edge_rois = []
+        for roiname, roimask in rois.items():
+            dimension = roimask.dimension
+            center = roimask.get_center()
+            if center[0] < center_margin[0] or \
+                    center[0] > dimension[0] - center_margin[1] or \
+                    center[1] < center_margin[2] or \
+                    center[1] > dimension[1] - center_margin[3]:
+                edge_rois.append(roiname)
+
+        print('\tnumber of rois to be removed because they are on the edges: {}'.format(len(edge_rois)))
+        # remove edge rois
+        for edge_roi in edge_rois:
+            _ = rois.pop(edge_roi)
+
+        # get dictionary of roi areas
+        roi_areas = {}
+        for roiname, roimask in rois.items():
+            roi_areas.update({roiname: roimask.get_binary_area()})
+
+        # remove roinames that have area outside of the area_range
+        invalid_roi_ns = []
+        for roiname, roiarea in roi_areas.items():
+            if roiarea < area_range[0] or roiarea > area_range[1]:
+                invalid_roi_ns.append(roiname)
+        print("\tnumber of rois to be removed because they do not meet area criterion: {}".format(len(invalid_roi_ns)))
+        for invalid_roi_n in invalid_roi_ns:
+            roi_areas.pop(invalid_roi_n)
+
+        # sort rois with their binary area
+        roi_areas_sorted = sorted(roi_areas.items(), key=operator.itemgetter(1))
+        roi_areas_sorted.reverse()
+        roi_names_sorted = [c[0] for c in roi_areas_sorted]
+        # print '\n'.join([str(c) for c in roi_areas_sorted])
+
+        # get the name of rois that needs to be removed because of overlapping
+        retain_rois = []
+        remove_rois = []
+        for roi1_name in roi_names_sorted:
+            roi1_mask = rois[roi1_name]
+            is_remove = 0
+            roi1_area = roi1_mask.get_binary_area()
+            for roi2_name in retain_rois:
+                roi2_mask = rois[roi2_name]
+                roi2_area = roi2_mask.get_binary_area()
+                curr_overlap = roi1_mask.binary_overlap(roi2_mask)
+
+                if float(curr_overlap) / roi1_area > overlap_thr:
+                    remove_rois.append(roi1_name)
+                    is_remove = 1
+                    # print('\t\t' + roi1_name, ':', roi1_mask.get_binary_area(), ': removed')
+                    break
+
+            if is_remove == 0:
+                retain_rois.append(roi1_name)
+                # print('\t\t' + roi1_name, ':', roi1_mask.get_binary_area(), ': retained')
+
+        print('\tnumber of rois to be removed because of overlapping: {}'.format(len(remove_rois)))
+        print('\ttotal number of reatined rois:', len(retain_rois))
+
+        # plotting
+        colors = pt.random_color(len(rois.keys()))
+
+        f = plt.figure(figsize=(10, 10))
+        ax = f.add_subplot(111)
+
+        if bg is not None:
+            ax.imshow(bg, cmap='gray', vmin=0, vmax=0.5, interpolation='nearest')
+        else:
+            ax.imshow(np.zeros((512, 512), dtype=np.uint8), vmin=0, vmax=1, cmap='gray', interpolation='nearest')
+
+        f2 = plt.figure(figsize=(10, 10))
+        ax2 = f2.add_subplot(111)
+        if bg is not None:
+            ax2.imshow(np.zeros(bg.shape, dtype=np.uint8), vmin=0, vmax=1, cmap='gray', interpolation='nearest')
+        else:
+            ax2.imshow(np.zeros((512, 512), dtype=np.uint8), vmin=0, vmax=1, cmap='gray', interpolation='nearest')
+
+        i = 0
+        for retain_roi in retain_rois:
+            rois[retain_roi].plot_binary_mask_border(plotAxis=ax, color=colors[i], borderWidth=1)
+            rois[retain_roi].plot_binary_mask_border(plotAxis=ax2, color=colors[i], borderWidth=1)
+            i += 1
+        # plt.show()
+
+        # save figures
+        pt.save_figure_without_borders(f, os.path.join(fig_folder, '2P_refined_ROIs_with_background.png'), dpi=300)
+        pt.save_figure_without_borders(f2, os.path.join(fig_folder, '2P_refined_ROIs_without_background.png'), dpi=300)
+
+        # save h5 file
+        save_file = h5py.File(os.path.join(plane_folder, 'rois_refined.hdf5'), 'x')
+        i = 0
+        for retain_roi in retain_rois:
+            # print(retain_roi, ':', rois[retain_roi].get_binary_area())
+
+            currGroup = save_file.create_group('roi' + ft.int2str(i, 4))
+            currGroup.attrs['name'] = retain_roi
+            roiGroup = currGroup.create_group('roi')
+            rois[retain_roi].to_h5_group(roiGroup)
+            i += 1
+
+        for attr, value in roi_f.attrs.items():
+            save_file.attrs[attr] = value
+
+        save_file.close()
+        roi_f.close()
 
     @staticmethod
     def generate_labeled_movie():

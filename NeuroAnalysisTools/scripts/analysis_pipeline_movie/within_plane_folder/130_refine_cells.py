@@ -21,7 +21,7 @@ def run():
     center_margin = [10, 30, 35, 10] # [top margin, bottom margin, left margin, right margin]
 
     # area range, range of number of pixels of a valid roi
-    area_range = [10, 1000] # [10, 100] for bouton, [150, 1000] for soma
+    area_range = [5, 500] # [10, 100] for bouton, [150, 1000] for soma
 
     # for the two masks that are overlapping, if the ratio between overlap and the area of the smaller mask is larger than
     # this value, the smaller mask will be discarded.
