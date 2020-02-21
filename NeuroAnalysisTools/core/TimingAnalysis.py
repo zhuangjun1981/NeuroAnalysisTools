@@ -111,7 +111,7 @@ def discrete_cross_correlation(ts1, ts2, t_range=(-1., 1.), bins=100, isPlot=Fal
 
     bin_width = (float(t_range[1]) - float(t_range[0])) / bins
     t = np.arange(bins).astype(np.float64) * bin_width + t_range[0]
-    intervals = zip(t, t + bin_width)
+    intervals = list(zip(t, t + bin_width))
     values = np.zeros(bins, dtype=np.int64)
     ts1s = np.sort(ts1)  # sort first timestamps array
     ts2s = np.sort(ts2)  # sort second timestamps array

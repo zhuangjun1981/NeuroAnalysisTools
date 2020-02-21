@@ -1043,6 +1043,30 @@ class Preprocessor(object):
         elif len(nwb_fns) == 1:
             return os.path.realpath(os.path.join(nwb_folder, nwb_fns[0]))
 
+    @staticmethod
+    def get_display_log(display_log_folder, visual_stim_software='WarpedVisualStim'):
+
+        stim_pkl_fns = [f for f in os.listdir(display_log_folder) if f[-4:] == '.pkl']
+        if len(stim_pkl_fns) == 0:
+            print('Cannot find visal stim log .pkl file. Skip.')
+            return None
+        elif len(stim_pkl_fns) > 1:
+            print('Found more than one visual stim log .pkl files. Skip.')
+            return None
+        else:
+            if visual_stim_software == 'retinotopic_mapping':
+                import retinotopic_mapping.DisplayLogAnalysis as dla
+                display_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
+                return display_log
+            elif visual_stim_software == 'WarpedVisualStim':
+                import WarpedVisualStim.DisplayLogAnalysis as dla
+                display_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
+                return display_log
+            else:
+                print('\tDo not understand visual_stim_softerware {}. Should be either'
+                      '"retinotopic_mapping" or "WarpedVisualStim". Skip.'.format(visual_stim_software))
+                return None
+
     def add_vasmap_to_nwb(self, nwb_folder, is_plot=False):
 
         print('\nAdding vasculature images to .nwb file.')
@@ -1294,25 +1318,69 @@ class Preprocessor(object):
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
 
-        stim_pkl_fns = [f for f in os.listdir(nwb_folder) if f[-4:] == '.pkl']
-        if len(stim_pkl_fns) == 0:
-            print('Cannot find visal stim log .pkl file. Skip.')
-            return
-        elif len(stim_pkl_fns) > 1:
-            print('Found more than one visual stim log .pkl files. Skip.')
-            return
-        else:
+        display_log = self.get_display_log(display_log_folder=nwb_folder)
+        if display_log is not None:
             if visual_stim_software == 'retinotopic_mapping':
-                import retinotopic_mapping.DisplayLogAnalysis as dla
+                nwb_f = nt.RecordedFile(nwb_path)
+                nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
+                nwb_f.close()
             elif visual_stim_software == 'WarpedVisualStim':
-                import WarpedVisualStim.DisplayLogAnalysis as dla
-            else:
-                print('\tDo not understand visual_stim_softerware {}. Should be either'
-                      '"retinotopic_mapping" or "WarpedVisualStim"'.format(visual_stim_software))
+                nwb_f = nt.RecordedFile(nwb_path)
 
-            stim_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
+                # this really should be 'add_visual_display_log_warpedvisualstim' but rightnow
+                # it is identical to 'add_visual_display_log_retinotopic_mapping'
+                nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
+                nwb_f.close()
+
+
+    def analyze_visual_display_in_nwb(self, nwb_folder, vsync_frame_path,
+                                      visual_stim_software='WarpedVisualStim',
+                                      photodiode_ts_path='analysis/digital_photodiode_rise',
+                                      photodiode_thr=-0.5,
+                                      ccg_t_range=(0., 0.1),
+                                      ccg_bins=100,
+                                      is_plot=True):
+        """
+        calculating display lag and get the right visual stim timing
+
+        :param nwb_folder:
+        :param vsync_frame_path:
+        :param visual_stim_software:
+        :param photodiode_ts_path:
+        :param photodiode_thr:
+        :param ccg_t_range:
+        :param ccg_bins:
+        :param is_plot:
+        :return:
+        """
+
+        print('\nAnalyzing visual stimulation log and photodiode onsets in the nwb file.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+
+        display_log = self.get_display_log(display_log_folder=nwb_folder,
+                                           visual_stim_software=visual_stim_software)
+
+        if display_log is not None:
             nwb_f = nt.RecordedFile(nwb_path)
-            nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=stim_log)
+
+            # get display lag
+            display_delay = nwb_f.get_display_delay_retinotopic_mapping(stim_log=display_log,
+                                                                        indicator_color_thr=photodiode_thr,
+                                                                        ccg_t_range=ccg_t_range, ccg_bins=ccg_bins,
+                                                                        is_plot=is_plot,
+                                                                        pd_onset_ts_path=photodiode_ts_path,
+                                                                        vsync_frame_ts_path=vsync_frame_path)
+
+            # analyze photodiode onset
+            stim_dict = display_log.get_stim_dict()
+            pd_onsets_seq = display_log.analyze_photodiode_onsets_sequential(stim_dict=stim_dict,
+                                                                             pd_thr=photodiode_thr)
+            pd_onsets_com = display_log.analyze_photodiode_onsets_combined(pd_onsets_seq=pd_onsets_seq,
+                                                                        is_dgc_blocked=True)
+            nwb_f.add_photodiode_onsets_combined_retinotopic_mapping(pd_onsets_com=pd_onsets_com,
+                                                                     display_delay=display_delay,
+                                                                     vsync_frame_path=vsync_frame_path)
             nwb_f.close()
 
 

@@ -1302,7 +1302,7 @@ class RecordedFile(NWB):
 
         vsync_stim_ts = self.file_pointer[vsync_frame_path]['timestamps'][()] + display_delay
 
-        stim_ns = pd_onsets_com.keys()
+        stim_ns = list(pd_onsets_com.keys())
         stim_ns.sort()
 
         pd_grp = self.file_pointer['analysis'].create_group('photodiode_onsets')
