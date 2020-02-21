@@ -3,6 +3,7 @@ import shutil
 import h5py
 import numpy as np
 import tifffile as tf
+import pandas as pd
 import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
@@ -1384,15 +1385,13 @@ class Preprocessor(object):
                                                                      vsync_frame_path=vsync_frame_path)
             nwb_f.close()
 
-    def fit_ellipse_deeplabcut(self, eyetracking_folder, confidence_thr, point_num_thr, ellipse_fit_function,
-                               is_generate_labeled_movie):
+    def fit_ellipse_deeplabcut(self, eyetracking_folder, confidence_thr, point_num_thr, ellipse_fit_function):
         """
 
         :param eyetracking_folder:
         :param confidence_thr:
         :param point_num_thr:
         :param ellipse_fit_function:
-        :param is_generate_labeled_movie: bool
         :return:
         """
 
@@ -1422,31 +1421,7 @@ class Preprocessor(object):
             dset.attrs['columns'] = list(df_ell.columns)
             save_f.close()
 
-            movie_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-4:] == '.avi'
-                         and 'labeled' not in fn]
-            if len(movie_fns) == 0:
-                print('\t\tNo raw movie found. Skip.')
-                mov_shape = None
-            elif len(movie_fns) > 1:
-                print('\t\tMore than one raw movie files found. Skip.')
-                mov_shape =None
-            else:
-                movie_path = os.path.join(eyetracking_folder, movie_fns[0])
-
-                mov = cv2.VideoCapture(movie_path)
-                mov_shape = (int(mov.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                             int(mov.get(cv2.CAP_PROP_FRAME_WIDTH)))
-                mov.release()
-
-                if is_generate_labeled_movie:
-                    print('\tGenerating ellipse overlay movie.')
-                    dlct.generate_labeled_movie(mov_path_raw=movie_path,
-                                                mov_path_lab=os.path.splitext(movie_path)[0] + '_ellipse.avi',
-                                                df_ell=df_ell,
-                                                fourcc='XVID',
-                                                is_verbose=True)
-
-            return save_path, mov_shape
+            return save_path
 
     def add_eyetracking_to_nwb_deeplabcut(self, nwb_folder, eyetracking_folder, confidence_thr,
                                           point_num_thr, ellipse_fit_function,
@@ -1476,18 +1451,29 @@ class Preprocessor(object):
             print('No nwb file found. Skip.')
             return
 
-        _ = self.fit_ellipse_deeplabcut(eyetracking_folder=eyetracking_folder,
-                                        confidence_thr=confidence_thr,
-                                        point_num_thr=point_num_thr,
-                                        ellipse_fit_function=ellipse_fit_function,
-                                        is_generate_labeled_movie=is_generate_labeled_movie)
-
-        fit_result_path, mov_shape = _
+        fit_result_path = self.fit_ellipse_deeplabcut(eyetracking_folder=eyetracking_folder,
+                                                      confidence_thr=confidence_thr,
+                                                      point_num_thr=point_num_thr,
+                                                      ellipse_fit_function=ellipse_fit_function,)
 
         if fit_result_path is not None:
 
             ell_f = h5py.File(fit_result_path, 'r')
             ell_data = ell_f['ellipse'][()]
+
+            movie_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-4:] == '.avi'
+                         and 'labeled' not in fn]
+            if len(movie_fns) == 0:
+                raise LookupError('\t\tNo raw movie found. Abort.')
+            elif len(movie_fns) > 1:
+                raise LookupError('\t\tMore than one raw movie files found. Abort.')
+
+            movie_path = os.path.join(eyetracking_folder, movie_fns[0])
+
+            mov = cv2.VideoCapture(movie_path)
+            mov_shape = (int(mov.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                         int(mov.get(cv2.CAP_PROP_FRAME_WIDTH)))
+            mov.release()
 
             description = '''This is a PupilTracking timeseries. The eyetracking movie is recorded by 
             the pipeline stage and feature points were extracted by DeepLabCut using pipeline eyetracking
@@ -1527,6 +1513,22 @@ class Preprocessor(object):
             nwb_f.add_eyetracking_general(ts_path=eyetracking_ts_name, data=ell_data,
                                           module_name='eye_tracking', side=side, comments='',
                                           description=description, source='')
+
+            if is_generate_labeled_movie:
+                ell_col = ell_f['ellipse'].attrs['columns']
+                ell_df = pd.DataFrame(data=ell_data, columns=ell_col)
+
+                et_ts = nwb_f.file_pointer['acquisition/timeseries'][eyetracking_ts_name]['timestamps'][()]
+                fps = 1. / np.mean(np.diff(et_ts))
+
+                print('\tGenerating ellipse overlay movie.')
+                dlct.generate_labeled_movie(mov_path_raw=movie_path,
+                                            mov_path_lab=os.path.splitext(movie_path)[0] + '_ellipse.avi',
+                                            df_ell=ell_df,
+                                            fourcc='XVID',
+                                            is_verbose=True,
+                                            fps=fps)
+            nwb_f.close()
 
 
 class PlaneProcessor(object):

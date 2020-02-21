@@ -230,13 +230,16 @@ def generate_labeled_movie(mov_path_raw,
                            mov_path_lab,
                            df_ell,
                            fourcc='XVID',
-                           is_verbose=True):
+                           is_verbose=True,
+                           fps=None):
 
     mov_cv2 = cv2.VideoCapture(mov_path_raw)
     frame_num = int(mov_cv2.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_shape = (int(mov_cv2.get(cv2.CAP_PROP_FRAME_WIDTH)),
                    int(mov_cv2.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    fps = mov_cv2.get(cv2.CAP_PROP_FPS)
+
+    if fps is None:
+        fps = mov_cv2.get(cv2.CAP_PROP_FPS)
 
     if frame_num != len(df_ell):
         raise ValueError('The number of frames in {} ({}) does not match the length of the '
