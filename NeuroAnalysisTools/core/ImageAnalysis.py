@@ -1735,15 +1735,15 @@ class ROI(object):
         if pixelSize == 'None': pixelSize = None
         pixelSizeUnit = h5Group.attrs['pixelSizeUnit']
         if pixelSizeUnit == 'None': pixelSizeUnit = None
-        pixels = h5Group['pixels'].value
+        pixels = h5Group['pixels'][()]
 
         if 'weights' in h5Group.keys():
-            weights = h5Group['weights'].value
-            mask = np.zeros(dimension, dtype=np.float32);
+            weights = h5Group['weights'][()]
+            mask = np.zeros(dimension, dtype=np.float32)
             mask[tuple(pixels)] = weights
             roi = WeightedROI(mask, pixelSize=pixelSize, pixelSizeUnit=pixelSizeUnit)
         else:
-            mask = np.zeros(dimension, dtype=np.uint8);
+            mask = np.zeros(dimension, dtype=np.uint8)
             mask[tuple(pixels)] = 1
             roi = ROI(mask, pixelSize=pixelSize, pixelSizeUnit=pixelSizeUnit)
 

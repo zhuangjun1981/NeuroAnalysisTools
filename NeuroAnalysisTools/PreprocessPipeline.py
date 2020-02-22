@@ -1,6 +1,8 @@
 import os
 import shutil
 import operator
+import time
+from multiprocessing import Pool
 import h5py
 import numpy as np
 import tifffile as tf
@@ -15,6 +17,109 @@ import NeuroAnalysisTools.DeepLabCutTools as dlct
 import matplotlib.pyplot as plt
 import cv2
 import NeuroAnalysisTools.MotionCorrection as mc
+
+
+def get_traces(params):
+
+    """
+    this is only a function used for multiprocessing in PlaneProcessor.get_raw_center_and_surround_traces()
+
+    :param params:
+    :return:
+    """
+
+    t0 = time.time()
+
+    chunk_ind, chunk_start, chunk_end, nwb_path, data_path, curr_folder, center_array, surround_array = params
+
+    nwb_f = h5py.File(nwb_path, 'r')
+    print('\tstart analyzing chunk: {}'.format(chunk_ind))
+    curr_mov = nwb_f[data_path][chunk_start: chunk_end]
+    nwb_f.close()
+
+    # print 'extracting traces'
+    curr_traces_center = np.empty((center_array.shape[0], curr_mov.shape[0]), dtype=np.float32)
+    curr_traces_surround = np.empty((center_array.shape[0], curr_mov.shape[0]), dtype=np.float32)
+    for i in range(center_array.shape[0]):
+        curr_center = ia.WeightedROI(center_array[i])
+        curr_surround = ia.ROI(surround_array[i])
+        curr_traces_center[i, :] = curr_center.get_weighted_trace_pixelwise(curr_mov)
+
+        # scale surround trace to be similar as center trace
+        mean_center_weight = curr_center.get_mean_weight()
+        curr_traces_surround[i, :] = curr_surround.get_binary_trace_pixelwise(curr_mov) * mean_center_weight
+
+    # print 'saveing chunk {} ...'.format(chunk_ind)
+    chunk_folder = os.path.join(curr_folder, 'chunks')
+    if not os.path.isdir(chunk_folder):
+        os.mkdir(chunk_folder)
+    chunk_f = h5py.File(os.path.join(chunk_folder, 'chunk_temp_' + ft.int2str(chunk_ind, 4) + '.hdf5'), 'x')
+    chunk_f['traces_center'] = curr_traces_center
+    chunk_f['traces_surround'] = curr_traces_surround
+    chunk_f.close()
+
+    print('\t\t{:06d} seconds: chunk: {}; demixing finished.'.format(int(time.time() - t0), chunk_ind))
+
+    return None
+
+
+def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
+    """
+    for multiprocessing
+
+    :param traces: np.array, shape=[trace_type, t_num]
+    :param labels:
+    :param chunk_size:
+    :param figures_folder:
+    :param roi_ind:
+    :return:
+    """
+
+    t_num = traces.shape[1]
+    chunk_num = t_num // chunk_size
+
+    chunks = []
+    for chunk_ind in range(chunk_num):
+        chunks.append([chunk_ind * chunk_size, (chunk_ind + 1) * chunk_size])
+
+    if t_num % chunk_size != 0:
+        chunks.append([chunk_num * chunk_size, t_num])
+
+    v_max = np.amax(traces)
+    v_min = np.amin(traces)
+
+    fig = plt.figure(figsize=(75, 20))
+    fig.suptitle('neuropil subtraction for ROI: {}'.format(roi_ind))
+    for chunk_ind, chunk in enumerate(chunks):
+        curr_ax = fig.add_subplot(len(chunks), 1, chunk_ind + 1)
+        for trace_ind in range(traces.shape[0]):
+           curr_ax.plot(traces[trace_ind, chunk[0]: chunk[1]], label=labels[trace_ind])
+
+        curr_ax.set_xlim([0, chunk_size])
+        curr_ax.set_ylim([v_min, v_max * 1.2])
+        curr_ax.legend()
+
+    return fig
+
+
+def plot_traces_for_multi_process(params):
+    """
+    for multiprocessing
+    :param params:
+    :return:
+    """
+
+    curr_traces, plot_chunk_size, roi_ind, figures_folder = params
+
+    print('roi_{:04d}'.format(roi_ind))
+
+    curr_fig = plot_traces_chunks(traces=curr_traces,
+                                  labels=['center', 'surround', 'subtracted'],
+                                  chunk_size=plot_chunk_size,
+                                  roi_ind=roi_ind)
+    curr_fig.savefig(os.path.join(figures_folder, 'neuropil_subtraction_ROI_{:04d}.png'.format(roi_ind)))
+    curr_fig.clear()
+    plt.close(curr_fig)
 
 
 class Preprocessor(object):
@@ -1549,6 +1654,15 @@ class PlaneProcessor(object):
 
     @staticmethod
     def get_rois_from_caiman_results(plane_folder, filter_sigma, cut_thr, bg_fn):
+        """
+        get isolated rois from caiman segmentation results
+        :param plane_folder:
+        :param filter_sigma: float, pixel, gaussian filter of original caiman results
+        :param cut_thr: float, [0., 1.], cutoff threshold to get isolated rois,
+                        low for more rois, high for less rois
+        :param bg_fn:
+        :return:
+        """
 
         print('\nGetting rois from caiman segmentation.')
 
@@ -1642,6 +1756,17 @@ class PlaneProcessor(object):
     @staticmethod
     def filter_rois(plane_folder, margin_pix_num, area_range, overlap_thr,
                     bg_fn):
+        """
+        filter the first pass rois
+
+        :param plane_folder:
+        :param margin_pix_num: int, pixel, margin to add from motion correction edge.
+        :param area_range: list of two ints, pixel, min and max areas allowed for valid rois
+        :param overlap_thr: float, [0., 1.],
+                            the smaller rois with overlap ratio larger than this value will be discarded
+        :param bg_fn:
+        :return:
+        """
 
         print('\nFilter rois.')
 
@@ -1797,19 +1922,225 @@ class PlaneProcessor(object):
         roi_f.close()
 
     @staticmethod
-    def generate_labeled_movie():
-        pass
+    def get_rois_and_surrounds(plane_folder, surround_limit, bg_fn):
+        """
+
+        :param plane_folder:
+        :param surround_limit: list of two ints, pixel, inner and outer edge of surround donut.
+        :param bg_fn:
+        :return:
+        """
+
+        print('\nGetting rois and surrounds.')
+
+        if bg_fn[-4:] != '.tif':
+            print('\tCannot find background .tif file.')
+            bg = None
+        else:
+            bg = tf.imread(os.path.join(plane_folder, bg_fn))
+            if len(bg.shape) == 3:
+                bg = ia.array_nor(np.max(bg, axis=0))
+            elif len(bg.shape) == 2:
+                bg = ia.array_nor(bg)
+            else:
+                print('\tBackgound shape not right. Skip.')
+                bg = None
+
+        fig_folder = os.path.join(plane_folder, 'figures')
+        if not os.path.isdir(fig_folder):
+            os.makedirs(fig_folder)
+
+        print('\treading cells file ...')
+        data_f = h5py.File(os.path.join(plane_folder, 'rois_refined.hdf5'), 'r')
+
+        roi_ns = list(data_f.keys())
+        roi_ns.sort()
+
+        binary_mask_array = []
+        weight_mask_array = []
+
+        for roi_n in roi_ns:
+            curr_roi = ia.ROI.from_h5_group(data_f[roi_n]['roi'])
+            binary_mask_array.append(curr_roi.get_binary_mask())
+            weight_mask_array.append(curr_roi.get_weighted_mask())
+
+        data_f.close()
+        binary_mask_array = np.array(binary_mask_array)
+        weight_mask_array = np.array(weight_mask_array)
+        print('\tstarting mask_array shape:', weight_mask_array.shape)
+
+        print('\tgetting total mask ...')
+        total_mask = np.zeros((binary_mask_array.shape[1], binary_mask_array.shape[2]), dtype=np.uint8)
+        for curr_mask in binary_mask_array:
+            total_mask = np.logical_or(total_mask, curr_mask)
+        total_mask = np.logical_not(total_mask)
+
+        plt.imshow(total_mask, interpolation='nearest')
+        plt.title('total_mask')
+        # plt.show()
+
+        print('\tgetting surround masks ...')
+        binary_surround_array = []
+        for binary_center in binary_mask_array:
+            curr_surround = np.logical_xor(ni.binary_dilation(binary_center, iterations=surround_limit[1]),
+                                           ni.binary_dilation(binary_center, iterations=surround_limit[0]))
+            curr_surround = np.logical_and(curr_surround, total_mask).astype(np.uint8)
+            binary_surround_array.append(curr_surround)
+            # plt.imshow(curr_surround)
+            # plt.show()
+        binary_surround_array = np.array(binary_surround_array)
+
+        print("\tsaving rois ...")
+        center_areas = []
+        surround_areas = []
+        for mask_ind in range(binary_mask_array.shape[0]):
+            center_areas.append(np.sum(binary_mask_array[mask_ind].flat))
+            surround_areas.append(np.sum(binary_surround_array[mask_ind].flat))
+        roi_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'x')
+        roi_f.create_dataset('masks_center', data=weight_mask_array, compression='lzf')
+        roi_f.create_dataset('masks_surround', data=binary_surround_array, compression='lzf')
+
+        roi_f.close()
+        print('\tminimum surround area:', min(surround_areas), 'pixels.')
+
+        f = plt.figure(figsize=(10, 10))
+        ax_center = f.add_subplot(211)
+        ax_center.hist(center_areas, bins=30)
+        ax_center.set_title('roi center area distribution')
+        ax_surround = f.add_subplot(212)
+        ax_surround.hist(surround_areas, bins=30)
+        ax_surround.set_title('roi surround area distribution')
+        # plt.show()
+
+        print('\tplotting ...')
+        colors = pt.random_color(weight_mask_array.shape[0])
+
+        f_c_bg = plt.figure(figsize=(10, 10))
+
+        if bg is None:
+            bg = np.zeros((512, 512), dtype=np.float32)
+
+        ax_c_bg = f_c_bg.add_subplot(111)
+        ax_c_bg.imshow(bg, cmap='gray', vmin=0, vmax=0.5, interpolation='nearest')
+        f_c_nbg = plt.figure(figsize=(10, 10))
+        ax_c_nbg = f_c_nbg.add_subplot(111)
+        ax_c_nbg.imshow(np.zeros(bg.shape, dtype=np.uint8), vmin=0, vmax=1, cmap='gray', interpolation='nearest')
+        f_s_nbg = plt.figure(figsize=(10, 10))
+        ax_s_nbg = f_s_nbg.add_subplot(111)
+        ax_s_nbg.imshow(np.zeros(bg.shape, dtype=np.uint8), vmin=0, vmax=1, cmap='gray', interpolation='nearest')
+
+        i = 0
+        for mask_ind in range(binary_mask_array.shape[0]):
+            pt.plot_mask_borders(binary_mask_array[mask_ind], plotAxis=ax_c_bg, color=colors[i], borderWidth=1)
+            pt.plot_mask_borders(binary_mask_array[mask_ind], plotAxis=ax_c_nbg, color=colors[i], borderWidth=1)
+            pt.plot_mask_borders(binary_surround_array[mask_ind], plotAxis=ax_s_nbg, color=colors[i], borderWidth=1)
+            i += 1
+
+        # plt.show()
+
+        print('\tsaving figures ...')
+        pt.save_figure_without_borders(f_c_bg, os.path.join(fig_folder, '2P_ROIs_with_background.png'), dpi=300)
+        pt.save_figure_without_borders(f_c_nbg, os.path.join(fig_folder, '2P_ROIs_without_background.png'), dpi=300)
+        pt.save_figure_without_borders(f_s_nbg, os.path.join(fig_folder, '2P_ROI_surrounds_background.png'), dpi=300)
+        f.savefig(os.path.join(fig_folder, 'roi_area_distribution.pdf'), dpi=300)
 
     @staticmethod
-    def get_weighted_rois_and_surrounds():
-        pass
+    def get_nwb_path(plane_folder):
 
-    @staticmethod
-    def get_raw_center_and_surround_traces():
-        pass
+        nwb_folder = os.path.dirname(os.path.realpath(plane_folder))
+        nwb_fns = [fn for fn in os.listdir(nwb_folder) if fn[-4:] == '.nwb']
+        if len(nwb_fns) == 0:
+            print('Cannot find .nwb files in {}!'.format(os.path.realpath(nwb_folder)))
+            return None
+        elif len(nwb_fns) > 1:
+            print('More than one .nwb files found in {}!'.format(os.path.realpath(nwb_folder)))
+            return None
+        elif len(nwb_fns) == 1:
+            return os.path.realpath(os.path.join(nwb_folder, nwb_fns[0]))
+
+    def get_raw_center_and_surround_traces(self, plane_folder, chunk_size, process_num):
+        """
+
+        :param plane_folder:
+        :param chunk_size: int, number of frames for multiprocessing
+        :param process_num: int, number of processes
+        :return:
+        """
+
+        def get_chunk_frames(frame_num, chunk_size):
+            chunk_num = frame_num // chunk_size
+            if frame_num % chunk_size > 0:
+                chunk_num = chunk_num + 1
+
+            print("\ttotal number of frames:", frame_num)
+            print("\ttotal number of chunks:", chunk_num)
+
+            chunk_ind = []
+            chunk_starts = []
+            chunk_ends = []
+
+            for chunk_i in range(chunk_num):
+                chunk_ind.append(chunk_i)
+                chunk_starts.append(chunk_i * chunk_size)
+
+                if chunk_i < chunk_num - 1:
+                    chunk_ends.append((chunk_i + 1) * chunk_size)
+                else:
+                    chunk_ends.append(frame_num)
+
+            return zip(chunk_ind, chunk_starts, chunk_ends)
+
+        print('\nExtracting traces.')
+        nwb_path = self.get_nwb_path(plane_folder=plane_folder)
+
+        plane_n = os.path.split(os.path.realpath(plane_folder))[1]
+
+        print('\tgetting masks ...')
+        rois_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'a')
+        center_array = rois_f['masks_center'][()]
+        surround_array = rois_f['masks_surround'][()]
+
+        print('\tanalyzing movie in chunks of size: {} frames.'.format(chunk_size))
+
+        data_path = '/processing/motion_correction/MotionCorrection/' + plane_n + '/corrected/data'
+        nwb_f = h5py.File(nwb_path, 'r')
+        total_frame = nwb_f[data_path].shape[0]
+        nwb_f.close()
+
+        chunk_frames = get_chunk_frames(total_frame, chunk_size)
+        chunk_params = [(cf[0], cf[1], cf[2], nwb_path, data_path,
+                         plane_folder, center_array, surround_array) for cf in chunk_frames]
+
+        p = Pool(process_num)
+        p.map(get_traces, chunk_params)
+
+        chunk_folder = os.path.join(plane_folder, 'chunks')
+        chunk_fns = [f for f in os.listdir(chunk_folder) if f[0:11] == 'chunk_temp_']
+        chunk_fns.sort()
+        print('\treading chunks files ...')
+        _ = [print('\t\t{}'.format(c) for c in chunk_fns)]
+
+        traces_raw = []
+        traces_surround = []
+
+        for chunk_fn in chunk_fns:
+            curr_chunk_f = h5py.File(os.path.join(chunk_folder, chunk_fn), 'r')
+            traces_raw.append(curr_chunk_f['traces_center'][()])
+            traces_surround.append(curr_chunk_f['traces_surround'][()])
+
+        print("\tsaving ...")
+        traces_raw = np.concatenate(traces_raw, axis=1)
+        traces_surround = np.concatenate(traces_surround, axis=1)
+        rois_f.create_dataset('traces_center_raw', data=traces_raw, compression='lzf')
+        rois_f.create_dataset('traces_surround_raw', data=traces_surround, compression='lzf')
+        print('\tdone.')
 
     @staticmethod
     def get_neuropil_subtracted_traces():
+        pass
+
+    @staticmethod
+    def generate_labeled_movie():
         pass
 
 
