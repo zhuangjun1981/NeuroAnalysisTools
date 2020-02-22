@@ -10,15 +10,17 @@ import numpy as np
 import tifffile as tf
 import pandas as pd
 import scipy.ndimage as ni
+import matplotlib.pyplot as plt
+import cv2
+
 import NeuroAnalysisTools.core.FileTools as ft
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.PlottingTools as pt
 import NeuroAnalysisTools.NwbTools as nt
 import NeuroAnalysisTools.HighLevel as hl
 import NeuroAnalysisTools.DeepLabCutTools as dlct
-import matplotlib.pyplot as plt
-import cv2
 import NeuroAnalysisTools.MotionCorrection as mc
+import NeuroAnalysisTools.DisplayLogTools as dt
 
 
 def get_traces(params):
@@ -1185,28 +1187,26 @@ class Preprocessor(object):
             return os.path.realpath(os.path.join(nwb_folder, nwb_fns[0]))
 
     @staticmethod
-    def get_display_log(display_log_folder, visual_stim_software='WarpedVisualStim'):
+    def get_display_log(display_log_folder,
+                        # visual_stim_software='WarpedVisualStim'
+                        ):
 
         stim_pkl_fns = [f for f in os.listdir(display_log_folder) if f[-4:] == '.pkl']
         if len(stim_pkl_fns) == 0:
-            print('Cannot find visal stim log .pkl file. Skip.')
+            print('\t\tCannot find visal stim log .pkl file. Skip.')
             return None
         elif len(stim_pkl_fns) > 1:
-            print('Found more than one visual stim log .pkl files. Skip.')
+            print('\t\tFound more than one visual stim log .pkl files. Skip.')
             return None
         else:
-            if visual_stim_software == 'retinotopic_mapping':
-                import retinotopic_mapping.DisplayLogAnalysis as dla
-                display_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
-                return display_log
-            elif visual_stim_software == 'WarpedVisualStim':
-                import WarpedVisualStim.DisplayLogAnalysis as dla
-                display_log = dla.DisplayLogAnalyzer(stim_pkl_fns[0])
-                return display_log
-            else:
-                print('\tDo not understand visual_stim_softerware {}. Should be either'
-                      '"retinotopic_mapping" or "WarpedVisualStim". Skip.'.format(visual_stim_software))
-                return None
+            try:
+                display_log = dt.DisplayLogAnalyzer(stim_pkl_fns[0])
+            except Exception as e:
+                print('\t\tCannot read visual display log.')
+                print('\t\t{}'.format(e))
+                display_log = None
+
+            return display_log
 
     def add_vasmap_to_nwb(self, nwb_folder, is_plot=False):
 
@@ -1311,7 +1311,7 @@ class Preprocessor(object):
         nwb_f.close()
 
     def add_2p_image_to_nwb(self, nwb_folder, image_identifier, zoom, scope, plane_ns,
-                            image_depths, temporal_downsample_rate):
+                            plane_depths, temporal_downsample_rate):
         """
 
         :param nwb_folder: str, folder containing .nwb file and the packaged 2p imaging .hdf5 file
@@ -1319,7 +1319,7 @@ class Preprocessor(object):
         :param zoom: float, zoom of 2p recording
         :param scope: str, 'sutter' or 'deepscope'
         :param plane_ns: list of str, ['plane0', 'plane1', 'plane2', ...]
-        :param image_depths: list of numbers, depth below pia for each imaging plane in microns
+        :param plane_depths: list of numbers, depth below pia for each imaging plane in microns
                              the length of this list should match the number of imaging planes
         :param temporal_downsample_rate: int, total temporal downsample rate,
                                          td_rate_before_correction * tdrate_after_correction
@@ -1328,9 +1328,9 @@ class Preprocessor(object):
 
         print('\nAdding 2p imaging data to .nwb file ...')
 
-        if len(plane_ns) != len(image_depths):
+        if len(plane_ns) != len(plane_depths):
             raise ValueError('Length of "plane_ns" ({}) should match length of '
-                             '"image_depths" ({}).'.format(len(plane_ns), len(image_depths)))
+                             '"plane_depths" ({}).'.format(len(plane_ns), len(plane_depths)))
 
         nwb_path = self.get_nwb_path(nwb_folder)
 
@@ -1380,7 +1380,7 @@ class Preprocessor(object):
                     #                      'the frame cound in the movie ({})'.format(mov_dn, len(mov_ts_d), curr_dset.shape[0]))
                     mov_ts_d = mov_ts_d[:curr_dset.shape[0]]
 
-                    curr_description = '{}. Imaging depth: {} micron.'.format(description, image_depths[mov_i])
+                    curr_description = '{}. Imaging depth: {} micron.'.format(description, plane_depths[mov_i])
                     nwb_f.add_acquired_image_series_as_remote_link('2p_movie_' + mov_dn, image_file_path=mov_fn,
                                                                    dataset_path=mov_dn, timestamps=mov_ts_d,
                                                                    description=curr_description, comments='',
@@ -1449,7 +1449,7 @@ class Preprocessor(object):
                                                               temporal_downsample_rate=post_correction_td_rate)
         nwb_f.close()
 
-    def add_visual_stimuli_to_nwb(self, nwb_folder, visual_stim_software='WarpedVisualStim'):
+    def add_visual_stimuli_to_nwb(self, nwb_folder):
         """
 
         :param visual_stim_software: str, 'retinotopic_mapping' (python 2.7) or 'WrapedVisualStim' (python 3)
@@ -1461,21 +1461,13 @@ class Preprocessor(object):
 
         display_log = self.get_display_log(display_log_folder=nwb_folder)
         if display_log is not None:
-            if visual_stim_software == 'retinotopic_mapping':
-                nwb_f = nt.RecordedFile(nwb_path)
-                nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
-                nwb_f.close()
-            elif visual_stim_software == 'WarpedVisualStim':
-                nwb_f = nt.RecordedFile(nwb_path)
+            nwb_f = nt.RecordedFile(nwb_path)
+            nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
+            nwb_f.close()
 
-                # this really should be 'add_visual_display_log_warpedvisualstim' but rightnow
-                # it is identical to 'add_visual_display_log_retinotopic_mapping'
-                nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
-                nwb_f.close()
-
+        print('\tDone.')
 
     def analyze_visual_display_in_nwb(self, nwb_folder, vsync_frame_path,
-                                      visual_stim_software='WarpedVisualStim',
                                       photodiode_ts_path='analysis/digital_photodiode_rise',
                                       photodiode_thr=-0.5,
                                       ccg_t_range=(0., 0.1),
@@ -1499,8 +1491,7 @@ class Preprocessor(object):
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
 
-        display_log = self.get_display_log(display_log_folder=nwb_folder,
-                                           visual_stim_software=visual_stim_software)
+        display_log = self.get_display_log(display_log_folder=nwb_folder)
 
         if display_log is not None:
             nwb_f = nt.RecordedFile(nwb_path)
@@ -1523,6 +1514,8 @@ class Preprocessor(object):
                                                                      display_delay=display_delay,
                                                                      vsync_frame_path=vsync_frame_path)
             nwb_f.close()
+
+        print('\tDone.')
 
     def fit_ellipse_deeplabcut(self, eyetracking_folder, confidence_thr, point_num_thr, ellipse_fit_function):
         """
@@ -1668,6 +1661,159 @@ class Preprocessor(object):
                                             is_verbose=True,
                                             fps=fps)
             nwb_f.close()
+
+    def add_rois_and_traces_to_nwb_caiman(self, nwb_folder, plane_ns, plane_depths):
+
+        def add_rois_and_traces(plane_folder, nwb_f, plane_n, imaging_depth,
+                                mov_path='/processing/motion_correction/MotionCorrection'):
+
+            mov_grp = nwb_f.file_pointer[mov_path + '/' + plane_n + '/corrected']
+
+            data_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'r')
+            mask_arr_c = data_f['masks_center'].value
+            mask_arr_s = data_f['masks_surround'].value
+            traces_center_raw = data_f['traces_center_raw'].value
+            # traces_center_demixed = data_f['traces_center_demixed'].value
+            traces_center_subtracted = data_f['traces_center_subtracted'].value
+            # traces_center_dff = data_f['traces_center_dff'].value
+            traces_surround_raw = data_f['traces_surround_raw'].value
+            neuropil_r = data_f['neuropil_r'].value
+            neuropil_err = data_f['neuropil_err'].value
+            data_f.close()
+
+            if traces_center_raw.shape[1] != mov_grp['num_samples'].value:
+                raise ValueError('number of trace time points ({}) does not match frame number of '
+                                 'corresponding movie ({}).'.format(traces_center_raw.shape[1],
+                                                                    mov_grp['num_samples'].value))
+
+            # traces_center_raw = traces_center_raw[:, :mov_grp['num_samples'].value]
+            # traces_center_subtracted = traces_center_subtracted[:, :mov_grp['num_samples'].value]
+            # traces_surround_raw = traces_surround_raw[:, :mov_grp['num_samples'].value]
+
+            rf_img_max = tf.imread(os.path.join(plane_folder, 'corrected_max_projection.tif'))
+            rf_img_mean = tf.imread(os.path.join(plane_folder, 'corrected_mean_projection.tif'))
+
+            print('adding segmentation results ...')
+            rt_mo = nwb_f.create_module('rois_and_traces_' + plane_n)
+            rt_mo.set_value('imaging_depth_micron', imaging_depth)
+            is_if = rt_mo.create_interface('ImageSegmentation')
+            is_if.create_imaging_plane('imaging_plane', description='')
+            is_if.add_reference_image('imaging_plane', 'max_projection', rf_img_max)
+            is_if.add_reference_image('imaging_plane', 'mean_projection', rf_img_mean)
+
+            for i in range(mask_arr_c.shape[0]):
+                curr_cen = mask_arr_c[i]
+                curr_cen_n = 'roi_' + ft.int2str(i, 4)
+                curr_cen_roi = ia.WeightedROI(curr_cen)
+                curr_cen_pixels_yx = curr_cen_roi.get_pixel_array()
+                curr_cen_pixels_xy = np.array([curr_cen_pixels_yx[:, 1], curr_cen_pixels_yx[:, 0]]).transpose()
+                is_if.add_roi_mask_pixels(image_plane='imaging_plane', roi_name=curr_cen_n, desc='',
+                                          pixel_list=curr_cen_pixels_xy, weights=curr_cen_roi.weights, width=512,
+                                          height=512)
+
+                curr_sur = mask_arr_s[i]
+                curr_sur_n = 'surround_' + ft.int2str(i, 4)
+                curr_sur_roi = ia.ROI(curr_sur)
+                curr_sur_pixels_yx = curr_sur_roi.get_pixel_array()
+                curr_sur_pixels_xy = np.array([curr_sur_pixels_yx[:, 1], curr_sur_pixels_yx[:, 0]]).transpose()
+                is_if.add_roi_mask_pixels(image_plane='imaging_plane', roi_name=curr_sur_n, desc='',
+                                          pixel_list=curr_sur_pixels_xy, weights=None, width=512, height=512)
+            is_if.finalize()
+
+            trace_f_if = rt_mo.create_interface('Fluorescence')
+            seg_if_path = '/processing/rois_and_traces_' + plane_n + '/ImageSegmentation/imaging_plane'
+            # print seg_if_path
+            ts_path = mov_path + '/' + plane_n + '/corrected'
+
+            print('adding center fluorescence raw')
+            trace_raw_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_center_raw')
+            trace_raw_ts.set_data(traces_center_raw, unit='au', conversion=np.nan, resolution=np.nan)
+            trace_raw_ts.set_value('data_format', 'roi (row) x time (column)')
+            trace_raw_ts.set_value('data_range', '[-8192, 8191]')
+            trace_raw_ts.set_description('fluorescence traces extracted from the center region of each roi')
+            trace_raw_ts.set_time_as_link(ts_path)
+            trace_raw_ts.set_value_as_link('segmentation_interface', seg_if_path)
+            roi_names = ['roi_' + ft.int2str(ind, 4) for ind in range(traces_center_raw.shape[0])]
+            trace_raw_ts.set_value('roi_names', roi_names)
+            trace_raw_ts.set_value('num_samples', traces_center_raw.shape[1])
+            trace_f_if.add_timeseries(trace_raw_ts)
+            trace_raw_ts.finalize()
+
+            print('adding neuropil fluorescence raw')
+            trace_sur_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_surround_raw')
+            trace_sur_ts.set_data(traces_surround_raw, unit='au', conversion=np.nan, resolution=np.nan)
+            trace_sur_ts.set_value('data_format', 'roi (row) x time (column)')
+            trace_sur_ts.set_value('data_range', '[-8192, 8191]')
+            trace_sur_ts.set_description('neuropil traces extracted from the surroud region of each roi')
+            trace_sur_ts.set_time_as_link(ts_path)
+            trace_sur_ts.set_value_as_link('segmentation_interface', seg_if_path)
+            sur_names = ['surround_' + ft.int2str(ind, 4) for ind in range(traces_center_raw.shape[0])]
+            trace_sur_ts.set_value('roi_names', sur_names)
+            trace_sur_ts.set_value('num_samples', traces_surround_raw.shape[1])
+            trace_f_if.add_timeseries(trace_sur_ts)
+            trace_sur_ts.finalize()
+
+            roi_center_n_path = '/processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_raw/roi_names'
+            # print 'adding center fluorescence demixed'
+            # trace_demix_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_center_demixed')
+            # trace_demix_ts.set_data(traces_center_demixed, unit='au', conversion=np.nan, resolution=np.nan)
+            # trace_demix_ts.set_value('data_format', 'roi (row) x time (column)')
+            # trace_demix_ts.set_description('center traces after overlapping demixing for each roi')
+            # trace_demix_ts.set_time_as_link(mov_path + '/' + plane_n + '/corrected')
+            # trace_demix_ts.set_value_as_link('segmentation_interface', seg_if_path)
+            # trace_demix_ts.set_value('roi_names', roi_names)
+            # trace_demix_ts.set_value('num_samples', traces_center_demixed.shape[1])
+            # trace_f_if.add_timeseries(trace_demix_ts)
+            # trace_demix_ts.finalize()
+
+            print('adding center fluorescence after neuropil subtraction')
+            trace_sub_ts = nwb_f.create_timeseries('RoiResponseSeries', 'f_center_subtracted')
+            trace_sub_ts.set_data(traces_center_subtracted, unit='au', conversion=np.nan, resolution=np.nan)
+            trace_sub_ts.set_value('data_format', 'roi (row) x time (column)')
+            trace_sub_ts.set_description('center traces after overlap demixing and neuropil subtraction for each roi')
+            trace_sub_ts.set_time_as_link(mov_path + '/' + plane_n + '/corrected')
+            trace_sub_ts.set_value_as_link('segmentation_interface', seg_if_path)
+            trace_sub_ts.set_value_as_link('roi_names', roi_center_n_path)
+            trace_sub_ts.set_value('num_samples', traces_center_subtracted.shape[1])
+            trace_sub_ts.set_value('r', neuropil_r, dtype='float32')
+            trace_sub_ts.set_value('rmse', neuropil_err, dtype='float32')
+            trace_sub_ts.set_comments('value "r": neuropil contribution ratio for each roi. '
+                                      'value "rmse": RMS error of neuropil subtraction for each roi')
+            trace_f_if.add_timeseries(trace_sub_ts)
+            trace_sub_ts.finalize()
+
+            trace_f_if.finalize()
+
+            # print 'adding global dF/F traces for each roi'
+            # trace_dff_if = rt_mo.create_interface('DfOverF')
+            #
+            # trace_dff_ts = nwb_f.create_timeseries('RoiResponseSeries', 'dff_center')
+            # trace_dff_ts.set_data(traces_center_dff, unit='au', conversion=np.nan, resolution=np.nan)
+            # trace_dff_ts.set_value('data_format', 'roi (row) x time (column)')
+            # trace_dff_ts.set_description('global df/f traces for each roi center, input fluorescence is the trace after demixing'
+            #                              ' and neuropil subtraction. global df/f is calculated by '
+            #                              'allensdk.brain_observatory.dff.compute_dff() function.')
+            # trace_dff_ts.set_time_as_link(ts_path)
+            # trace_dff_ts.set_value_as_link('segmentation_interface', seg_if_path)
+            # trace_dff_ts.set_value('roi_names', roi_names)
+            # trace_dff_ts.set_value('num_samples', traces_center_dff.shape[1])
+            # trace_dff_if.add_timeseries(trace_dff_ts)
+            # trace_dff_ts.finalize()
+            # trace_dff_if.finalize()
+
+            rt_mo.finalize()
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = nt.RecordedFile(nwb_path)
+
+        for plane_i, plane_n in enumerate(plane_ns):
+            print('\n\n' + plane_n)
+
+            plane_folder = os.path.join(nwb_folder, plane_n)
+            add_rois_and_traces(plane_folder=plane_folder, nwb_f=nwb_f, plane_n=plane_n,
+                                imaging_depth=plane_depths[plane_i])
+
+        nwb_f.close()
 
 
 class PlaneProcessor(object):
@@ -2276,7 +2422,10 @@ class PlaneProcessor(object):
 
         f = plt.figure(figsize=(frame_size, frame_size))
         for frame_i, frame in enumerate(mov_d):
-            print('\tframe: {} / {}'.format(frame_i, mov_d.shape[0]))
+
+            if frame_i % 100 == 0:
+                print('\t\tframe: {} / {}'.format(frame_i, mov_d.shape[0]))
+
             f.clear()
             ax = f.add_subplot(111)
             ax.imshow(frame, vmin=v_min, vmax=v_max * 0.5, cmap='gray', interpolation='nearest')
