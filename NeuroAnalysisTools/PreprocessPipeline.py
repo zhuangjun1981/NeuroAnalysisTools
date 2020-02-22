@@ -111,7 +111,7 @@ def plot_traces_for_multi_process(params):
 
     curr_traces, plot_chunk_size, roi_ind, figures_folder = params
 
-    print('roi_{:04d}'.format(roi_ind))
+    # print('roi_{:04d}'.format(roi_ind))
 
     curr_fig = plot_traces_chunks(traces=curr_traces,
                                   labels=['center', 'surround', 'subtracted'],
@@ -2118,7 +2118,7 @@ class PlaneProcessor(object):
         chunk_fns = [f for f in os.listdir(chunk_folder) if f[0:11] == 'chunk_temp_']
         chunk_fns.sort()
         print('\treading chunks files ...')
-        _ = [print('\t\t{}'.format(c) for c in chunk_fns)]
+        _ = [print('\t\t{}'.format(c)) for c in chunk_fns]
 
         traces_raw = []
         traces_surround = []
@@ -2136,8 +2136,50 @@ class PlaneProcessor(object):
         print('\tdone.')
 
     @staticmethod
-    def get_neuropil_subtracted_traces():
-        pass
+    def get_neuropil_subtracted_traces(plane_folder, lam, plot_chunk_size, plot_process_num):
+
+        print('\nNeuropil subtraction.')
+
+        data_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'a')
+        traces_raw = data_f['traces_center_raw'][()]
+        traces_srround = data_f['traces_surround_raw'][()]
+
+        traces_subtracted = np.zeros(traces_raw.shape, np.float32)
+        ratio = np.zeros(traces_raw.shape[0], np.float32)
+        err = np.zeros(traces_raw.shape[0], np.float32)
+
+        for i in range(traces_raw.shape[0]):
+            curr_trace_c = traces_raw[i]
+            curr_trace_s = traces_srround[i]
+            curr_r, curr_err, curr_trace_sub = hl.neural_pil_subtraction(curr_trace_c, curr_trace_s, lam=lam)
+            print("\t\troi_{:05d}\tr = {:.4f}; error = {:.4f}.".format(i, curr_r, curr_err))
+            traces_subtracted[i] = curr_trace_sub
+            ratio[i] = curr_r
+            err[i] = curr_err
+
+        print('\tplotting neuropil subtraction results ...')
+        fig_folder = os.path.join(plane_folder, 'figures')
+        if not os.path.isdir(fig_folder):
+            os.makedirs(fig_folder)
+        save_folder = os.path.join(fig_folder, 'neuropil_subtraction_lam_{}'.format(lam))
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        params = []
+        for roi_ind in range(traces_raw.shape[0]):
+            curr_traces = np.array([traces_raw[roi_ind], traces_srround[roi_ind], traces_subtracted[roi_ind]])
+
+            params.append((curr_traces, plot_chunk_size, roi_ind, save_folder))
+
+        p = Pool(plot_process_num)
+        p.map(plot_traces_for_multi_process, params)
+
+        data_f['traces_center_subtracted'] = traces_subtracted
+        data_f['neuropil_r'] = ratio
+        data_f['neuropil_err'] = err
+
+        data_f.close()
+        print('\tDone.')
 
     @staticmethod
     def generate_labeled_movie():
