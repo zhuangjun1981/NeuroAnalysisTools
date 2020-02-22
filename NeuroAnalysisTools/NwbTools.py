@@ -1473,7 +1473,7 @@ class RecordedFile(NWB):
 
             for probe_i, probe_n in enumerate(probe_ns):
 
-                if verbose:
+                if verbose and probe_i % 100 == 0:
                     print('\tprocessing probe {} / {}'.format(probe_i+1, len(probe_ns)))
 
                 onsets_probe_grp = self.file_pointer['{}/{}'.format(probe_onsets_path, probe_n)]

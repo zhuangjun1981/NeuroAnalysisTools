@@ -1820,6 +1820,22 @@ class Preprocessor(object):
         nwb_f.close()
         print('\tDone.')
 
+    def add_response_tables(self, nwb_folder, strf_response_window, dgc_response_window,
+                            lsn_stim_name, dgc_stim_name):
+
+        print('\nAdding response tables.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = nt.RecordedFile(nwb_path)
+
+        nwb_f.get_drifting_grating_response_table_retinotopic_mapping(stim_name=dgc_stim_name,
+                                                                      time_window=dgc_response_window)
+        nwb_f.get_spatial_temporal_receptive_field_retinotopic_mapping(stim_name=lsn_stim_name,
+                                                                       time_window=strf_response_window)
+        nwb_f.close()
+
+        print('\tDone.')
+
 
 class PlaneProcessor(object):
     """
