@@ -1403,6 +1403,7 @@ class Preprocessor(object):
         :return:
         """
 
+        print('\nAdding motion correction module.')
         nwb_path = self.get_nwb_path(nwb_folder)
 
         input_parameters = []
@@ -1448,6 +1449,7 @@ class Preprocessor(object):
                                                               module_name='motion_correction',
                                                               temporal_downsample_rate=post_correction_td_rate)
         nwb_f.close()
+        print('\tDone.')
 
     def add_visual_stimuli_to_nwb(self, nwb_folder):
         """
@@ -1576,7 +1578,7 @@ class Preprocessor(object):
         :return:
         """
 
-        print('\nadding deeplabcut eye tracking results to nwb file.')
+        print('\nAdding deeplabcut eye tracking results to nwb file.')
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
         if nwb_path is None:
@@ -1663,6 +1665,8 @@ class Preprocessor(object):
             nwb_f.close()
 
     def add_rois_and_traces_to_nwb_caiman(self, nwb_folder, plane_ns, plane_depths):
+
+        print('\nAdding rois and traces.')
 
         def add_rois_and_traces(plane_folder, nwb_f, plane_n, imaging_depth,
                                 mov_path='/processing/motion_correction/MotionCorrection'):
@@ -1814,6 +1818,7 @@ class Preprocessor(object):
                                 imaging_depth=plane_depths[plane_i])
 
         nwb_f.close()
+        print('\tDone.')
 
 
 class PlaneProcessor(object):
