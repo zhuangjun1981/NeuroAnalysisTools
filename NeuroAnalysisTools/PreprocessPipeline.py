@@ -1670,25 +1670,25 @@ class Preprocessor(object):
             mov_grp = nwb_f.file_pointer[mov_path + '/' + plane_n + '/corrected']
 
             data_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'r')
-            mask_arr_c = data_f['masks_center'].value
-            mask_arr_s = data_f['masks_surround'].value
-            traces_center_raw = data_f['traces_center_raw'].value
-            # traces_center_demixed = data_f['traces_center_demixed'].value
-            traces_center_subtracted = data_f['traces_center_subtracted'].value
-            # traces_center_dff = data_f['traces_center_dff'].value
-            traces_surround_raw = data_f['traces_surround_raw'].value
-            neuropil_r = data_f['neuropil_r'].value
-            neuropil_err = data_f['neuropil_err'].value
+            mask_arr_c = data_f['masks_center'][()]
+            mask_arr_s = data_f['masks_surround'][()]
+            traces_center_raw = data_f['traces_center_raw'][()]
+            # traces_center_demixed = data_f['traces_center_demixed'][()]
+            traces_center_subtracted = data_f['traces_center_subtracted'][()]
+            # traces_center_dff = data_f['traces_center_dff'][()]
+            traces_surround_raw = data_f['traces_surround_raw'][()]
+            neuropil_r = data_f['neuropil_r'][()]
+            neuropil_err = data_f['neuropil_err'][()]
             data_f.close()
 
-            if traces_center_raw.shape[1] != mov_grp['num_samples'].value:
+            if traces_center_raw.shape[1] != mov_grp['num_samples'][()]:
                 raise ValueError('number of trace time points ({}) does not match frame number of '
                                  'corresponding movie ({}).'.format(traces_center_raw.shape[1],
-                                                                    mov_grp['num_samples'].value))
+                                                                    mov_grp['num_samples'][()]))
 
-            # traces_center_raw = traces_center_raw[:, :mov_grp['num_samples'].value]
-            # traces_center_subtracted = traces_center_subtracted[:, :mov_grp['num_samples'].value]
-            # traces_surround_raw = traces_surround_raw[:, :mov_grp['num_samples'].value]
+            # traces_center_raw = traces_center_raw[:, :mov_grp['num_samples'][()]]
+            # traces_center_subtracted = traces_center_subtracted[:, :mov_grp['num_samples'][()]]
+            # traces_surround_raw = traces_surround_raw[:, :mov_grp['num_samples'][()]]
 
             rf_img_max = tf.imread(os.path.join(plane_folder, 'corrected_max_projection.tif'))
             rf_img_mean = tf.imread(os.path.join(plane_folder, 'corrected_mean_projection.tif'))

@@ -1308,7 +1308,7 @@ class RecordedFile(NWB):
         pd_grp = self.file_pointer['analysis'].create_group('photodiode_onsets')
         for stim_n in stim_ns:
             stim_grp = pd_grp.create_group(stim_n)
-            pd_onset_ns = pd_onsets_com[stim_n].keys()
+            pd_onset_ns = list(pd_onsets_com[stim_n].keys())
             pd_onset_ns.sort()
             for pd_onset_n in pd_onset_ns:
                 pd_onset_grp = stim_grp.create_group(pd_onset_n)
@@ -1346,7 +1346,7 @@ class RecordedFile(NWB):
             raise ValueError('time window should be from early time to late time.')
 
         grating_onsets_path = 'analysis/photodiode_onsets/{}'.format(stim_name)
-        grating_ns = self.file_pointer[grating_onsets_path].keys()
+        grating_ns = list(self.file_pointer[grating_onsets_path].keys())
         grating_ns.sort()
         # print('\n'.join(grating_ns))
 
@@ -1429,7 +1429,7 @@ class RecordedFile(NWB):
             raise ValueError('time window should be from early time to late time.')
 
         probe_onsets_path = 'analysis/photodiode_onsets/{}'.format(stim_name)
-        probe_ns = self.file_pointer[probe_onsets_path].keys()
+        probe_ns = list(self.file_pointer[probe_onsets_path].keys())
         probe_ns.sort()
         # print('\n'.join(probe_ns))
 

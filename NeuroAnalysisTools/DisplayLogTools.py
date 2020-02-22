@@ -2,6 +2,13 @@
 2019-12-19 by Jun Zhuang
 this module provides analysis tools to extract information about visual stimuli
 saved in the log pkl files.
+
+This is should be same as
+WarpedVisualStim.DisplayLogAnalysis (python3)
+or
+retinotopic_mapping.DisplayLogAnalysis (python2)
+
+The code is copied here to reduce the dependency.
 '''
 
 import numpy as np
@@ -55,7 +62,7 @@ class DisplayLogAnalyzer(object):
             stimuli_sequence_out = [f[0] for f in self.log_dict['presentation']['displayed_frames']]
             stimuli_sequence_out = list(set(stimuli_sequence_out))
             stimuli_sequence_out.sort()
-            stimuli_sequence_in = self.log_dict['stimulation']['individual_logs'].keys()
+            stimuli_sequence_in = list(self.log_dict['stimulation']['individual_logs'].keys())
             stimuli_sequence_in.sort()
             if stimuli_sequence_out != stimuli_sequence_in:
                 raise ValueError('Output stimuli sequence does not match input stimuli sequence.')
@@ -102,7 +109,7 @@ class DisplayLogAnalyzer(object):
         # if multiple stimuli were displayed in a sequence
         if self.log_dict['stimulation']['stim_name'] == 'CombinedStimuli':
             curr_frame_ind = 0
-            stim_ids = self.log_dict['stimulation']['individual_logs'].keys()
+            stim_ids = list(self.log_dict['stimulation']['individual_logs'].keys())
             stim_ids.sort()
             for stim_id in stim_ids:
                 curr_dict = self.log_dict['stimulation']['individual_logs'][stim_id]
