@@ -11,6 +11,7 @@ import tifffile as tf
 import pandas as pd
 import scipy.ndimage as ni
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import cv2
 
 import NeuroAnalysisTools.core.FileTools as ft
@@ -20,7 +21,9 @@ import NeuroAnalysisTools.NwbTools as nt
 import NeuroAnalysisTools.HighLevel as hl
 import NeuroAnalysisTools.DeepLabCutTools as dlct
 import NeuroAnalysisTools.MotionCorrection as mc
-import NeuroAnalysisTools.DisplayLogTools as dt
+import NeuroAnalysisTools.DisplayLogTools as dlt
+import NeuroAnalysisTools.DatabaseTools as dt
+import NeuroAnalysisTools.SingleCellAnalysis as sca
 
 
 def get_traces(params):
@@ -1200,7 +1203,7 @@ class Preprocessor(object):
             return None
         else:
             try:
-                display_log = dt.DisplayLogAnalyzer(stim_pkl_fns[0])
+                display_log = dlt.DisplayLogAnalyzer(stim_pkl_fns[0])
             except Exception as e:
                 print('\t\tCannot read visual display log.')
                 print('\t\t{}'.format(e))
@@ -1836,6 +1839,64 @@ class Preprocessor(object):
 
         print('\tDone.')
 
+    def plot_STRF(self, nwb_folder, response_table_name, trace_type, bias):
+
+        print('\nPlotting STRFs.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        # strf_grp = nwb_f['analysis/strf_001_LocallySparseNoiseRetinotopicMapping']
+        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(strf_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        for plane_n in plane_ns:
+            print('\tplotting rois in {} ...'.format(plane_n))
+            pdff = PdfPages(os.path.join(save_folder, 'STRFs_' + plane_n + '.pdf'))
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            for roi_ind, roi_n in enumerate(roi_lst):
+
+                if roi_ind % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+
+                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
+                                                             add_to_trace=add_to_trace)
+
+                v_min, v_max = curr_strf_dff.get_data_range()
+                f = curr_strf_dff.plot_traces(yRange=(v_min, v_max * 1.1), figSize=(16, 10),
+                                              columnSpacing=0.002, rowSpacing=0.002)
+                # plt.show()
+                pdff.savefig(f)
+                f.clear()
+                plt.close(f)
+
+            pdff.close()
+
+        nwb_f.close()
+
+        print('\tDone.')
+
 
 class PlaneProcessor(object):
     """
@@ -2431,13 +2492,18 @@ class PlaneProcessor(object):
         if cv2.__version__[0:3] == '3.1' or cv2.__version__[0] == '4':
             codex = 'XVID'
             fourcc = cv2.VideoWriter_fourcc(*codex)
-            out = cv2.VideoWriter('marked_mov.avi', fourcc, 30, (frame_size * 100, frame_size * 100), isColor=True)
+            out = cv2.VideoWriter(os.path.join(plane_folder, 'labeled_mov.avi'),
+                                  fourcc, 30, (frame_size * 100, frame_size * 100),
+                                  isColor=True)
         elif cv2.__version__[0:6] == '2.4.11':
-            out = cv2.VideoWriter('marked_mov.avi', -1, 30, (frame_size * 100, frame_size * 100), isColor=True)
+            out = cv2.VideoWriter(os.path.join(plane_folder, 'marked_mov.avi'), -1, 30,
+                                  (frame_size * 100, frame_size * 100), isColor=True)
         elif cv2.__version__[0:3] == '2.4':
             codex = 'XVID'
             fourcc = cv2.cv.CV_FOURCC(*codex)
-            out = cv2.VideoWriter('marked_mov.avi', fourcc, 30, (frame_size * 100, frame_size * 100), isColor=True)
+            out = cv2.VideoWriter(os.path.join(plane_folder, 'marked_mov.avi'),
+                                  fourcc, 30, (frame_size * 100, frame_size * 100),
+                                  isColor=True)
         else:
             raise EnvironmentError('Do not understand opencv cv2 version: {}.'.format(cv2.__version__))
 
@@ -2467,8 +2533,4 @@ class PlaneProcessor(object):
         out.release()
         cv2.destroyAllWindows()
         print('\t\tDone.')
-
-
-
-
 
