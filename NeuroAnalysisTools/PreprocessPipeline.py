@@ -2,7 +2,9 @@ import os
 import shutil
 import operator
 import time
+import io
 from multiprocessing import Pool
+import PIL
 import h5py
 import numpy as np
 import tifffile as tf
@@ -120,6 +122,36 @@ def plot_traces_for_multi_process(params):
     curr_fig.savefig(os.path.join(figures_folder, 'neuropil_subtraction_ROI_{:04d}.png'.format(roi_ind)))
     curr_fig.clear()
     plt.close(curr_fig)
+
+
+def downsample_for_multiprocessing(params):
+    nwb_path, dset_path, frame_start_i, frame_end_i, dr = params
+
+    print('\t\tdownsampling frame {} - {}'.format(frame_start_i, frame_end_i))
+
+    ff = h5py.File(nwb_path, 'r')
+    chunk = ff[dset_path][frame_start_i:frame_end_i, :, :]
+    ff.close()
+    chunk_d = ia.z_downsample(chunk, downSampleRate=dr, is_verbose=False)
+    return chunk_d
+
+
+def downsample_mov(nwb_path, dset_path, dr, chunk_size, process_num):
+    ff = h5py.File(nwb_path, 'r')
+    frame_num = ff[dset_path].shape[0]
+    print('\t\tshape of movie: {}'.format(ff[dset_path].shape))
+    chunk_starts = np.array(range(0, frame_num, chunk_size))
+    chunk_ends = chunk_starts + chunk_size
+    chunk_ends[-1] = frame_num
+
+    params = []
+    for i, chunk_start in enumerate(chunk_starts):
+        params.append((nwb_path, dset_path, chunk_start, chunk_ends[i], dr))
+
+    p = Pool(process_num)
+    mov_d = p.map(downsample_for_multiprocessing, params)
+
+    return np.concatenate(mov_d, axis=0)
 
 
 class Preprocessor(object):
@@ -2181,9 +2213,90 @@ class PlaneProcessor(object):
         data_f.close()
         print('\tDone.')
 
-    @staticmethod
-    def generate_labeled_movie():
-        pass
+    def generate_labeled_movie(self, plane_folder, downsample_rate, process_num, chunk_size, frame_size):
+        """
+        generate downsampled .avi movie overlayed with roi contour
+
+        :param plane_folder:
+        :param downsample_rate: int, downsample rate
+        :param process_num: int
+        :param chunk_size: int
+        :param frame_size: float, movie frame size, inch
+        :return:
+        """
+
+        print('\nGenerating labeled movie ...')
+
+        print('\tgetting total mask ...')
+        roi_f = h5py.File(os.path.join(plane_folder, 'rois_refined.hdf5'), 'r')
+        h, w = roi_f['roi0000']['roi'].attrs['dimension']
+        total_mask = np.zeros((h, w), dtype=np.uint8)
+        for roi_n, roi_grp in roi_f.items():
+            curr_roi = ia.WeightedROI.from_h5_group(roi_grp['roi'])
+            curr_mask = curr_roi.get_binary_mask()
+            total_mask = np.logical_or(total_mask, curr_mask)
+        roi_f.close()
+        total_mask = ni.binary_dilation(total_mask, iterations=1)
+
+
+        nwb_path = self.get_nwb_path(plane_folder=plane_folder)
+
+        plane_n = os.path.split(os.path.realpath(plane_folder))[1]
+        dset_path = 'processing/motion_correction/MotionCorrection/{}/corrected/data'.format(plane_n)
+
+        print('\tdownsampling movie ...')
+        print('\t\tnwb_path: {}'.format(nwb_path))
+        print('\t\tdset_path: {}'.format(dset_path))
+
+        nwb_f = h5py.File(nwb_path, 'r')
+        dset = nwb_f[dset_path]
+        print('\t\ttotal shape: {}'.format(dset.shape))
+        nwb_f.close()
+
+        mov_d = downsample_mov(nwb_path=nwb_path, dset_path=dset_path, dr=downsample_rate,
+                               chunk_size=chunk_size, process_num=process_num)
+        v_min = np.amin(mov_d)
+        v_max = np.amax(mov_d)
+        print('\t\tshape of downsampled movie: {}'.format(mov_d.shape))
+
+        print('\t\tgenerating avi ...')
+
+        if cv2.__version__[0:3] == '3.1' or cv2.__version__[0] == '4':
+            codex = 'XVID'
+            fourcc = cv2.VideoWriter_fourcc(*codex)
+            out = cv2.VideoWriter('marked_mov.avi', fourcc, 30, (frame_size * 100, frame_size * 100), isColor=True)
+        elif cv2.__version__[0:6] == '2.4.11':
+            out = cv2.VideoWriter('marked_mov.avi', -1, 30, (frame_size * 100, frame_size * 100), isColor=True)
+        elif cv2.__version__[0:3] == '2.4':
+            codex = 'XVID'
+            fourcc = cv2.cv.CV_FOURCC(*codex)
+            out = cv2.VideoWriter('marked_mov.avi', fourcc, 30, (frame_size * 100, frame_size * 100), isColor=True)
+        else:
+            raise EnvironmentError('Do not understand opencv cv2 version: {}.'.format(cv2.__version__))
+
+        f = plt.figure(figsize=(frame_size, frame_size))
+        for frame_i, frame in enumerate(mov_d):
+            print('\tframe: {} / {}'.format(frame_i, mov_d.shape[0]))
+            f.clear()
+            ax = f.add_subplot(111)
+            ax.imshow(frame, vmin=v_min, vmax=v_max * 0.5, cmap='gray', interpolation='nearest')
+            pt.plot_mask_borders(total_mask, plotAxis=ax, color='#ff0000', zoom=1, borderWidth=1)
+            ax.set_aspect('equal')
+            # plt.show()
+
+            buffer_ = io.BytesIO()
+            pt.save_figure_without_borders(f, buffer_, dpi=100)
+            buffer_.seek(0)
+            image = PIL.Image.open(buffer_)
+            curr_frame = np.asarray(image)
+            r, g, b, a = np.rollaxis(curr_frame, axis=-1)
+            curr_frame = (np.dstack((b, g, r)))
+
+            out.write(curr_frame)
+
+        out.release()
+        cv2.destroyAllWindows()
+        print('\t\tDone.')
 
 
 
