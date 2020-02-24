@@ -2564,8 +2564,6 @@ class Preprocessor(object):
         print('\tDone.')
 
 
-
-
 class PlaneProcessor(object):
     """
     pipeline to preprocess two-photon data with in each imaging plane
