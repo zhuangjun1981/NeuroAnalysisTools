@@ -2563,6 +2563,56 @@ class Preprocessor(object):
 
         print('\tDone.')
 
+    def plot_overlapping_rois_for_deepscope(self, nwb_folder, overlap_ratio=0.5,
+                                            trace_type='f_center_raw', size_thr=20.):
+        """
+        for deepscope imaging session with 3 planes, get overlapping roi triplets
+        each triplets contain one roi for each plane and they are highly overlapping
+
+        check
+        NeuroAnalysisTools.DatabaseTools.get_roi_triplets()
+        and
+        NeuroAnalysisTools.HighLevel.plot_roi_traces_three_planes()
+
+
+        :param nwb_folder:
+        :param overlap_ratio:
+        :param trace_type:
+        :param size_thr:
+        :return:
+        """
+
+        print('\nPlotting overlapping rois across planes.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.mkdir(save_folder)
+
+        pdf_path = os.path.join(save_folder, r'overlapping_rois.pdf')
+        pdff = PdfPages(pdf_path)
+
+        roi_triplets = dt.get_roi_triplets(nwb_f=nwb_f, overlap_ratio=overlap_ratio, size_thr=size_thr)
+
+        for i, roi_triplet in enumerate(roi_triplets):
+            print('\tplotting triplet: {}. {} / {}'.format(roi_triplet, i + 1, len(roi_triplets)))
+
+            f = hl.plot_roi_traces_three_planes(nwb_f=nwb_f,
+                                                roi0=roi_triplet[0],
+                                                roi1=roi_triplet[1],
+                                                roi2=roi_triplet[2],
+                                                trace_type=trace_type)
+
+            pdff.savefig(f)
+            f.clear()
+            plt.close()
+
+        pdff.close()
+        nwb_f.close()
+        print('\nNone')
+
 
 class PlaneProcessor(object):
     """
