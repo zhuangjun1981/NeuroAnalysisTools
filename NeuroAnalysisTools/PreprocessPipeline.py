@@ -12,6 +12,7 @@ import pandas as pd
 import scipy.ndimage as ni
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.gridspec as gridspec
 import cv2
 
 import NeuroAnalysisTools.core.FileTools as ft
@@ -1906,7 +1907,7 @@ class Preprocessor(object):
             sf_lst = np.array(list(set([str(gn[22:26]) for gn in grating_ns])))
             sf_lst.sort()
 
-            pdff = PdfPages(os.path.join(save_folder, 'tuning_curve_DriftingGrating_{}_mean.pdf'.format(plane_n)))
+            pdff = PdfPages(os.path.join(save_folder, 'tuning_curve_DriftingGrating_{}.pdf'.format(plane_n)))
 
             for roi_i, roi_n in enumerate(roi_lst):
                 if roi_i % 10 == 0:
@@ -1961,7 +1962,7 @@ class Preprocessor(object):
                                 size=10)
                 ax_tf.set_xticks(tf_log)
                 ax_tf.set_xticklabels(list(tf_conditions.tf))
-                ax_tf.set_xlim(np.log([0.9, 16]))
+                ax_tf.set_xlim(np.log([0.4, 16]))
                 ax_tf_xrange = ax_tf.get_xlim()[1] - ax_tf.get_xlim()[0]
                 ax_tf_yrange = ax_tf.get_ylim()[1] - ax_tf.get_ylim()[0]
                 ax_tf.set_aspect(aspect=(ax_tf_xrange / ax_tf_yrange))
@@ -1987,7 +1988,7 @@ class Preprocessor(object):
                                 size=10)
                 ax_sf.set_xticks(sf_log)
                 ax_sf.set_xticklabels(['{:04.2f}'.format(s) for s in list(sf_conditions.sf)])
-                ax_sf.set_xlim(np.log([0.008, 0.4]))
+                ax_sf.set_xlim(np.log([0.008, 0.8]))
                 ax_sf_xrange = ax_sf.get_xlim()[1] - ax_sf.get_xlim()[0]
                 ax_sf_yrange = ax_sf.get_ylim()[1] - ax_sf.get_ylim()[0]
                 ax_sf.set_aspect(aspect=(ax_sf_xrange / ax_sf_yrange))
@@ -2200,6 +2201,155 @@ class Preprocessor(object):
 
             pdff.close()
 
+        nwb_f.close()
+        print('\tDone.')
+
+    def plot_dgc_mean_responses(self, nwb_folder, response_table_name, t_window_response,
+                                t_window_baseline, trace_type, bias):
+
+        print('\nPlotting drifting grating mean responses.')
+
+        def get_dff(traces, t_axis, response_span, baseline_span):
+            """
+
+            :param traces: dimension, trial x timepoint
+            :param t_axis:
+            :return:
+            """
+
+            trace_mean = np.mean(traces, axis=0)
+            trace_std = np.std(traces, axis=0)
+            trace_sem = trace_std / np.sqrt(traces.shape[0])
+
+            baseline_ind = np.logical_and(t_axis > baseline_span[0], t_axis <= baseline_span[1])
+            response_ind = np.logical_and(t_axis > response_span[0], t_axis <= response_span[1])
+            baseline = np.mean(trace_mean[baseline_ind])
+            dff_trace_mean = (trace_mean - baseline) / baseline
+            dff_trace_std = trace_std / baseline
+            dff_trace_sem = trace_sem / baseline
+            dff_mean = np.mean(dff_trace_mean[response_ind])
+
+            return dff_trace_mean, dff_trace_std, dff_trace_sem, dff_mean
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.mkdir(save_folder)
+
+        dgc_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(dgc_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        for plane_n in plane_ns:
+            print('\tprocessing {} ...'.format(plane_n))
+
+            res_grp = dgc_grp[plane_n]
+            t_axis = res_grp.attrs['sta_timestamps']
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            grating_ns = res_grp.keys()
+            # remove blank sweep
+            grating_ns = [gn for gn in grating_ns if gn[-37:] != '_sf0.00_tf00.0_dire000_con0.00_rad000']
+
+            dire_lst = np.array(list(set([str(gn[38:41]) for gn in grating_ns])))
+            dire_lst.sort()
+            tf_lst = np.array(list(set([str(gn[29:33]) for gn in grating_ns])))
+            tf_lst.sort()
+            sf_lst = np.array(list(set([str(gn[22:26]) for gn in grating_ns])))
+            sf_lst.sort()
+
+            pdff = PdfPages(os.path.join(save_folder, 'STA_DriftingGrating_{}_mean.pdf'.format(plane_n)))
+
+            for roi_i, roi_n in enumerate(roi_lst):
+                if roi_i % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_i + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                f = plt.figure(figsize=(8.5, 11))
+                gs_out = gridspec.GridSpec(len(tf_lst), 1)
+                gs_in_dict = {}
+                for gs_ind, gs_o in enumerate(gs_out):
+                    curr_gs_in = gridspec.GridSpecFromSubplotSpec(len(sf_lst), len(dire_lst), subplot_spec=gs_o,
+                                                                  wspace=0.05, hspace=0.05)
+                    gs_in_dict[gs_ind] = curr_gs_in
+
+                v_max = 0
+                v_min = 0
+                dff_mean_max = 0
+                dff_mean_min = 0
+                for grating_n in grating_ns:
+                    grating_grp = res_grp[grating_n]
+                    curr_sta = grating_grp[trace_type][roi_i] + add_to_trace
+                    _ = get_dff(traces=curr_sta, t_axis=t_axis, response_span=t_window_response,
+                                baseline_span=t_window_baseline)
+                    dff_trace_mean, dff_trace_std, dff_trace_sem, dff_mean = _
+                    v_max = max([np.amax(dff_trace_mean + dff_trace_sem), v_max])
+                    v_min = min([np.amin(dff_trace_mean - dff_trace_sem), v_min])
+                    dff_mean_max = max([dff_mean, dff_mean_max])
+                    dff_mean_min = min([dff_mean, dff_mean_min])
+                dff_mean_max = max([abs(dff_mean_max), abs(dff_mean_min)])
+                dff_mean_min = - dff_mean_max
+
+                for grating_n in grating_ns:
+                    grating_grp = res_grp[grating_n]
+                    curr_sta = grating_grp[trace_type][roi_i] + add_to_trace
+                    _ = get_dff(traces=curr_sta, t_axis=t_axis, response_span=t_window_response,
+                                baseline_span=t_window_baseline)
+                    dff_trace_mean, dff_trace_std, dff_trace_sem, dff_mean = _
+                    curr_tf = grating_n[29:33]
+                    tf_i = np.where(tf_lst == curr_tf)[0][0]
+                    curr_sf = grating_n[22:26]
+                    sf_i = np.where(sf_lst == curr_sf)[0][0]
+                    curr_dire = grating_n[38:41]
+                    dire_i = np.where(dire_lst == curr_dire)[0][0]
+                    ax = plt.Subplot(f, gs_in_dict[tf_i][sf_i * len(dire_lst) + dire_i])
+                    f_color = pt.value_2_rgb(value=(dff_mean - dff_mean_min) / (dff_mean_max - dff_mean_min),
+                                             cmap='RdBu_r')
+
+                    # f_color = pt.value_2_rgb(value=dff_mean / dff_mean_max, cmap=face_cmap)
+
+                    # print f_color
+                    ax.set_facecolor(f_color)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    for sp in ax.spines.values():
+                        sp.set_visible(False)
+                    ax.axhline(y=0, ls='--', color='#888888', lw=1)
+                    ax.axvspan(t_window_response[0], t_window_response[1], alpha=0.5, color='#888888', ec='none')
+                    ax.fill_between(t_axis, dff_trace_mean - dff_trace_sem, dff_trace_mean + dff_trace_sem,
+                                    edgecolor='none',
+                                    facecolor='#880000', alpha=0.5)
+                    ax.plot(t_axis, dff_trace_mean, '-r', lw=1)
+                    f.add_subplot(ax)
+
+                all_axes = f.get_axes()
+                for ax in all_axes:
+                    ax.set_ylim([v_min, v_max])
+                    ax.set_xlim([t_axis[0], t_axis[-1]])
+
+                f.suptitle('roi:{:04d}; trace type:{}; baseline:{}; response:{}; \ntrace range:{}; color range:{}'
+                           .format(roi_i, trace_type, t_window_baseline, t_window_response, [v_min, v_max],
+                                   [dff_mean_min, dff_mean_max]), fontsize=8)
+                # plt.show()
+                pdff.savefig(f)
+                f.clear()
+                plt.close(f)
+
+            pdff.close()
         nwb_f.close()
         print('\tDone.')
 
