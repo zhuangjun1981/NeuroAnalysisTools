@@ -1840,6 +1840,230 @@ class Preprocessor(object):
 
         print('\tDone.')
 
+    def plot_RF_contours(self, nwb_folder, response_table_name, t_window, trace_type, bias,
+                         filter_sigma, interpolation_rate, absolute_thr, thr_ratio):
+
+        print('\nPlotting receptive field contours.')
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(strf_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        X = None
+        Y = None
+
+        for plane_n in plane_ns:
+            print('\tplotting rois in {} ...'.format(plane_n))
+
+            f_all = plt.figure(figsize=(10, 10))
+            f_all.suptitle('t window: {}; z threshold: {}'.format(t_window, absolute_thr / thr_ratio))
+            ax_all = f_all.add_subplot(111)
+
+            pdff = PdfPages(os.path.join(save_folder, 'RF_contours_' + plane_n + '.pdf'))
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            for roi_ind, roi_n in enumerate(roi_lst):
+                if roi_ind % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
+                                                             add_to_trace=add_to_trace)
+                rf_on, rf_off, _ = curr_strf_dff.get_zscore_thresholded_receptive_fields(timeWindow=t_window,
+                                                                                         thr_ratio=thr_ratio,
+                                                                                         filter_sigma=filter_sigma,
+                                                                                         interpolate_rate=interpolation_rate,
+                                                                                         absolute_thr=absolute_thr)
+
+                if X is None and Y is None:
+                    X, Y = np.meshgrid(np.arange(len(rf_on.aziPos)),
+                                       np.arange(len(rf_on.altPos)))
+
+                levels_on = [np.max(rf_on.get_weighted_mask().flat) * thr_ratio]
+                levels_off = [np.max(rf_off.get_weighted_mask().flat) * thr_ratio]
+
+                if np.max(rf_on.get_weighted_mask().flat) >= absolute_thr:
+                    ax_all.contour(X, Y, rf_on.get_weighted_mask(), levels=levels_on, colors='r', linewidths=1)
+                if np.max(rf_off.get_weighted_mask().flat) >= absolute_thr:
+                    ax_all.contour(X, Y, rf_off.get_weighted_mask(), levels=levels_off, colors='b', linewidths=1)
+
+                f_single = plt.figure(figsize=(10, 10))
+                ax_single = f_single.add_subplot(111)
+                if np.max(rf_on.get_weighted_mask().flat) >= absolute_thr:
+                    ax_single.contour(X, Y, rf_on.get_weighted_mask(), levels=levels_on, colors='r', linewidths=3)
+                if np.max(rf_off.get_weighted_mask().flat) >= absolute_thr:
+                    ax_single.contour(X, Y, rf_off.get_weighted_mask(), levels=levels_off, colors='b', linewidths=3)
+                ax_single.set_xticks(range(len(rf_on.aziPos))[::20])
+                ax_single.set_xticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.aziPos[::20]])
+                ax_single.set_yticks(range(len(rf_on.altPos))[::20])
+                ax_single.set_yticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.altPos[::-1][::20]])
+                ax_single.set_aspect('equal')
+                ax_single.set_title(
+                    '{}: {}. t_window: {}; ON lev_thr:{}; OFF lev_thr:{}.'.format(plane_n, roi_n, t_window,
+                                                                                  rf_on.thr, rf_off.thr))
+                pdff.savefig(f_single)
+                f_single.clear()
+                plt.close(f_single)
+
+            pdff.close()
+
+            ax_all.set_xticks(range(len(rf_on.aziPos))[::20])
+            ax_all.set_xticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.aziPos[::20]])
+            ax_all.set_yticks(range(len(rf_on.altPos))[::20])
+            ax_all.set_yticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.altPos[::-1][::20]])
+            ax_all.set_aspect('equal')
+            ax_all.set_title('{}, abs_zscore_thr:{}'.format(plane_n, absolute_thr))
+
+            f_all.savefig(os.path.join(save_folder, 'RF_contours_' + plane_n + '_all.pdf'), dpi=300)
+
+        nwb_f.close()
+        print('\tDone.')
+
+    def plot_zscore_RF_maps(self, nwb_folder, response_table_name, t_window, trace_type, bias,
+                            zscore_range):
+
+        print('\nPlotting zscore receptive maps.')
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(strf_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        for plane_n in plane_ns:
+            print('\tplotting rois in {} ...'.format(plane_n))
+
+            pdff = PdfPages(os.path.join(save_folder, 'zscore_RFs_' + plane_n + '.pdf'))
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            for roi_ind, roi_n in enumerate(roi_lst):
+                if roi_ind % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
+                                                             add_to_trace=add_to_trace)
+                # v_min, v_max = curr_strf_dff.get_data_range()
+
+                rf_on, rf_off = curr_strf_dff.get_zscore_receptive_field(timeWindow=t_window)
+                f = plt.figure(figsize=(15, 4))
+                f.suptitle('{}: t_window: {}'.format(roi_n, t_window))
+                ax_on = f.add_subplot(121)
+                rf_on.plot_rf(plot_axis=ax_on, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
+                              vmax=zscore_range[1])
+                ax_on.set_title('ON zscore RF')
+                ax_off = f.add_subplot(122)
+                rf_off.plot_rf(plot_axis=ax_off, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
+                               vmax=zscore_range[1])
+                ax_off.set_title('OFF zscore RF')
+                plt.close()
+
+                # plt.show()
+                pdff.savefig(f)
+                f.clear()
+                plt.close(f)
+
+            pdff.close()
+
+        nwb_f.close()
+        print('\tDone.')
+
+    def plot_STRF(self, nwb_folder, response_table_name, trace_type, bias):
+
+        print('\nPlotting STRFs.')
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        # strf_grp = nwb_f['analysis/strf_001_LocallySparseNoiseRetinotopicMapping']
+        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(strf_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        for plane_n in plane_ns:
+            print('\tplotting rois in {} ...'.format(plane_n))
+            pdff = PdfPages(os.path.join(save_folder, 'STRFs_' + plane_n + '.pdf'))
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            for roi_ind, roi_n in enumerate(roi_lst):
+
+                if roi_ind % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+
+                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
+                                                             add_to_trace=add_to_trace)
+
+                v_min, v_max = curr_strf_dff.get_data_range()
+                f = curr_strf_dff.plot_traces(yRange=(v_min, v_max * 1.1), figSize=(16, 10),
+                                              columnSpacing=0.002, rowSpacing=0.002)
+                # plt.show()
+                pdff.savefig(f)
+                f.clear()
+                plt.close(f)
+
+            pdff.close()
+
+        nwb_f.close()
+
+        print('\tDone.')
+
     def plot_dgc_tuning_curves(self, nwb_folder, response_table_name, t_window_response,
                                t_window_baseline, trace_type, bias):
 
@@ -2038,172 +2262,6 @@ class Preprocessor(object):
 
         print('\tDone.')
 
-    def plot_RF_contours(self, nwb_folder, response_table_name, t_window, trace_type, bias,
-                         filter_sigma, interpolation_rate, absolute_thr, thr_ratio):
-
-        print('\nPlotting receptive field contours.')
-
-        save_folder = os.path.join(nwb_folder, 'figures')
-        if not os.path.isdir(save_folder):
-            os.makedirs(save_folder)
-
-        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
-        nwb_f = h5py.File(nwb_path, 'r')
-
-        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
-        plane_ns = list(strf_grp.keys())
-        plane_ns.sort()
-        print('\tplanes:')
-        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
-
-        X = None
-        Y = None
-
-        for plane_n in plane_ns:
-            print('\tplotting rois in {} ...'.format(plane_n))
-
-            f_all = plt.figure(figsize=(10, 10))
-            f_all.suptitle('t window: {}; z threshold: {}'.format(t_window, absolute_thr / thr_ratio))
-            ax_all = f_all.add_subplot(111)
-
-            pdff = PdfPages(os.path.join(save_folder, 'RF_contours_' + plane_n + '.pdf'))
-
-            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
-                            '/imaging_plane/roi_list'.format(plane_n)][()]
-            roi_lst = [r.decode() for r in roi_lst]
-            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
-            roi_lst.sort()
-
-            for roi_ind, roi_n in enumerate(roi_lst):
-                if roi_ind % 10 == 0:
-                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
-
-                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
-                if np.min(curr_trace) < bias:
-                    add_to_trace = -np.min(curr_trace) + bias
-                else:
-                    add_to_trace = 0.
-
-                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
-                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
-                                                             add_to_trace=add_to_trace)
-                rf_on, rf_off, _ = curr_strf_dff.get_zscore_thresholded_receptive_fields(timeWindow=t_window,
-                                                                                         thr_ratio=thr_ratio,
-                                                                                         filter_sigma=filter_sigma,
-                                                                                         interpolate_rate=interpolation_rate,
-                                                                                         absolute_thr=absolute_thr)
-
-                if X is None and Y is None:
-                    X, Y = np.meshgrid(np.arange(len(rf_on.aziPos)),
-                                       np.arange(len(rf_on.altPos)))
-
-                levels_on = [np.max(rf_on.get_weighted_mask().flat) * thr_ratio]
-                levels_off = [np.max(rf_off.get_weighted_mask().flat) * thr_ratio]
-
-                if np.max(rf_on.get_weighted_mask().flat) >= absolute_thr:
-                    ax_all.contour(X, Y, rf_on.get_weighted_mask(), levels=levels_on, colors='r', linewidths=1)
-                if np.max(rf_off.get_weighted_mask().flat) >= absolute_thr:
-                    ax_all.contour(X, Y, rf_off.get_weighted_mask(), levels=levels_off, colors='b', linewidths=1)
-
-                f_single = plt.figure(figsize=(10, 10))
-                ax_single = f_single.add_subplot(111)
-                if np.max(rf_on.get_weighted_mask().flat) >= absolute_thr:
-                    ax_single.contour(X, Y, rf_on.get_weighted_mask(), levels=levels_on, colors='r', linewidths=3)
-                if np.max(rf_off.get_weighted_mask().flat) >= absolute_thr:
-                    ax_single.contour(X, Y, rf_off.get_weighted_mask(), levels=levels_off, colors='b', linewidths=3)
-                ax_single.set_xticks(range(len(rf_on.aziPos))[::20])
-                ax_single.set_xticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.aziPos[::20]])
-                ax_single.set_yticks(range(len(rf_on.altPos))[::20])
-                ax_single.set_yticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.altPos[::-1][::20]])
-                ax_single.set_aspect('equal')
-                ax_single.set_title(
-                    '{}: {}. t_window: {}; ON lev_thr:{}; OFF lev_thr:{}.'.format(plane_n, roi_n, t_window,
-                                                                                  rf_on.thr, rf_off.thr))
-                pdff.savefig(f_single)
-                f_single.clear()
-                plt.close(f_single)
-
-            pdff.close()
-
-            ax_all.set_xticks(range(len(rf_on.aziPos))[::20])
-            ax_all.set_xticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.aziPos[::20]])
-            ax_all.set_yticks(range(len(rf_on.altPos))[::20])
-            ax_all.set_yticklabels(['{:3d}'.format(int(round(l))) for l in rf_on.altPos[::-1][::20]])
-            ax_all.set_aspect('equal')
-            ax_all.set_title('{}, abs_zscore_thr:{}'.format(plane_n, absolute_thr))
-
-            f_all.savefig(os.path.join(save_folder, 'RF_contours_' + plane_n + '_all.pdf'), dpi=300)
-
-        nwb_f.close()
-        print('\tDone.')
-
-    def plot_zscore_RF_maps(self, nwb_folder, response_table_name, t_window, trace_type, bias,
-                            zscore_range):
-
-        print('\nPlotting zscore receptive maps.')
-
-        save_folder = os.path.join(nwb_folder, 'figures')
-        if not os.path.isdir(save_folder):
-            os.makedirs(save_folder)
-
-        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
-        nwb_f = h5py.File(nwb_path, 'r')
-
-        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
-        plane_ns = list(strf_grp.keys())
-        plane_ns.sort()
-        print('\tplanes:')
-        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
-
-        for plane_n in plane_ns:
-            print('\tplotting rois in {} ...'.format(plane_n))
-
-            pdff = PdfPages(os.path.join(save_folder, 'zscore_RFs_' + plane_n + '.pdf'))
-
-            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
-                            '/imaging_plane/roi_list'.format(plane_n)][()]
-            roi_lst = [r.decode() for r in roi_lst]
-            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
-            roi_lst.sort()
-
-            for roi_ind, roi_n in enumerate(roi_lst):
-                if roi_ind % 10 == 0:
-                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
-
-                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
-                if np.min(curr_trace) < bias:
-                    add_to_trace = -np.min(curr_trace) + bias
-                else:
-                    add_to_trace = 0.
-
-                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
-                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
-                                                             add_to_trace=add_to_trace)
-                # v_min, v_max = curr_strf_dff.get_data_range()
-
-                rf_on, rf_off = curr_strf_dff.get_zscore_receptive_field(timeWindow=t_window)
-                f = plt.figure(figsize=(15, 4))
-                f.suptitle('{}: t_window: {}'.format(roi_n, t_window))
-                ax_on = f.add_subplot(121)
-                rf_on.plot_rf(plot_axis=ax_on, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
-                              vmax=zscore_range[1])
-                ax_on.set_title('ON zscore RF')
-                ax_off = f.add_subplot(122)
-                rf_off.plot_rf(plot_axis=ax_off, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
-                               vmax=zscore_range[1])
-                ax_off.set_title('OFF zscore RF')
-                plt.close()
-
-                # plt.show()
-                pdff.savefig(f)
-                f.clear()
-                plt.close(f)
-
-            pdff.close()
-
-        nwb_f.close()
-        print('\tDone.')
-
     def plot_dgc_mean_responses(self, nwb_folder, response_table_name, t_window_response,
                                 t_window_baseline, trace_type, bias):
 
@@ -2353,27 +2411,49 @@ class Preprocessor(object):
         nwb_f.close()
         print('\tDone.')
 
-    def plot_STRF(self, nwb_folder, response_table_name, trace_type, bias):
+    def plot_dgc_trial_responses(self, nwb_folder, response_table_name, t_window_response,
+                                 t_window_baseline, trace_type, bias):
 
-        print('\nPlotting STRFs.')
+        print('\nPlotting drifting grating trial responses.')
+
+        def get_dff(traces, t_axis, response_span, baseline_span):
+            """
+
+            :param traces: dimension, trial x timepoint
+            :param t_axis:
+            :return:
+            """
+
+            baseline_ind = np.logical_and(t_axis > baseline_span[0], t_axis <= baseline_span[1])
+            response_ind = np.logical_and(t_axis > response_span[0], t_axis <= response_span[1])
+            baseline = np.mean(traces[:, baseline_ind], axis=1, keepdims=True)
+            dff_traces = (traces - baseline) / baseline
+
+            trace_mean = np.mean(traces, axis=0)
+            baseline_mean = np.mean(trace_mean[baseline_ind])
+            dff_trace_mean = (trace_mean - baseline_mean) / baseline_mean
+            dff_mean = np.mean(dff_trace_mean[response_ind])
+
+            return dff_traces, dff_trace_mean, dff_mean
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
         nwb_f = h5py.File(nwb_path, 'r')
 
-        # strf_grp = nwb_f['analysis/strf_001_LocallySparseNoiseRetinotopicMapping']
-        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
-        plane_ns = list(strf_grp.keys())
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.mkdir(save_folder)
+
+        dgc_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(dgc_grp.keys())
         plane_ns.sort()
         print('\tplanes:')
         _ = [print('\t\t{}'.format(p)) for p in plane_ns]
 
-        save_folder = os.path.join(nwb_folder, 'figures')
-        if not os.path.isdir(save_folder):
-            os.makedirs(save_folder)
-
         for plane_n in plane_ns:
-            print('\tplotting rois in {} ...'.format(plane_n))
-            pdff = PdfPages(os.path.join(save_folder, 'STRFs_' + plane_n + '.pdf'))
+            print('\tprocessing {} ...'.format(plane_n))
+
+            res_grp = dgc_grp[plane_n]
+            t_axis = res_grp.attrs['sta_timestamps']
 
             roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
                             '/imaging_plane/roi_list'.format(plane_n)][()]
@@ -2381,10 +2461,22 @@ class Preprocessor(object):
             roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
             roi_lst.sort()
 
-            for roi_ind, roi_n in enumerate(roi_lst):
+            grating_ns = res_grp.keys()
+            # remove blank sweep
+            grating_ns = [gn for gn in grating_ns if gn[-37:] != '_sf0.00_tf00.0_dire000_con0.00_rad000']
 
-                if roi_ind % 10 == 0:
-                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+            dire_lst = np.array(list(set([str(gn[38:41]) for gn in grating_ns])))
+            dire_lst.sort()
+            tf_lst = np.array(list(set([str(gn[29:33]) for gn in grating_ns])))
+            tf_lst.sort()
+            sf_lst = np.array(list(set([str(gn[22:26]) for gn in grating_ns])))
+            sf_lst.sort()
+
+            pdff = PdfPages(os.path.join(save_folder, 'STA_DriftingGrating_{}_all.pdf'.format(plane_n)))
+
+            for roi_i, roi_n in enumerate(roi_lst):
+                if roi_i % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_i + 1, len(roi_lst)))
 
                 curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
                 if np.min(curr_trace) < bias:
@@ -2392,24 +2484,86 @@ class Preprocessor(object):
                 else:
                     add_to_trace = 0.
 
-                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+                f = plt.figure(figsize=(8.5, 11))
+                gs_out = gridspec.GridSpec(len(tf_lst), 1)
+                gs_in_dict = {}
+                for gs_ind, gs_o in enumerate(gs_out):
+                    curr_gs_in = gridspec.GridSpecFromSubplotSpec(len(sf_lst), len(dire_lst), subplot_spec=gs_o,
+                                                                  wspace=0.0, hspace=0.0)
+                    gs_in_dict[gs_ind] = curr_gs_in
 
-                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
-                                                             add_to_trace=add_to_trace)
+                v_max = 0
+                v_min = 0
+                dff_mean_max = 0
+                dff_mean_min = 0
 
-                v_min, v_max = curr_strf_dff.get_data_range()
-                f = curr_strf_dff.plot_traces(yRange=(v_min, v_max * 1.1), figSize=(16, 10),
-                                              columnSpacing=0.002, rowSpacing=0.002)
+                for grating_n in grating_ns:
+                    grating_grp = res_grp[grating_n]
+
+                    curr_sta = grating_grp[trace_type][roi_i] + add_to_trace
+                    dff_traces, dff_trace_mean, dff_mean = get_dff(traces=curr_sta, t_axis=t_axis,
+                                                                   response_span=t_window_response,
+                                                                   baseline_span=t_window_baseline)
+                    v_max = max([np.amax(dff_traces), v_max])
+                    v_min = min([np.amin(dff_traces), v_min])
+                    dff_mean_max = max([dff_mean, dff_mean_max])
+                    dff_mean_min = min([dff_mean, dff_mean_min])
+
+                dff_mean_max = max([abs(dff_mean_max), abs(dff_mean_min)])
+                dff_mean_min = - dff_mean_max
+
+                for grating_n in grating_ns:
+                    grating_grp = res_grp[grating_n]
+
+                    curr_sta = grating_grp[trace_type][roi_i] + add_to_trace
+                    dff_traces, dff_trace_mean, dff_mean = get_dff(traces=curr_sta, t_axis=t_axis,
+                                                                   response_span=t_window_response,
+                                                                   baseline_span=t_window_baseline)
+
+                    curr_tf = grating_n[29:33]
+                    tf_i = np.where(tf_lst == curr_tf)[0][0]
+                    curr_sf = grating_n[22:26]
+                    sf_i = np.where(sf_lst == curr_sf)[0][0]
+                    curr_dire = grating_n[38:41]
+                    dire_i = np.where(dire_lst == curr_dire)[0][0]
+                    ax = plt.Subplot(f, gs_in_dict[tf_i][sf_i * len(dire_lst) + dire_i])
+                    f_color = pt.value_2_rgb(value=(dff_mean - dff_mean_min) / (dff_mean_max - dff_mean_min),
+                                             cmap='RdBu_r')
+
+                    # f_color = pt.value_2_rgb(value=dff_mean / dff_mean_max, cmap=face_cmap)
+
+                    # print f_color
+                    ax.set_facecolor(f_color)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    for sp in ax.spines.values():
+                        sp.set_visible(False)
+                    ax.axhline(y=0, ls='--', color='#888888', lw=1)
+                    ax.axvspan(t_window_response[0], t_window_response[1], alpha=0.5, color='#888888', ec='none')
+                    for t in dff_traces:
+                        ax.plot(t_axis, t, '-', color='#888888', lw=0.5)
+                    ax.plot(t_axis, dff_trace_mean, '-r', lw=1)
+                    f.add_subplot(ax)
+
+                all_axes = f.get_axes()
+                for ax in all_axes:
+                    ax.set_ylim([v_min, v_max])
+                    ax.set_xlim([t_axis[0], t_axis[-1]])
+
+                f.suptitle('roi:{:04d}; trace type:{}; baseline:{}; response:{}; \ntrace range:{}; color range:{}'
+                           .format(roi_i, trace_type, t_window_baseline, t_window_response, [v_min, v_max],
+                                   [dff_mean_min, dff_mean_max]), fontsize=8)
                 # plt.show()
                 pdff.savefig(f)
                 f.clear()
                 plt.close(f)
 
             pdff.close()
-
-        nwb_f.close()
+            nwb_f.close()
 
         print('\tDone.')
+
+
 
 
 class PlaneProcessor(object):
