@@ -8,7 +8,6 @@ import NeuroAnalysisTools.SingleCellAnalysis as sca
 
 trace_type = 'sta_f_center_subtracted'
 save_folder = 'figures'
-is_local_dff = True
 zscore_range = [-4., 4.]
 t_window = [0., 0.5]
 bias = 1.

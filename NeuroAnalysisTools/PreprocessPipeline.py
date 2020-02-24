@@ -1854,8 +1854,8 @@ class Preprocessor(object):
         strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
         plane_ns = list(strf_grp.keys())
         plane_ns.sort()
-        print('planes:')
-        print('\n'.join(plane_ns))
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
 
         X = None
         Y = None
@@ -1934,6 +1934,73 @@ class Preprocessor(object):
             ax_all.set_title('{}, abs_zscore_thr:{}'.format(plane_n, absolute_thr))
 
             f_all.savefig(os.path.join(save_folder, 'RF_contours_' + plane_n + '_all.pdf'), dpi=300)
+
+        nwb_f.close()
+        print('\tDone.')
+
+    def plot_zscore_RF_maps(self, nwb_folder, response_table_name, t_window, trace_type, bias,
+                            zscore_range):
+
+        print('\nPlotting zscore receptive maps.')
+
+        save_folder = os.path.join(nwb_folder, 'figures')
+        if not os.path.isdir(save_folder):
+            os.makedirs(save_folder)
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        nwb_f = h5py.File(nwb_path, 'r')
+
+        strf_grp = nwb_f['analysis/{}'.format(response_table_name)]
+        plane_ns = list(strf_grp.keys())
+        plane_ns.sort()
+        print('\tplanes:')
+        _ = [print('\t\t{}'.format(p)) for p in plane_ns]
+
+        for plane_n in plane_ns:
+            print('\tplotting rois in {} ...'.format(plane_n))
+
+            pdff = PdfPages(os.path.join(save_folder, 'zscore_RFs_' + plane_n + '.pdf'))
+
+            roi_lst = nwb_f['processing/rois_and_traces_{}/ImageSegmentation' \
+                            '/imaging_plane/roi_list'.format(plane_n)][()]
+            roi_lst = [r.decode() for r in roi_lst]
+            roi_lst = [r for r in roi_lst if r[:4] == 'roi_']
+            roi_lst.sort()
+
+            for roi_ind, roi_n in enumerate(roi_lst):
+                if roi_ind % 10 == 0:
+                    print('\t\troi: {} / {}'.format(roi_ind + 1, len(roi_lst)))
+
+                curr_trace, _ = dt.get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n)
+                if np.min(curr_trace) < bias:
+                    add_to_trace = -np.min(curr_trace) + bias
+                else:
+                    add_to_trace = 0.
+
+                curr_strf = sca.get_strf_from_nwb(h5_grp=strf_grp[plane_n], roi_ind=roi_ind, trace_type=trace_type)
+                curr_strf_dff = curr_strf.get_local_dff_strf(is_collaps_before_normalize=True,
+                                                             add_to_trace=add_to_trace)
+                # v_min, v_max = curr_strf_dff.get_data_range()
+
+                rf_on, rf_off = curr_strf_dff.get_zscore_receptive_field(timeWindow=t_window)
+                f = plt.figure(figsize=(15, 4))
+                f.suptitle('{}: t_window: {}'.format(roi_n, t_window))
+                ax_on = f.add_subplot(121)
+                rf_on.plot_rf(plot_axis=ax_on, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
+                              vmax=zscore_range[1])
+                ax_on.set_title('ON zscore RF')
+                ax_off = f.add_subplot(122)
+                rf_off.plot_rf(plot_axis=ax_off, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
+                               vmax=zscore_range[1])
+                ax_off.set_title('OFF zscore RF')
+                plt.close()
+
+                # plt.show()
+                pdff.savefig(f)
+                f.clear()
+                plt.close(f)
+
+            pdff.close()
 
         nwb_f.close()
         print('\tDone.')
