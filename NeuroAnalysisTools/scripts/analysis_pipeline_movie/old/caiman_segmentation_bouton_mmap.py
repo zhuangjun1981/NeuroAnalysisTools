@@ -15,6 +15,12 @@ from caiman.source_extraction import cnmf as cnmf
 import h5py
 from shutil import copyfile
 
+"""
+the most relevant parameter is K.
+Smaller K gives less ROIs.
+Bigger K gives more ROIs
+"""
+
 def run():
 
   date_recorded = '200210'
@@ -57,7 +63,7 @@ def run():
   rf = 256
   p_ssub = 1
   p_tsub = 1
-  Ain = None
+  # Ain = None
   # method_deconvolution = 'oasis'
   border_pix = 0
   # ========================= caiman parameters for boutons ================================================
