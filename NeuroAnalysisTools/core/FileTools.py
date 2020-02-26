@@ -538,7 +538,7 @@ def importRawJCamF(path,
                    frame = None, #how many frame to read
                    crop = None):
 
-    if frame:
+    if frame is not None:
         data = np.fromfile(path,dtype=dtype,count=frame*column*row+headerLength)
         header = data[0:headerLength]
         tailer = []
