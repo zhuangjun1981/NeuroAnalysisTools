@@ -277,20 +277,20 @@ def expand_image(img):
     if len(img.shape) == 2:
         rows,cols = img.shape
         diagonal = int(np.sqrt(rows**2+cols**2))
-        top = np.zeros(((diagonal-rows)/2,cols),dtype=img.dtype)
+        top = np.zeros((int((diagonal-rows)/2),cols),dtype=img.dtype)
         down = np.zeros((diagonal-img.shape[0]-top.shape[0],cols),dtype=img.dtype)
         tall = np.vstack((top,img,down))
-        left = np.zeros((tall.shape[0],(diagonal-cols)/2),dtype=img.dtype)
+        left = np.zeros((tall.shape[0],int((diagonal-cols)/2)),dtype=img.dtype)
         right = np.zeros((tall.shape[0],diagonal-img.shape[1]-left.shape[1]),dtype=img.dtype)
         newImg = np.hstack((left,tall,right))
         return newImg
     elif len(img.shape) == 3:
         frames,rows,cols = img.shape
         diagonal = int(np.sqrt(rows**2+cols**2))
-        top = np.zeros((frames,(diagonal-rows)/2,cols),dtype=img.dtype)
+        top = np.zeros((frames,int((diagonal-rows)/2),cols),dtype=img.dtype)
         down = np.zeros((frames,diagonal-img.shape[1]-top.shape[1],cols),dtype=img.dtype)
         tall = np.concatenate((top,img,down),axis=1)
-        left = np.zeros((frames,tall.shape[1],(diagonal-cols)/2),dtype=img.dtype)
+        left = np.zeros((frames,tall.shape[1],int((diagonal-cols)/2)),dtype=img.dtype)
         right = np.zeros((frames,tall.shape[1],diagonal-img.shape[2]-left.shape[2]),dtype=img.dtype)
         newImg = np.concatenate((left,tall,right),axis=2)
         return newImg
