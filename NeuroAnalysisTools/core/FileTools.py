@@ -813,6 +813,36 @@ def read_sync(f_path, analog_downsample_rate=None, by_label=True, digital_labels
                 'analog_sample_rate': analog_fs}
 
 
+def look_for_unique_file(source, identifiers, file_type=None, print_prefix=''):
+
+    fns = look_for_file_list(source=source,
+                             identifiers=identifiers,
+                             file_type=file_type,
+                             print_prefix=print_prefix)
+
+    if len(fns) == 0:
+        print('{}Did not find file. Returning None.'.format(print_prefix))
+        return
+    elif len(fns) > 1:
+        print('{}Found more than one files. Returning None.'.format(print_prefix))
+    else:
+        return fns[0]
+
+def look_for_file_list(source, identifiers, file_type=None, print_prefix=''):
+
+    if file_type is not None:
+        ft_len = len(file_type)
+        fns = [fn for fn in os.listdir(source) if len(fn) >= ft_len and
+               fn[-ft_len:] == file_type]
+    else:
+        fns = [fn for fn in os.listdir(source)]
+
+    for identifier in identifiers:
+        fns = [fn for fn in fns if identifier in fn]
+
+    return fns
+
+
 class SyncDataset(object):
     """
     A sync dataset.  Contains methods for loading

@@ -299,7 +299,7 @@ class Preprocessor(object):
         return vasmaps_final
 
     @staticmethod
-    def get_vasmap_wf(data_folder, save_folder, scope, identifier):
+    def get_vasmap_wf(data_folder, save_folder, scope, identifier, save_suffix=''):
         """
 
         :param data_folder:
@@ -332,8 +332,8 @@ class Preprocessor(object):
             vasmap = ia.array_nor(np.mean(vasmaps, axis=0)).astype(np.float32)
             vasmap_r = vasmap[::-1, :].astype(np.float32)
 
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf.tif'), vasmap)
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated.tif'), vasmap_r)
+            tf.imsave(os.path.join(save_folder, 'vasmap_wf{}.tif'.format(save_suffix)), vasmap)
+            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated{}.tif'.format(save_suffix)), vasmap_r)
             print('\tvasmap_2p saved.')
 
             return vasmap, vasmap_r
@@ -347,8 +347,8 @@ class Preprocessor(object):
             vasmap = ia.array_nor(np.mean(vasmaps, axis=0)).astype(np.float32)
             vasmap_r = ia.array_nor(ia.rigid_transform_cv2(vasmap, rotation=140)[:, ::-1]).astype(np.float32)
 
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf.tif'), vasmap)
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated.tif'), vasmap_r)
+            tf.imsave(os.path.join(save_folder, 'vasmap_wf{}.tif'.format(save_suffix)), vasmap)
+            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated{}.tif'.format(save_suffix)), vasmap_r)
             print('\tvasmap_wf saved.')
 
             return vasmap, vasmap_r
@@ -442,6 +442,96 @@ class Preprocessor(object):
                 if fns[i - 1] != '{}_{:07d}_00001.tif'.format(identifier, i):
                     print('{}th file, name: {}, do not match!'.format(i, fns[i]))
                     break
+
+    @staticmethod
+    def split_channels(data_folder, save_folder, identifier, channels):
+
+        print('\nSplitting channels:')
+
+        fns = [fn for fn in os.listdir(data_folder) if identifier in fn and
+               fn[-4:] == '.tif']
+        fns.sort()
+        print('\tfiles:')
+        _ = [print('\t\t{}'.format(fn)) for fn in fns]
+
+        ch_num = len(channels)
+        for fn in fns:
+            curr_path = os.path.join(data_folder, fn)
+            curr_f = tf.imread(curr_path)
+
+            for ch_i, ch_n in enumerate(channels):
+                save_path = os.path.join(save_folder,
+                                         '{}_{}.tif'.format(os.path.splitext(fn)[0],
+                                                            ch_n))
+                tf.imsave(save_path, curr_f[ch_i::ch_num])
+
+        print('\tdone.')
+
+    @staticmethod
+    def motion_correction_zstack(data_folder, save_folder, identifier,
+                                 reference_channel_name, apply_channel_names):
+
+        print('\nMotion correcting zstack.')
+
+        fn_ref = ft.look_for_unique_file(source=data_folder,
+                                         identifiers=[identifier, reference_channel_name],
+                                         file_type='.tif',
+                                         print_prefix='\t')
+
+        stack_ref = tf.imread(os.path.join(data_folder, fn_ref))
+
+        step_offsets = [[0., 0.]]  # offsets between adjacent steps
+
+        print('\tcalculating step offsets ...')
+        for step_i in range(1, stack_ref.shape[0]):
+            curr_offset = mc.phase_correlation(stack_ref[step_i], stack_ref[step_i - 1])
+            step_offsets.append(curr_offset)
+        step_offsets = np.array([np.array(so) for so in step_offsets], dtype=np.float32)
+        # print('\nsetp offsets:')
+        # print(step_offsets)
+
+        # print('\ncalculating final offsets ...')
+        final_offsets_y = np.cumsum(step_offsets[:, 0])
+        final_offsets_x = np.cumsum(step_offsets[:, 1])
+        final_offsets = np.array([final_offsets_x, final_offsets_y], dtype=np.float32).transpose()
+
+        middle_frame_ind = stack_ref.shape[0] // 2
+        middle_offsets = final_offsets[middle_frame_ind: middle_frame_ind + 1]
+        final_offsets = final_offsets - middle_offsets
+        # print('\nfinal offsets:')
+        # print(final_offsets)
+
+        print('\tapplying final offsets ...')
+
+        for ch in apply_channel_names:
+
+            fn_app = ft.look_for_unique_file(source=data_folder,
+                                             identifiers=[identifier, ch],
+                                             file_type='.tif',
+                                             print_prefix='\t')
+
+            stack_app = tf.imread(os.path.join(data_folder, fn_app))
+            stack_aligned = []
+
+            for step_i in range(stack_app.shape[0]):
+                curr_offset = final_offsets[step_i]
+                frame = stack_app[step_i]
+                frame_aligned = ia.rigid_transform_cv2_2d(frame, offset=curr_offset, fill_value=0).astype(np.float32)
+                stack_aligned.append(frame_aligned)
+
+            stack_aligned = np.array(stack_aligned, dtype=np.float32)
+
+            save_path = os.path.join(save_folder,
+                                     '{}_{}_corrected.tif'.format(identifier, ch))
+
+            tf.imsave(save_path, stack_aligned)
+
+        print('\tDone.')
+
+    @staticmethod
+    def transform_image(data_folder, save_folder, identifiers,
+                        scope):
+        pass
 
     @staticmethod
     def reorganize_raw_2p_data(data_folder, save_folder, identifier, scope, plane_num,
