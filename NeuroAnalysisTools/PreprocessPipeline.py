@@ -529,9 +529,44 @@ class Preprocessor(object):
         print('\tDone.')
 
     @staticmethod
-    def transform_image(data_folder, save_folder, identifiers,
-                        scope):
-        pass
+    def transform_images(data_folder, save_folder, identifiers,
+                         scope):
+
+        print('\nAlign image files to be standard orientation.')
+        print('\tup is anterior, left is lateral')
+
+        fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
+                                    file_type='.tif', print_prefix='\t')
+        fns.sort()
+        print('\tfiles:')
+        _ = [print('\t\t{}'.format(fn)) for fn in fns]
+
+        for fn in fns:
+            curr_f = tf.imread(os.path.join(data_folder, fn))
+            if scope == 'sutter' or scope == 'Sutter':
+                if len(curr_f.shape) == 2:
+                    curr_f_r = curr_f.transpose()[::-1, :].astype(np.float32)
+                elif len(curr_f.shape) == 3:
+                    curr_f_r = curr_f.transpose(0, 2, 1)[:, ::-1, :].astype(np.float32)
+                else:
+                    raise ValueError('Do not understand image shape.')
+            elif scope == 'deepscope' or scope == 'DeepScopes':
+                if len(curr_f.shape) == 2:
+                    curr_f_r = ia.rigid_transform_cv2(curr_f, rotation=140)[:, ::-1].astype(np.float32)
+                elif len(curr_f.shape) == 3:
+                    curr_f_r = ia.rigid_transform_cv2(curr_f, rotation=140)[:, :, ::-1].astype(np.float32)
+                else:
+                    raise ValueError('Do not understand image shape.')
+            elif scope == 'scientifica' or scope == 'Scientifica':
+                curr_f_r = curr_f[::-1, :].astype(np.float32)
+                curr_f_r = ia.rigid_transform_cv2(curr_f_r, rotation=135).astype(np.float32)
+            else:
+                raise LookupError('Do not understand scope.')
+
+            save_path = os.path.join(save_folder, '{}_aligned.tif'.format(os.path.splitext(fn)[0]))
+            tf.imsave(save_path, curr_f_r)
+
+        print('\tDone.')
 
     @staticmethod
     def reorganize_raw_2p_data(data_folder, save_folder, identifier, scope, plane_num,
