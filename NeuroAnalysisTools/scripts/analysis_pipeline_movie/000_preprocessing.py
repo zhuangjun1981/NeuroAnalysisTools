@@ -125,7 +125,7 @@ def run():
     # # save aligned 2p vasculature maps as png
     # for vasmap_2p_ch in vasmap_2p_chs:
     #     psr.save_png_vasmap(tif_path=os.path.join(curr_folder, 'vasmap_2p_{}_rotated.tif'.format(vasmap_2p_ch)),
-    #                         pre_fix='{}_{}'.format(date, mid), saturation_level=10)
+    #                         prefix='{}_{}'.format(date, mid), saturation_level=10)
 
     # # get widefield vasculature maps as tif
     # _ = psr.get_vasmap_wf(data_folder=os.path.join(session_folder, 'vasmap_wf'),
@@ -135,7 +135,7 @@ def run():
 
     # # save aligned widefield vasculature maps as png
     # psr.save_png_vasmap(tif_path=os.path.join(curr_folder, 'vasmap_wf_rotated.tif'),
-    #                     pre_fix='{}_{}'.format(date, mid), saturation_level=5)
+    #                     prefix='{}_{}'.format(date, mid), saturation_level=5)
 
     # # reorganized raw 2p movies
     # psr.reorganize_raw_2p_data(data_folder=os.path.join(session_folder, 'movie'),

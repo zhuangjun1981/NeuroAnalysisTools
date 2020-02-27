@@ -357,14 +357,16 @@ class Preprocessor(object):
             raise LookupError('\tDo not understand scope type "{}", should be "sutter" or "deepscope"'.format(scope))
 
     @staticmethod
-    def save_png_vasmap(tif_path, pre_fix, saturation_level=10.):
+    def save_png_vasmap(tif_path, prefix, saturation_level=10.):
         """
 
         :param tif_path:
-        :param pre_fix:
+        :param prefix:
         :param saturation_level: float, percentile of pixel to be saturated
         :return:
         """
+
+        print('\nSave vasculature map as png file.')
 
         save_folder, tif_fn = os.path.split(tif_path)
         fn = os.path.splitext(tif_fn)[0]
@@ -375,8 +377,10 @@ class Preprocessor(object):
         ax.imshow(vasmap, vmin=np.percentile(vasmap[:], saturation_level),
                   vmax=np.percentile(vasmap[:], 100-saturation_level), cmap='gray', interpolation='nearest')
         pt.save_figure_without_borders(f, savePath=os.path.join(save_folder,
-                                                                '{}_{}.png'.format(pre_fix, fn)))
+                                                                '{}_{}.png'.format(prefix, fn)))
         plt.close(f)
+
+        print('\tDone.')
 
     @staticmethod
     def check_deepscope_file_creation_time(data_folder, identifier):
@@ -457,7 +461,7 @@ class Preprocessor(object):
         ch_num = len(channels)
         for fn in fns:
             curr_path = os.path.join(data_folder, fn)
-            curr_f = tf.imread(curr_path)
+            curr_f = tf.imread(curr_path).astype(np.int16)
 
             for ch_i, ch_n in enumerate(channels):
                 save_path = os.path.join(save_folder,
@@ -565,6 +569,48 @@ class Preprocessor(object):
 
             save_path = os.path.join(save_folder, '{}_aligned.tif'.format(os.path.splitext(fn)[0]))
             tf.imsave(save_path, curr_f_r)
+
+        print('\tDone.')
+
+    @staticmethod
+    def save_projections_as_png_files(data_folder, save_folder, identifiers, save_prefix,
+                                      projection_type, saturation_level=10.):
+
+        print('\nSave {} projections as png files.'.format(projection_type))
+
+        fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
+                                    file_type='.tif', print_prefix='\t')
+        fns.sort()
+        print('\tfiles:')
+        _ = [print('\t\t{}'.format(fn)) for fn in fns]
+
+        for fn in fns:
+            curr_f = tf.imread(os.path.join(data_folder, fn))
+            if len(curr_f.shape) != 3:
+                raise ValueError('\tinput image should be 3D.')
+
+            if projection_type == 'max':
+                pro = np.max(curr_f, axis=0)
+            elif projection_type == 'mean':
+                pro = np.mean(curr_f, axis=0)
+            elif projection_type == 'min':
+                pro = np.min(curr_f, axis=0)
+            elif projection_type == 'std':
+                pro = np.std(curr_f, axis=0)
+            else:
+                raise ValueError('\tDo not understand projection_type.')
+
+            save_path = os.path.join(save_folder, '{}_{}.png'.format(save_prefix,
+                                                                     os.path.splitext(fn)[0]))
+
+            f = plt.figure(figsize=(5, 5))
+            ax = f.add_subplot(111)
+            ax.imshow(pro, vmin=np.percentile(pro[:], saturation_level),
+                      vmax=np.percentile(pro[:], 100 - saturation_level),
+                      cmap='gray',
+                      interpolation='nearest')
+            pt.save_figure_without_borders(f, savePath=save_path)
+            plt.close(f)
 
         print('\tDone.')
 
