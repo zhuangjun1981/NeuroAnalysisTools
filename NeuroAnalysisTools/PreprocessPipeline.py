@@ -461,7 +461,7 @@ class Preprocessor(object):
         ch_num = len(channels)
         for fn in fns:
             curr_path = os.path.join(data_folder, fn)
-            curr_f = tf.imread(curr_path).astype(np.int16)
+            curr_f = tf.imread(curr_path)
 
             for ch_i, ch_n in enumerate(channels):
                 save_path = os.path.join(save_folder,
