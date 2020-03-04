@@ -5043,21 +5043,47 @@ class BulkPaperFunctions(object):
         return df_s1on, df_s1off, df_s2
 
     def get_dataframe_dgc(self, df, response_dir='pos', response_type='dff', dgc_peak_z_thr=3.,
-                          dgc_p_anova_thr=0.01):
+                          dgc_p_anova_thr=0.01, is_use_reliability=False, dgc_reliability_thr=0.25):
         """
         return two subsets of the input df
             1. rows that have significant dgc response
             2. rows that do not have significant dgc response
 
         rows that do not have dgc measurement will be excluded
+
+        if "is_use_reliability" is True:
+            the reliability criteria similar to brain observatory will be used. "dgc_peak_z_thr" and
+            "dgc_p_anova_thr" will be ignored.
+            if "response_dir" == 'pos': the rois that have their dgc condition with max mean response
+               having certain number of trials exceed mean + 3 std of blank trial response will be
+               defined as responsive to dgc
+            if "response_dir" == 'neg': the rois that have their dgc condition with min mean response
+               having certain number of trials exceed mean - 3 std of blank trial response will be
+               defined as responsive to dgc
+            the trial number threshold is defined by "dgc_reliability_thr", mean the ration to the total
+            number of trials.
+
+        if "is_use_reliability" is False:
+            the response mean base parametric criterion will be used. ""dgc_reliability_thr" will be
+            ignored.
+            rois with their peak threshold larger than "dgc_peak_z_thr" (when "response_dir" == 'pos')
+            or smaller than -"dgc_peak_z_thr" (when "response_dir" == 'neg') plus anova p-value less
+            than "dgc_p_anova_thr" will be defined as responsive to dgc
         """
 
         df_has_dgc = self.get_dataframe_has_dgc(df=df)
 
-        df_dgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] >= dgc_peak_z_thr) &
-                            (df_has_dgc['dgc_p_anova_{}'.format(response_type)] <= dgc_p_anova_thr)]
+        if is_use_reliability:
+            df_dgc = df_has_dgc[df_has_dgc['dgc_{}_relia_{}'.format(response_dir,
+                                                                    response_type)] >= dgc_reliability_thr]
 
-        df_ndgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] < dgc_peak_z_thr) |
+            df_ndgc = df_has_dgc[df_has_dgc['dgc_{}_relia_{}'.format(response_dir,
+                                                                     response_type)] < dgc_reliability_thr]
+        else:
+            df_dgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] >= dgc_peak_z_thr) &
+                                (df_has_dgc['dgc_p_anova_{}'.format(response_type)] <= dgc_p_anova_thr)]
+
+            df_ndgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] < dgc_peak_z_thr) |
                             (df_has_dgc['dgc_p_anova_{}'.format(response_type)] > dgc_p_anova_thr)]
 
         assert(len(df_has_dgc) == len(df_dgc) + len(df_ndgc))
@@ -5065,7 +5091,8 @@ class BulkPaperFunctions(object):
         return df_dgc, df_ndgc
 
     def get_dataframe_ds(self, df, response_dir='pos', response_type='dff', dgc_peak_z_thr=3.,
-                         dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi', dsi_thr=0.5):
+                         dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi', dsi_thr=0.5,
+                         is_use_reliability=False, dgc_reliability_thr=0.25):
         """
         return two subsets of the input df
             1. rows that have significant dgc response and that are also direction selective
@@ -5075,7 +5102,9 @@ class BulkPaperFunctions(object):
         """
 
         df_dgc, _ = self.get_dataframe_dgc(df=df, response_dir=response_dir, response_type=response_type,
-                                           dgc_peak_z_thr=dgc_peak_z_thr, dgc_p_anova_thr=dgc_p_anova_thr)
+                                           dgc_peak_z_thr=dgc_peak_z_thr, dgc_p_anova_thr=dgc_p_anova_thr,
+                                           is_use_reliability=is_use_reliability,
+                                           dgc_reliability_thr=dgc_reliability_thr)
 
         df_dgcds = df_dgc[df_dgc['dgc_{}_{}_{}_{}'.format(response_dir,
                                                           dsi_type,
@@ -5093,7 +5122,7 @@ class BulkPaperFunctions(object):
 
     def get_dataframe_all_groups(self, df, response_dir='pos', rf_z_thr_abs=1.6, response_type='dff',
                                  dgc_peak_z_thr=3., dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi',
-                                 dsi_thr=0.5):
+                                 dsi_thr=0.5, is_use_reliability=False, dgc_reliability_thr=0.25):
         """
         return 6 subsets of the input df
             1. rfndgc
@@ -5112,7 +5141,9 @@ class BulkPaperFunctions(object):
         df_rf, df_nrf = self.get_dataframe_rf(df=df_has_rfdgc, response_dir=response_dir, rf_z_thr_abs=rf_z_thr_abs)
 
         df_rfdgc, df_rfndgc = self.get_dataframe_dgc(df=df_rf, response_dir=response_dir, response_type=response_type,
-                                                     dgc_peak_z_thr=dgc_peak_z_thr, dgc_p_anova_thr=dgc_p_anova_thr)
+                                                     dgc_peak_z_thr=dgc_peak_z_thr, dgc_p_anova_thr=dgc_p_anova_thr,
+                                                     is_use_reliability=is_use_reliability,
+                                                     dgc_reliability_thr=dgc_reliability_thr)
 
         df_rfdgcds, df_rfdgcnds = self.get_dataframe_ds(df=df_rfdgc, response_dir=response_dir,
                                                         response_type=response_type, dgc_peak_z_thr=dgc_peak_z_thr,
@@ -5137,7 +5168,7 @@ class BulkPaperFunctions(object):
 
     def get_dataframe_final_groups(self, df, response_dir='pos', rf_z_thr_abs=1.6, response_type='dff',
                                    dgc_peak_z_thr=3., dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi',
-                                   dsi_thr=0.5):
+                                   dsi_thr=0.5, is_use_reliability=False, dgc_reliability_thr=0.25):
         """
         return 4 subsets of the input df (these will be final groups used in the paper)
             1. nrfdgcds --> DSnRF group
@@ -5153,7 +5184,8 @@ class BulkPaperFunctions(object):
         _ = self.get_dataframe_all_groups(df=df, response_dir=response_dir, rf_z_thr_abs=rf_z_thr_abs,
                                           response_type=response_type, dgc_peak_z_thr=dgc_peak_z_thr,
                                           dgc_p_anova_thr=dgc_p_anova_thr, post_process_type=post_process_type,
-                                          dsi_type=dsi_type, dsi_thr=dsi_thr)
+                                          dsi_type=dsi_type, dsi_thr=dsi_thr, is_use_reliability=is_use_reliability,
+                                          dgc_reliability_thr=dgc_reliability_thr)
 
         df_rfdgcds, df_rfdgcnds, df_rfndgc, df_nrfdgcds, df_nrfdgcnds, df_nrfndgc = _
 
