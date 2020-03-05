@@ -217,6 +217,14 @@ class Preprocessor(object):
         else:
             print('\tCannot find correction_zstack folder. Skip.')
 
+        # copy local zstack
+        if os.path.isdir(os.path.join(source_folder, 'local_zstack')):
+            print('\tCopying local zstack files.')
+            shutil.copytree(os.path.join(source_folder, 'local_zstack'),
+                            os.path.join(save_folder, 'local_zstack'))
+        else:
+            print('\tCannot find local_zstack folder. Skip.')
+
         # copy slm_patterns
         if os.path.isdir(os.path.join(source_folder, 'slm_patterns')):
             print('\tCopying slm pattern files.')
