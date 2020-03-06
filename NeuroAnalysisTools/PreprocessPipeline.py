@@ -1740,11 +1740,10 @@ class Preprocessor(object):
 
             return save_path
 
-    def add_eyetracking_to_nwb_deeplabcut(self, nwb_folder, eyetracking_folder, confidence_thr,
-                                          point_num_thr, ellipse_fit_function,
-                                          is_generate_labeled_movie, side,
-                                          nasal_dir, diagonal_length,
-                                          eyetracking_ts_name):
+    def add_eyetracking_to_nwb_deeplabcut(self, nwb_folder, eyetracking_folder, mov_fn_identifier,
+                                          confidence_thr, point_num_thr, ellipse_fit_function,
+                                          is_generate_labeled_movie, side, nasal_dir,
+                                          diagonal_length, eyetracking_ts_name):
         """
 
         :param nwb_folder: str, folder of nwb file
@@ -1778,7 +1777,7 @@ class Preprocessor(object):
             ell_f = h5py.File(fit_result_path, 'r')
             ell_data = ell_f['ellipse'][()]
 
-            movie_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-4:] == '.avi'
+            movie_fns = [fn for fn in os.listdir(eyetracking_folder) if fn[-4:] == '.avi' and mov_fn_identifier in fn
                          and 'labeled' not in fn]
             if len(movie_fns) == 0:
                 raise LookupError('\t\tNo raw movie found. Abort.')
