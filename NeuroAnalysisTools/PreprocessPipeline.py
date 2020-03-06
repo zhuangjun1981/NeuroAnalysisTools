@@ -1829,12 +1829,14 @@ class Preprocessor(object):
             nwb_f.add_eyetracking_general(ts_path=eyetracking_ts_name, data=ell_data,
                                           module_name='eye_tracking', side=side, comments='',
                                           description=description, source='')
+            nwb_f.close()
 
             if is_generate_labeled_movie:
                 ell_col = ell_f['ellipse'].attrs['columns']
                 ell_df = pd.DataFrame(data=ell_f['ellipse'][()], columns=ell_col)
 
-                et_ts = nwb_f.file_pointer['acquisition/timeseries'][eyetracking_ts_name]['timestamps'][()]
+                nwb_f = h5py.File(nwb_path, 'r')
+                et_ts = nwb_f['acquisition/timeseries'][eyetracking_ts_name]['timestamps'][()]
                 fps = 1. / np.mean(np.diff(et_ts))
 
                 print('\tGenerating ellipse overlay movie.')
@@ -1844,7 +1846,7 @@ class Preprocessor(object):
                                             fourcc='XVID',
                                             is_verbose=True,
                                             fps=fps)
-            nwb_f.close()
+            print('\tDone.')
 
     def add_rois_and_traces_to_nwb_caiman(self, nwb_folder, plane_ns, plane_depths):
 
