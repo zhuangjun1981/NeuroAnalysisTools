@@ -245,7 +245,8 @@ def align_single_chunk_iterate_anchor(chunk, anchor_frame_ind=0, iteration=2, ma
     if iteration < 1:
         raise ValueError('iteration should be an integer larger than 0.')
 
-    print('performing framewise preprocessing')
+    if verbose:
+        print('performing framewise preprocessing')
     chunk = preprocessing(chunk, processing_type=preprocessing_type)
 
     if verbose:
@@ -407,7 +408,8 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
                                                      max_offset_projection=(10., 10.),
                                                      align_func=phase_correlation,
                                                      preprocessing_type=0,
-                                                     fill_value=0.):
+                                                     fill_value=0.,
+                                                     verbose=True):
     """
 
     Motion correct a list of movie files (currently only support .tif format, designed for ScanImage output files.
@@ -444,9 +446,9 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
         shutil.rmtree(correction_temp_folder, ignore_errors=False)
         time.sleep(1.)
     os.mkdir(correction_temp_folder)
-    print ('\ncorrection output will be saved in {}.'.format(os.path.abspath(output_folder)))
-
-    print ('\naligning single chunks:')
+    if verbose:
+        print ('\ncorrection output will be saved in {}.'.format(os.path.abspath(output_folder)))
+        print ('\naligning single chunks:')
     if process_num == 1:
         for f in f_paths:
             curr_params = (f, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, align_func, fill_value,
@@ -459,7 +461,8 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
         chunk_p = Pool(process_num)
         chunk_p.map(align_single_chunk_iterate_anchor_for_multi_thread, params_lst)
 
-    print('\naligning among files ...')
+    if verbose:
+        print('\naligning among files ...')
     chunk_offset_fns = [f for f in os.listdir(correction_temp_folder) if f[0: 13] == 'temp_offsets_']
     chunk_offset_fns.sort()
     # print('\n'.join(chunk_offset_fns))
@@ -493,7 +496,8 @@ def align_multiple_files_iterate_anchor_multi_thread(f_paths,
         offsets_dset.attrs['path'] = os.path.abspath(file_path)
     offsets_f.create_dataset('path_list', data=str(file_paths))
     offsets_f.close()
-    print ('\nchunks aligned offsets and projection images saved.')
+    if verbose:
+        print ('\nchunks aligned offsets and projection images saved.')
 
 
 def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, max_offset=(10, 10),
@@ -513,9 +517,10 @@ def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, ma
     :return: None
     """
 
-    print ('\ncorrection output will be saved in {}.'.format(os.path.abspath(output_folder)))
+    if verbose:
+        print ('\ncorrection output will be saved in {}.'.format(os.path.abspath(output_folder)))
+        print ('\naligning file: {} ...'.format(os.path.abspath(f_path)))
 
-    print ('\naligning file: {} ...'.format(os.path.abspath(f_path)))
     mov = tf.imread(f_path)
     _ = align_single_chunk_iterate_anchor(mov, anchor_frame_ind=anchor_frame_ind, iteration=iteration,
                                           max_offset=max_offset, align_func=align_func, fill_value=fill_value,
@@ -528,7 +533,9 @@ def align_single_file(f_path, output_folder, anchor_frame_ind=0, iteration=6, ma
     offsets_dset.attrs['format'] = ['height', 'width']
     offsets_dset.attrs['path'] = os.path.abspath(f_path)
     offsets_f.close()
-    print ('\nmotion correction results saved.')
+
+    if verbose:
+        print ('\nmotion correction results saved.')
 
 
 def motion_correction(input_folder,
@@ -543,7 +550,8 @@ def motion_correction(input_folder,
                       max_offset_projection=(10., 10.),
                       align_func=phase_correlation,
                       preprocessing_type=0,
-                      fill_value=0.):
+                      fill_value=0.,
+                      verbose=True):
     """
     Motion correct a list of movie files (currently only support .tif format, designed for ScanImage output files.
     each files will be first aligned to its own mean projection iteratively. In the first iteration, it uses a single
@@ -578,13 +586,15 @@ def motion_correction(input_folder,
     :return output_folder: str, absolute path to the results folder
     """
 
-    print ('\nfinding files to correct ...')
+    if verbose:
+        print ('\nfinding files to correct ...')
+
     f_paths = [f for f in os.listdir(input_folder) if f[-4:] == '.tif' and input_path_identifier in f]
     if len(f_paths) < 1:
         raise LookupError("Did not find any file to correct.")
     else:
-
-        print ('\nChecking output folder structure ...')
+        if verbose:
+            print ('\nChecking output folder structure ...')
 
         if output_folder is None:
             output_folder = os.path.join(input_folder, 'corrected')
@@ -606,8 +616,9 @@ def motion_correction(input_folder,
         else:
             f_paths.sort()
             f_paths = [os.path.abspath(os.path.join(input_folder, f)) for f in f_paths]
-            print ('files to be corrected:')
-            print ('\n'.join(f_paths))
+            if verbose:
+                print ('files to be corrected:')
+                print ('\n'.join(f_paths))
 
             align_multiple_files_iterate_anchor_multi_thread(f_paths=f_paths,
                                                              output_folder=output_folder,
@@ -620,7 +631,8 @@ def motion_correction(input_folder,
                                                              max_offset_projection=max_offset_projection,
                                                              align_func=align_func,
                                                              fill_value=fill_value,
-                                                             preprocessing_type=preprocessing_type)
+                                                             preprocessing_type=preprocessing_type,
+                                                             verbose=verbose)
 
     return [os.path.abspath(f) for f in f_paths], os.path.abspath(output_folder)
 

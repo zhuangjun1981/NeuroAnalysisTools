@@ -164,8 +164,7 @@ def motion_correction_single_stack_step(param):
 
     """for multiprocessing"""
 
-    folder_ref, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, preprocessing_type, fill_value,\
-        is_apply, avi_downsample_rate, is_equalizing_histogram= param
+    folder_ref, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, preprocessing_type, fill_value = param
 
     step_n = os.path.split(folder_ref)[1]
     print('\tStart correcting step {} ...'.format(step_n))
@@ -182,24 +181,8 @@ def motion_correction_single_stack_step(param):
                                         max_offset_projection=(30., 30.),
                                         align_func=mc.phase_correlation,
                                         preprocessing_type=preprocessing_type,
-                                        fill_value=fill_value)
-
-    if is_apply:
-
-        offsets_path = os.path.join(folder_ref, 'correction_offsets.hdf5')
-        offsets_f = h5py.File(offsets_path)
-        ref_path = offsets_f['file_0000'].attrs['path']
-        offsets_f.close()
-
-        movie_path = mov_paths[0]
-
-        mc.apply_correction_offsets(offsets_path=offsets_path,
-                                    path_pairs=[[ref_path, movie_path]],
-                                    output_folder=folder_ref,
-                                    process_num=1,
-                                    fill_value=fill_value,
-                                    avi_downsample_rate=avi_downsample_rate,
-                                    is_equalizing_histogram=is_equalizing_histogram)
+                                        fill_value=fill_value,
+                                        verbose=False)
 
 
 def apply_offsets_single_stack_step(param):
@@ -597,22 +580,19 @@ class Preprocessor(object):
         preprocessing_type = 0
         fill_value = 0.
 
-        is_apply = True
-        avi_downsample_rate = None
-        is_equalizing_histogram = False
-
         ref_data_folder = os.path.join(data_folder, reference_channel_name)
 
         steps = [f for f in os.listdir(ref_data_folder) if os.path.isdir(os.path.join(ref_data_folder, f))
                  and f[0:5] == 'step_']
         steps.sort()
-        _ = [print('\t{}'.format(step)) for step in steps]
+        print('\tNumber of steps: {}'.format(len(steps)))
+        # _ = [print('\t{}'.format(step)) for step in steps]
 
         params = []
         for step in steps:
             folder_ref = os.path.join(data_folder, reference_channel_name, step)
             params.append((folder_ref, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, preprocessing_type,
-                           fill_value, is_apply, avi_downsample_rate, is_equalizing_histogram))
+                           fill_value))
 
         chunk_p = Pool(process_num)
         chunk_p.map(motion_correction_single_stack_step, params)
@@ -622,22 +602,71 @@ class Preprocessor(object):
     def apply_offsets_unaveraged_zstack(data_folder, reference_channel_name, apply_channel_names,
                                         process_num):
 
-
+        print('\napplying correction offsets step by step ...')
         step_ns = [f for f in os.listdir(os.path.join(data_folder, reference_channel_name))
                    if os.path.isdir(os.path.join(data_folder, reference_channel_name, f))]
         step_ns.sort()
+        print('\tNumber of steps: {}'.format(len(step_ns)))
 
         chunk_p = Pool(process_num)
 
         for ch_n in apply_channel_names:
+            print('\tCurrent channel: {}'.format(ch_n))
             mc_params = []
             for step_n in step_ns:
+                print('\t\tapplying offsets for step: {}'.format(step_n))
                 movie_path = os.path.join(data_folder, ch_n, step_n, step_n + '.tif')
                 offsets_path = os.path.join(data_folder, reference_channel_name,
                                             step_n, 'correction_offsets.hdf5')
                 mc_params.append((movie_path, offsets_path))
 
             chunk_p.map(apply_offsets_single_stack_step, mc_params)
+        print('\tDone.')
+
+    @staticmethod
+    def remove_corrected_files_unaveraged_zstack(data_folder, channels, is_remove_img):
+
+        print('\nRemove corrected files for unaveraged zstack.')
+        for ch in channels:
+            print('\tcurrent channel: {} ...'.format(ch))
+            ch_folder = os.path.join(data_folder, ch)
+
+            step_fns = [f for f in os.listdir(ch_folder) if f.split('_')[-2] == 'step']
+            step_fns.sort()
+            print('\tnumber of steps: {}'.format(len(step_fns)))
+            # print('\n'.join(step_fns))
+
+            for step_fn in step_fns:
+
+                # print('\n' + step_fn)
+                step_folder = os.path.join(ch_folder, step_fn)
+                fns = os.listdir(step_folder)
+
+                if is_remove_img:
+                    if 'corrected_max_projection.tif' in fns:
+                        print('removing corrected_max_projection.tif')
+                        os.remove(os.path.join(step_folder, 'corrected_max_projection.tif'))
+
+                    if 'corrected_max_projections.tif' in fns:
+                        print('removing corrected_max_projections.tif')
+                        os.remove(os.path.join(step_folder, 'corrected_max_projections.tif'))
+
+                    if 'corrected_mean_projection.tif' in fns:
+                        print('removing corrected_mean_projection.tif')
+                        os.remove(os.path.join(step_folder, 'corrected_mean_projection.tif'))
+
+                    if 'corrected_mean_projections.tif' in fns:
+                        print('removing corrected_mean_projections.tif')
+                        os.remove(os.path.join(step_folder, 'corrected_mean_projections.tif'))
+
+                if 'correction_offsets.hdf5' in fns:
+                    # print('removing correction_offsets.hdf5')
+                    os.remove(os.path.join(step_folder, 'correction_offsets.hdf5'))
+
+                fn_cor = [f for f in fns if f[-14:] == '_corrected.tif']
+                if len(fn_cor) == 1:
+                    # print('removing ' + fn_cor[0])
+                    os.remove(os.path.join(step_folder, fn_cor[0]))
 
     @staticmethod
     def motion_correction_zstack_all_steps(data_folder, save_folder, identifier,
