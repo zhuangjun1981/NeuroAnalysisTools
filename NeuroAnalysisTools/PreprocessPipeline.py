@@ -846,7 +846,8 @@ class Preprocessor(object):
             raise LookupError('Do not understand scope: "{}". Should be "sutter" or "deepscope".'.format(scope))
 
     @staticmethod
-    def motion_correction(data_folder, reference_channel_name, apply_channel_names):
+    def motion_correction(data_folder, reference_channel_name, apply_channel_names,
+                          process_num):
         """
 
         :param data_folder: str, path to the reorganized folder
@@ -854,7 +855,9 @@ class Preprocessor(object):
         :param apply_channel_names: list of str, channel names for applying correction offsets
         """
 
-        def correct(data_folder, ref_ch_n, apply_ch_ns):
+        print('\nMotion correction ...')
+
+        def correct(data_folder, ref_ch_n, apply_ch_ns, process_num):
             # ref_ch_n = 'green'
             # apply_ch_ns = ['green', 'red']
 
@@ -865,7 +868,7 @@ class Preprocessor(object):
 
             mc.motion_correction(input_folder=ref_data_folder,
                                  input_path_identifier='.tif',
-                                 process_num=6,
+                                 process_num=process_num,
                                  output_folder=os.path.join(ref_data_folder, 'corrected'),
                                  anchor_frame_ind_chunk=10,
                                  anchor_frame_ind_projection=0,
@@ -895,7 +898,7 @@ class Preprocessor(object):
                 mc.apply_correction_offsets(offsets_path=offsets_path,
                                             path_pairs=zip(ref_paths, apply_paths),
                                             output_folder=os.path.join(apply_data_folder, 'corrected'),
-                                            process_num=6,
+                                            process_num=process_num,
                                             fill_value=0.,
                                             avi_downsample_rate=10,
                                             is_equalizing_histogram=False)
@@ -909,7 +912,9 @@ class Preprocessor(object):
         for plane_folder in plane_folders:
             correct(os.path.join(data_folder, plane_folder),
                     ref_ch_n=reference_channel_name,
-                    apply_ch_ns=apply_channel_names)
+                    apply_ch_ns=apply_channel_names, process_num=process_num)
+
+        print('\tDone.')
 
     @staticmethod
     def reapply_motion_correction_multiplane(data_folder, reference_plane_name, reference_channel_name,
