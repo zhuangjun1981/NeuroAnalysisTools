@@ -160,6 +160,48 @@ def downsample_mov(nwb_path, dset_path, dr, chunk_size, process_num):
     return np.concatenate(mov_d, axis=0)
 
 
+def correct_single_stack_step(param):
+
+    """for multiprocessing"""
+
+    folder_ref, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, preprocessing_type, fill_value,\
+        is_apply, avi_downsample_rate, is_equalizing_histogram= param
+
+    step_n = os.path.split(folder_ref)[1]
+    print('\tStart correcting step {} ...'.format(step_n))
+
+    mov_paths, _ = mc.motion_correction(input_folder=folder_ref,
+                                        input_path_identifier='.tif',
+                                        process_num=1,
+                                        output_folder=folder_ref,
+                                        anchor_frame_ind_chunk=anchor_frame_ind_chunk,
+                                        anchor_frame_ind_projection=0,
+                                        iteration_chunk=iteration_chunk,
+                                        iteration_projection=10,
+                                        max_offset_chunk=max_offset_chunk,
+                                        max_offset_projection=(30., 30.),
+                                        align_func=mc.phase_correlation,
+                                        preprocessing_type=preprocessing_type,
+                                        fill_value=fill_value)
+
+    if is_apply:
+
+        offsets_path = os.path.join(folder_ref, 'correction_offsets.hdf5')
+        offsets_f = h5py.File(offsets_path)
+        ref_path = offsets_f['file_0000'].attrs['path']
+        offsets_f.close()
+
+        movie_path = mov_paths[0]
+
+        mc.apply_correction_offsets(offsets_path=offsets_path,
+                                    path_pairs=[[ref_path, movie_path]],
+                                    output_folder=folder_ref,
+                                    process_num=1,
+                                    fill_value=fill_value,
+                                    avi_downsample_rate=avi_downsample_rate,
+                                    is_equalizing_histogram=is_equalizing_histogram)
+
+
 class Preprocessor(object):
     """
     pipeline to preprocess two-photon full session data
@@ -480,8 +522,88 @@ class Preprocessor(object):
         print('\tdone.')
 
     @staticmethod
-    def motion_correction_zstack(data_folder, save_folder, identifier,
-                                 reference_channel_name, apply_channel_names):
+    def reorganize_unaveraged_zstack_files(data_folder, identifier,
+                                           channels, frames_per_step):
+        """this is for zstacks without online averaging"""
+
+        print('\nReorganizing single frame zstacks: ')
+        fns = ft.look_for_file_list(source=data_folder, identifiers=[identifier])
+        _ = [print('\t{}'.format(fn)) for fn in fns]
+
+        save_folders = []
+        for ch_n in channels:
+            curr_save_folder = os.path.join(data_folder, identifier, ch_n)
+            if not os.path.isdir(curr_save_folder):
+                os.makedirs(curr_save_folder)
+            save_folders.append(curr_save_folder)
+
+        curr_step = 0
+
+        for file_n in fns:
+            curr_mov = tf.imread(os.path.join(data_folder, file_n))
+
+            curr_frame_num = curr_mov.shape[0] / len(channels)
+
+            if curr_frame_num % frames_per_step != 0:
+                raise ValueError('{}: total frame number is not divisible by frames per step.'.format(file_n))
+
+            curr_mov_chs = []
+            for ch_i in range(len(channels)):
+                curr_mov_chs.append(curr_mov[ch_i::len(channels)])
+
+            steps = int(curr_frame_num // frames_per_step)
+            for step_ind in range(steps):
+
+                print('\tcurrent step: {}'.format(curr_step))
+
+                for ch_i in range(len(channels)):
+                    curr_step_mov_ch = curr_mov_chs[ch_i][step_ind * frames_per_step:(step_ind + 1) * frames_per_step,
+                                       :, :]
+                    curr_step_n = 'step_' + ft.int2str(curr_step, 4)
+                    curr_step_folder = os.path.join(save_folders[ch_i], curr_step_n)
+                    os.mkdir(curr_step_folder)
+                    tf.imsave(os.path.join(curr_step_folder, curr_step_n + '.tif'), curr_step_mov_ch)
+
+                curr_step += 1
+
+        print('\tDone.')
+
+    @staticmethod
+    def motion_correction_unaveraged_zstack_files(data_folder, reference_channel_name,
+                                                  process_num):
+
+
+
+        anchor_frame_ind_chunk = 10
+        iteration_chunk = 10
+        max_offset_chunk = (50., 50.)
+        preprocessing_type = 0
+        fill_value = 0.
+
+        is_apply = True
+        avi_downsample_rate = None
+        is_equalizing_histogram = False
+
+        ref_data_folder = os.path.join(data_folder, reference_channel_name)
+
+        steps = [f for f in os.listdir(ref_data_folder) if os.path.isdir(os.path.join(ref_data_folder, f))
+                 and f[0:5] == 'step_']
+        steps.sort()
+        _ = [print('\t{}'.format(step)) for step in steps]
+
+        params = []
+        for step in steps:
+            folder_ref = os.path.join(data_folder, reference_channel_name, step)
+            params.append((folder_ref, anchor_frame_ind_chunk, iteration_chunk, max_offset_chunk, preprocessing_type,
+                           fill_value, is_apply, avi_downsample_rate, is_equalizing_histogram))
+
+        chunk_p = Pool(process_num)
+        chunk_p.map(correct_single_stack_step, params)
+        print('\tDone.')
+
+    @staticmethod
+    def motion_correction_zstack_all_steps(data_folder, save_folder, identifier,
+                                           reference_channel_name, apply_channel_names):
 
         print('\nMotion correcting zstack.')
 

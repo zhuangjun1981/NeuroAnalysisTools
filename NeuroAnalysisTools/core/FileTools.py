@@ -828,7 +828,7 @@ def look_for_unique_file(source, identifiers, file_type=None, print_prefix=''):
     else:
         return fns[0]
 
-def look_for_file_list(source, identifiers, file_type=None, print_prefix=''):
+def look_for_file_list(source, identifiers, file_type=None):
 
     if file_type is not None:
         ft_len = len(file_type)
@@ -839,6 +839,8 @@ def look_for_file_list(source, identifiers, file_type=None, print_prefix=''):
 
     for identifier in identifiers:
         fns = [fn for fn in fns if identifier in fn]
+
+    fns.sort()
 
     return fns
 
