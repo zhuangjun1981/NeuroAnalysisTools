@@ -1211,6 +1211,8 @@ class Preprocessor(object):
                                             fill_value=0.,
                                             avi_downsample_rate=10,
                                             is_equalizing_histogram=False)
+                shutil.copyfile(offsets_path,
+                                os.path.join(working_folder, 'corrected', os.path.split(offsets_path)[1]))
 
     @staticmethod
     def downsample_corrected_files(data_folder, identifier, temporal_downsample_rate,
@@ -1369,7 +1371,7 @@ class Preprocessor(object):
         :return:
         """
 
-        print('generating downsampled small movies ...')
+        print('\ngenerating downsampled small movies ...')
 
         plane_ns = [f for f in os.listdir(data_folder) if
                     os.path.isdir(os.path.join(data_folder, f)) and f[:5] == 'plane']
@@ -1391,7 +1393,8 @@ class Preprocessor(object):
                 # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
                 f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
                 f_ns.sort()
-                print('\t\t' + '\n\t\t'.join(f_ns) + '\n')
+                print('\t\tnumber of files: {}'.format(len(f_ns)))
+                # print('\t\t' + '\n\t\t'.join(f_ns) + '\n')
 
                 mov_d = []
 
@@ -1419,15 +1422,16 @@ class Preprocessor(object):
         plane_fns.sort()
         print('\n'.join(plane_fns))
 
-        data_f = h5py.File(os.path.join(save_folder, file_prefix + '_2p_movies.hdf5'))
+        data_f = h5py.File(os.path.join(save_folder, file_prefix + '_2p_movies.hdf5'), 'x')
 
         for plane_fn in plane_fns:
-            print('\nprocessing {} ...'.format(plane_fn))
+            print('\tprocessing {} ...'.format(plane_fn))
             plane_folder = os.path.join(data_folder, plane_fn, channel, 'corrected')
             # mov_fns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
             mov_fns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
             mov_fns.sort()
-            print('\n'.join(mov_fns))
+            # print('\n'.join(mov_fns))
+            print('\tnumber of files: {}'.format(len(mov_fns)))
 
             # get shape of concatenated movie
             z1, y, x = tf.imread(os.path.join(plane_folder, mov_fns[0])).shape
@@ -1460,7 +1464,7 @@ class Preprocessor(object):
             start_frame = 0
             end_frame = 0
             for mov_fn in mov_fns:
-                print('reading {} ...'.format(mov_fn))
+                print('\t\treading {} ...'.format(mov_fn))
                 curr_mov = tf.imread(os.path.join(plane_folder, mov_fn))
                 end_frame = start_frame + curr_mov.shape[0]
                 dset[start_frame: end_frame] = curr_mov
@@ -1478,7 +1482,7 @@ class Preprocessor(object):
     def get_hdf5_files_for_caiman(data_folder, save_name_prefix, identifier, temporal_downsample_rate=3,
                                   channel_name='green'):
 
-        print('Getting .hdf5 files for segmentation by caiman')
+        print('\nGetting .hdf5 files for segmentation by caiman')
 
         plane_ns = [p for p in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, p))]
         plane_ns.sort()
@@ -1486,7 +1490,7 @@ class Preprocessor(object):
         print('\n'.join(plane_ns))
 
         for plane_n in plane_ns:
-            print('\nprocessing {} ...'.format(plane_n))
+            print('\tprocessing {} ...'.format(plane_n))
 
             plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
             os.chdir(plane_folder)
@@ -1494,17 +1498,18 @@ class Preprocessor(object):
             # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
             f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
             f_ns.sort()
-            print('\n'.join(f_ns))
+            print('\tnumber of files: {}'.format(len(f_ns)))
+            # print('\n'.join(f_ns))
 
             mov_join = []
             for f_n in f_ns:
-                print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
+                print('\t\tprocessing plane: {}; file: {} ...'.format(plane_n, f_n))
 
                 curr_mov = tf.imread(os.path.join(plane_folder, f_n))
 
-                if curr_mov.shape[0] % temporal_downsample_rate != 0:
-                    print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
-                          .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
+                # if curr_mov.shape[0] % temporal_downsample_rate != 0:
+                #     print('the frame number of {} ({}) is not divisible by t_downsample_rate ({}).'
+                #           .format(f_n, curr_mov.shape[0], temporal_downsample_rate))
 
                 curr_mov_d = ia.z_downsample(curr_mov, downSampleRate=temporal_downsample_rate, is_verbose=False)
                 mov_join.append(curr_mov_d)
@@ -1530,7 +1535,7 @@ class Preprocessor(object):
         print('\n'.join(plane_ns))
 
         for plane_n in plane_ns:
-            print('\nprocessing {} ...'.format(plane_n))
+            print('\tprocessing {} ...'.format(plane_n))
 
             plane_folder = os.path.join(data_folder, plane_n, channel_name, 'corrected')
             os.chdir(plane_folder)
@@ -1538,11 +1543,12 @@ class Preprocessor(object):
             # f_ns = [f for f in os.listdir(plane_folder) if f[-14:] == '_corrected.tif']
             f_ns = [f for f in os.listdir(plane_folder) if f[-4:] == '.tif' and identifier in f]
             f_ns.sort()
-            print('\n'.join(f_ns))
+            print('\tnumber of files: {}'.format(len(f_ns)))
+            # print('\n'.join(f_ns))
 
             mov_join = []
             for f_n in f_ns:
-                print('processing plane: {}; file: {} ...'.format(plane_n, f_n))
+                print('\t\tprocessing plane: {}; file: {} ...'.format(plane_n, f_n))
 
                 curr_mov = tf.imread(os.path.join(plane_folder, f_n))
 
