@@ -625,6 +625,28 @@ class Preprocessor(object):
         print('\tDone.')
 
     @staticmethod
+    def get_mean_projection_unaveraged_zstack(data_folder, save_folder, channels):
+        print('\nGetting corrected mean projections from server.')
+
+        for chn in channels:
+            # print('processing channel: {} ...'.format(chn))
+            ch_folder = os.path.join(data_folder, chn)
+            steps = [f for f in os.listdir(ch_folder) if
+                     os.path.isdir(os.path.join(ch_folder, f)) and f[0:5] == 'step_']
+            steps.sort()
+            # print('\ntotal number of steps: {}'.format(len(steps)))
+
+            zstack = []
+            for step in steps:
+                # print("\t{}".format(step))
+                zstack.append(tf.imread(os.path.join(ch_folder, step, 'corrected_mean_projection.tif')))
+
+            zstack = np.array(zstack)
+            save_n = os.path.join(save_folder, os.path.split(data_folder)[1] + '_' + chn + '.tif')
+            tf.imsave(save_n, zstack)
+        print('\tDone.')
+
+    @staticmethod
     def remove_corrected_files_unaveraged_zstack(data_folder, channels, is_remove_img):
 
         print('\nRemove corrected files for unaveraged zstack.')
@@ -670,25 +692,36 @@ class Preprocessor(object):
                     os.remove(os.path.join(step_folder, fn_cor[0]))
 
     @staticmethod
-    def get_mean_projection_unaveraged_zstack(data_folder, save_folder, channels):
-        print('\nGetting corrected mean projections from server.')
+    def remove_uncorrected_files_unaveraged_zstack(data_folder, channels):
 
-        for chn in channels:
-            # print('processing channel: {} ...'.format(chn))
-            ch_folder = os.path.join(data_folder, chn)
-            steps = [f for f in os.listdir(ch_folder) if
-                     os.path.isdir(os.path.join(ch_folder, f)) and f[0:5] == 'step_']
-            steps.sort()
-            # print('\ntotal number of steps: {}'.format(len(steps)))
+        print('\nRemoving uncorrected files of unaveraged zstack.')
+        for ch_n in channels:
+            print('\tcurrent channel: {}'.format(ch_n))
 
-            zstack = []
-            for step in steps:
-                # print("\t{}".format(step))
-                zstack.append(tf.imread(os.path.join(ch_folder, step, 'corrected_mean_projection.tif')))
+            step_fns = [f for f in os.listdir(os.path.join(data_folder, ch_n)) if f.split('_')[-2] == 'step']
+            step_fns.sort()
+            print('\t\tnumber of steps: {}'.format(len(step_fns)))
 
-            zstack = np.array(zstack)
-            save_n = os.path.join(save_folder, os.path.split(data_folder)[1] + '_' + chn + '.tif')
-            tf.imsave(save_n, zstack)
+            for step_fn in step_fns:
+
+                step_folder = os.path.join(data_folder, ch_n, step_fn)
+
+                fns = os.listdir(step_folder)
+
+                if step_fn + '.tif' in fns:
+                    os.remove(os.path.join(step_folder, step_fn + '.tif'))
+                else:
+                    print('\t\tCannot find uncorrected file. step: {}. Skip.'.format(step_fn))
+
+    @staticmethod
+    def remove_all_tif_files(data_folder):
+        print('\nremove all .tif files in folder: {}'.format(os.path.realpath(data_folder)))
+        fns = [fn for fn in os.listdir(data_folder) if os.path.isfile(os.path.join(data_folder, fn))
+               and len(fn) >= 4 and fn[-4:]=='.tif']
+        fns.sort()
+        print('\ttotal number of files to be removed: {}'.format(len(fns)))
+        for fn in fns:
+            os.remove(os.path.join(data_folder, fn))
         print('\tDone.')
 
     @staticmethod
