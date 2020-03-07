@@ -669,6 +669,28 @@ class Preprocessor(object):
                     os.remove(os.path.join(step_folder, fn_cor[0]))
 
     @staticmethod
+    def get_mean_projection_unaveraged_zstack(data_folder, save_folder, channels):
+        print('\nGetting corrected mean projections from server.')
+
+        for chn in channels:
+            # print('processing channel: {} ...'.format(chn))
+            ch_folder = os.path.join(data_folder, chn)
+            steps = [f for f in os.listdir(ch_folder) if
+                     os.path.isdir(os.path.join(ch_folder, f)) and f[0:5] == 'step_']
+            steps.sort()
+            # print('\ntotal number of steps: {}'.format(len(steps)))
+
+            zstack = []
+            for step in steps:
+                # print("\t{}".format(step))
+                zstack.append(tf.imread(os.path.join(ch_folder, step, 'corrected_mean_projection.tif')))
+
+            zstack = np.array(zstack)
+            save_n = os.path.join(save_folder, os.path.split(data_folder)[1] + '_' + chn + '.tif')
+            tf.imsave(save_n, zstack)
+        print('\tDone.')
+
+    @staticmethod
     def motion_correction_zstack_all_steps(data_folder, save_folder, identifier,
                                            reference_channel_name, apply_channel_names):
 
@@ -1036,7 +1058,7 @@ class Preprocessor(object):
 
     @staticmethod
     def motion_correction(data_folder, reference_channel_name, apply_channel_names,
-                          process_num):
+                          process_num, reference_plane_name=None):
         """
 
         :param data_folder: str, path to the reorganized folder
@@ -1097,6 +1119,13 @@ class Preprocessor(object):
         plane_folders.sort()
         print('folders to be corrected:')
         print('\n'.join(plane_folders))
+
+        if reference_plane_name is not None:
+            if reference_plane_name in plane_folders:
+                plane_folders = [reference_plane_name]
+            else:
+                print('\tCannot find defined reference_plane_name ({}). '
+                      'Correct each plane separately.'.format(reference_plane_name))
 
         for plane_folder in plane_folders:
             correct(os.path.join(data_folder, plane_folder),
