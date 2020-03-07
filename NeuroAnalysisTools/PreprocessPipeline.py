@@ -699,8 +699,7 @@ class Preprocessor(object):
 
         fn_ref = ft.look_for_unique_file(source=data_folder,
                                          identifiers=[identifier, reference_channel_name],
-                                         file_type='.tif',
-                                         print_prefix='\t')
+                                         file_type='.tif')
 
         stack_ref = tf.imread(os.path.join(data_folder, fn_ref))
 

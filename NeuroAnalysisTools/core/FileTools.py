@@ -817,8 +817,7 @@ def look_for_unique_file(source, identifiers, file_type=None, print_prefix=''):
 
     fns = look_for_file_list(source=source,
                              identifiers=identifiers,
-                             file_type=file_type,
-                             print_prefix=print_prefix)
+                             file_type=file_type)
 
     if len(fns) == 0:
         print('{}Did not find file. Returning None.'.format(print_prefix))
