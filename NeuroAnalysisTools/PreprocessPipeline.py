@@ -759,7 +759,7 @@ class Preprocessor(object):
         print('\tup is anterior, left is lateral')
 
         fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
-                                    file_type='.tif', print_prefix='\t')
+                                    file_type='.tif')
         fns.sort()
         print('\tfiles:')
         _ = [print('\t\t{}'.format(fn)) for fn in fns]
@@ -798,7 +798,7 @@ class Preprocessor(object):
         print('\nSave {} projections as png files.'.format(projection_type))
 
         fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
-                                    file_type='.tif', print_prefix='\t')
+                                    file_type='.tif')
         fns.sort()
         print('\tfiles:')
         _ = [print('\t\t{}'.format(fn)) for fn in fns]
