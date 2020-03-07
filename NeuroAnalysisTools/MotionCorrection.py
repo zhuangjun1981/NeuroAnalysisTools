@@ -367,7 +367,7 @@ def correct_movie(mov, offsets, fill_value=0., verbose=True):
 
 def correct_movie_for_multi_thread(params):
 
-    mov_path, offsets, fill_value, output_folder, down_sample_rate = params
+    mov_path, offsets, fill_value, output_folder, down_sample_rate, verbose = params
     mov_real_path = os.path.abspath(mov_path)
     mov_folder, mov_fn = os.path.split(mov_real_path)
     mov_name, mov_ext = os.path.splitext(mov_fn)
@@ -380,7 +380,8 @@ def correct_movie_for_multi_thread(params):
     save_path = os.path.join(output_folder, save_fn)
 
     t0 = time.time()
-    print('\napplying correction offsets to movie: {}.'.format(mov_name))
+    if verbose:
+        print('\napplying correction offsets to movie: {}.'.format(mov_name))
     mov = tf.imread(mov_real_path)
     mov_corr = correct_movie(mov=mov, offsets=offsets, fill_value=fill_value, verbose=False)
     tf.imsave(save_path, mov_corr)
@@ -390,10 +391,12 @@ def correct_movie_for_multi_thread(params):
 
     if down_sample_rate is not None:
         mov_down = ia.z_downsample(mov_corr, down_sample_rate, is_verbose=False)
-        print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
+        if verbose:
+            print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
         return mean_projection_c, max_projection_c, mov_down
     else:
-        print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
+        if verbose:
+            print('\n\t{:09.2f} second; finished applying correction to movie: {}.'.format(time.time() - t0, mov_name))
         return mean_projection_c, max_projection_c, None
 
 
@@ -643,7 +646,8 @@ def apply_correction_offsets(offsets_path,
                              process_num=1,
                              fill_value=0.,
                              avi_downsample_rate=20,
-                             is_equalizing_histogram=False):
+                             is_equalizing_histogram=False,
+                             verbose=True):
     """
     apply correction offsets to a set of uncorrected files
 
@@ -662,7 +666,8 @@ def apply_correction_offsets(offsets_path,
     :return: None
     """
 
-    print('\napplying correction ...')
+    if verbose:
+        print('\napplying correction ...')
 
     offsets_f = h5py.File(offsets_path, 'r')
 
@@ -697,7 +702,7 @@ def apply_correction_offsets(offsets_path,
         if offset is None:
             raise LookupError('can not find source file ({}) in the offsets file for target file: ({}).'
                               .format(source_path, target_path))
-        params_list.append((target_path, offset, fill_value, output_folder, avi_downsample_rate))
+        params_list.append((target_path, offset, fill_value, output_folder, avi_downsample_rate, verbose))
     offsets_f.close()
 
 
@@ -728,7 +733,8 @@ def apply_correction_offsets(offsets_path,
     tf.imsave(os.path.join(output_folder, 'corrected_max_projection.tif'), max_projection)
 
     if avi_downsample_rate is not None:
-        print ('\ngenerating .avi downsampled movie after correction ...')
+        if verbose:
+            print ('\ngenerating .avi downsampled movie after correction ...')
 
         # import skvideo.io
         # mov_name = 'corrected_movie.avi'
@@ -772,7 +778,8 @@ def apply_correction_offsets(offsets_path,
 
         out.release()
         cv2.destroyAllWindows()
-        print ('.avi moive generated.')
+        if verbose:
+            print ('.avi moive generated.')
 
 
 if __name__ == "__main__":

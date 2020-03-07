@@ -189,7 +189,7 @@ def apply_offsets_single_stack_step(param):
 
     movie_path, offsets_path = param
 
-    offsets_f = h5py.File(offsets_path)
+    offsets_f = h5py.File(offsets_path, 'r')
     ref_path = offsets_f['file_0000'].attrs['path']
     offsets_f.close()
 
@@ -199,7 +199,8 @@ def apply_offsets_single_stack_step(param):
                                 process_num=1,
                                 fill_value=0.,
                                 avi_downsample_rate=None,
-                                is_equalizing_histogram=False)
+                                is_equalizing_histogram=False,
+                                verbose=False)
 
 
 class Preprocessor(object):
@@ -628,7 +629,7 @@ class Preprocessor(object):
 
         print('\nRemove corrected files for unaveraged zstack.')
         for ch in channels:
-            print('\tcurrent channel: {} ...'.format(ch))
+            # print('\tcurrent channel: {} ...'.format(ch))
             ch_folder = os.path.join(data_folder, ch)
 
             step_fns = [f for f in os.listdir(ch_folder) if f.split('_')[-2] == 'step']
@@ -644,19 +645,19 @@ class Preprocessor(object):
 
                 if is_remove_img:
                     if 'corrected_max_projection.tif' in fns:
-                        print('removing corrected_max_projection.tif')
+                        # print('removing corrected_max_projection.tif')
                         os.remove(os.path.join(step_folder, 'corrected_max_projection.tif'))
 
                     if 'corrected_max_projections.tif' in fns:
-                        print('removing corrected_max_projections.tif')
+                        # print('removing corrected_max_projections.tif')
                         os.remove(os.path.join(step_folder, 'corrected_max_projections.tif'))
 
                     if 'corrected_mean_projection.tif' in fns:
-                        print('removing corrected_mean_projection.tif')
+                        # print('removing corrected_mean_projection.tif')
                         os.remove(os.path.join(step_folder, 'corrected_mean_projection.tif'))
 
                     if 'corrected_mean_projections.tif' in fns:
-                        print('removing corrected_mean_projections.tif')
+                        # print('removing corrected_mean_projections.tif')
                         os.remove(os.path.join(step_folder, 'corrected_mean_projections.tif'))
 
                 if 'correction_offsets.hdf5' in fns:
