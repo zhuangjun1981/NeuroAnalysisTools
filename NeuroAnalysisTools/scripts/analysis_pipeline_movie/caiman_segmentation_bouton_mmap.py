@@ -17,13 +17,13 @@ from shutil import copyfile
 
 def run():
 
-  date_recorded = '200210'
+  date_recorded = '200306'
   mouse_id = 'M504408'
   resolution = (512, 512)
   channel = 'green'
-  data_folder_n = '110_LSVDGCUC_reorged'
-  imaging_mode = '2p' # '2p' or 'deepscope'
-  n_process = 4
+  data_folder_n = '110_LSNDGCUC_reorged'
+  imaging_mode = 'deepscope' # '2p' or 'deepscope'
+  n_process = 6
 
   # ========================= caiman parameters for boutons ================================================
   # ============ sutter scope, zoom 4, 5 frames online average, 5 frames offline average ===================
@@ -61,11 +61,7 @@ def run():
   # method_deconvolution = 'oasis'
   border_pix = 0
   # ========================= caiman parameters for boutons ================================================
-
-
   curr_folder = os.path.dirname(os.path.realpath(__file__))
-
-  c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_process, single_thread=False)
 
   data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-{}-{}" \
                 r"\{}".format(date_recorded, mouse_id, imaging_mode, data_folder_n)
@@ -77,6 +73,8 @@ def run():
   plane_ns.sort()
   print('planes:')
   print('\n'.join(plane_ns))
+
+  c, dview, _ = cm.cluster.setup_cluster(backend='local', n_processes=n_process, single_thread=False)
 
   for plane_n in plane_ns:
 
@@ -141,7 +139,7 @@ def run():
 
       roi_num = cnm1.estimates.A.shape[1]
       print('saving ...')
-      save_f = h5py.File('caiman_segmentation_results.hdf5', 'w')
+      save_f = h5py.File('caiman_segmentation_results.hdf5', 'a')
       save_f.create_dataset('masks',
                             data=np.array(cnm1.estimates.A.todense()).T.reshape((roi_num, resolution[0], resolution[1]),
                                                                                 order='F'), compression='lzf')
@@ -152,7 +150,7 @@ def run():
                os.path.join(curr_folder, plane_n, 'caiman_segmentation_results.hdf5'))
 
       # %% STOP CLUSTER and clean up log files
-      cm.stop_server(dview=dview)
+      # cm.stop_server(dview=dview)
       log_files = glob.glob('*_LOG_*')
       for log_file in log_files:
           os.remove(log_file)
