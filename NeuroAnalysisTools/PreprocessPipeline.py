@@ -1169,7 +1169,7 @@ class Preprocessor(object):
 
     @staticmethod
     def reapply_motion_correction_multiplane(data_folder, reference_plane_name, reference_channel_name,
-                                             apply_plane_names, apply_channel_names):
+                                             apply_plane_names, apply_channel_names, process_num):
         """
         In case the motion correction failed on some planes but succeeded on one plane,
         or the universal correction to the whole column. This function allows you to apply
@@ -1207,7 +1207,7 @@ class Preprocessor(object):
                 mc.apply_correction_offsets(offsets_path=offsets_path,
                                             path_pairs=zip(ref_paths, apply_paths),
                                             output_folder=os.path.join(working_folder, 'corrected'),
-                                            process_num=6,
+                                            process_num=process_num,
                                             fill_value=0.,
                                             avi_downsample_rate=10,
                                             is_equalizing_histogram=False)
@@ -1239,12 +1239,11 @@ class Preprocessor(object):
 
             file_list = [f for f in os.listdir(working_folder) if file_identifier in f and f[-14:] == '_corrected.tif']
             file_list.sort()
-            print('\t\tall files:')
-            print('\n'.join(['\t\t' + f for f in file_list]))
+            print('\t\t\tnumber of files: {}:'.format(len(file_list)))
+            # print('\n'.join(['\t\t' + f for f in file_list]))
 
-            print('\n\t\tmoving files to "not_downsampled" folder:')
+            print('\t\t\tmoving files to "not_downsampled" folder:')
             file_paths = [os.path.join(working_folder, f) for f in file_list]
-            print
 
             not_downsampled_folder = os.path.join(working_folder, 'not_downsampled')
             os.mkdir(not_downsampled_folder)
@@ -1258,7 +1257,7 @@ class Preprocessor(object):
             save_id = 0
             total_mov = None
             for file_path_o in file_paths_original:
-                print('\t\tprocessing {} ...'.format(os.path.split(file_path_o)[1]))
+                print('\t\t\tprocessing {} ...'.format(os.path.split(file_path_o)[1]))
                 curr_mov = tf.imread(file_path_o)
 
                 if total_mov is None:
@@ -1279,7 +1278,7 @@ class Preprocessor(object):
                                                                                               save_id))
                         save_chunk = ia.z_downsample(save_chunk, downSampleRate=td_rate, is_verbose=False)
 
-                        print('\t\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
+                        # print('\t\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
                         tf.imsave(save_path, save_chunk)
                         save_id = save_id + 1
 
@@ -1293,7 +1292,7 @@ class Preprocessor(object):
                 save_path = os.path.join(working_folder,
                                          '{}_{:05d}_corrected_downsampled.tif'.format(file_identifier, save_id))
                 save_chunk = ia.z_downsample(total_mov, downSampleRate=td_rate, is_verbose=False)
-                print('\t\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
+                # print('\t\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
                 tf.imsave(save_path, save_chunk)
 
             return
@@ -1311,7 +1310,7 @@ class Preprocessor(object):
             print('\t\tall channels: {}'.format(ch_ns))
 
             for ch_n in ch_ns:
-                print('\n\t\tcurrent channel: {}'.format(ch_n))
+                print('\t\tcurrent channel: {}'.format(ch_n))
                 ch_folder = os.path.join(plane_folder, ch_n)
 
                 downsample_folder(working_folder=os.path.join(ch_folder, 'corrected'),
