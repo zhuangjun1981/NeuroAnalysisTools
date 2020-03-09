@@ -3000,8 +3000,7 @@ class Preprocessor(object):
                 plt.close(f)
 
             pdff.close()
-            nwb_f.close()
-
+        nwb_f.close()
         print('\tDone.')
 
     def plot_overlapping_rois_for_deepscope(self, nwb_folder, overlap_ratio=0.5,
