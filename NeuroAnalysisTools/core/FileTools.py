@@ -813,11 +813,12 @@ def read_sync(f_path, analog_downsample_rate=None, by_label=True, digital_labels
                 'analog_sample_rate': analog_fs}
 
 
-def look_for_unique_file(source, identifiers, file_type=None, print_prefix=''):
+def look_for_unique_file(source, identifiers, file_type=None, print_prefix='', is_full_path=False):
 
     fns = look_for_file_list(source=source,
                              identifiers=identifiers,
-                             file_type=file_type)
+                             file_type=file_type,
+                             is_full_path=is_full_path)
 
     if len(fns) == 0:
         print('{}Did not find file. Returning None.'.format(print_prefix))
@@ -827,7 +828,7 @@ def look_for_unique_file(source, identifiers, file_type=None, print_prefix=''):
     else:
         return fns[0]
 
-def look_for_file_list(source, identifiers, file_type=None):
+def look_for_file_list(source, identifiers, file_type=None, is_full_path=False):
 
     if file_type is not None:
         ft_len = len(file_type)
@@ -840,6 +841,9 @@ def look_for_file_list(source, identifiers, file_type=None):
         fns = [fn for fn in fns if identifier in fn]
 
     fns.sort()
+
+    if is_full_path:
+        fns = [os.path.join(source, f) for f in fns]
 
     return fns
 

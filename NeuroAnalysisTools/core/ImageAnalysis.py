@@ -424,7 +424,7 @@ def rigid_transform_cv2_2d(img, zoom=None, rotation=None, offset=None, outputSha
         newImg = zoom_image(img, zoom=zoom)
 
     if rotation:
-        newImg = expand_image_cv2(newImg)
+        # newImg = expand_image_cv2(newImg)
         newImg = rotate_image(newImg, rotation, borderValue=fill_value)
 
     if (outputShape is None) and (offset is None):
@@ -1749,10 +1749,10 @@ class ROI(object):
 
         for key in h5Group.keys():
             if key not in ['pixels', 'weights']:
-                if h5Group[key].value == 'None':
+                if h5Group[key][()] == 'None':
                     setattr(roi, key, None)
                 else:
-                    setattr(roi, key, h5Group[key].value)
+                    setattr(roi, key, h5Group[key][()])
 
         return roi
 
