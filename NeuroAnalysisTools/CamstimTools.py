@@ -363,7 +363,7 @@ def get_stim_dict_list(pkl_path, lsn_npy_path=None):
 
 
 if __name__ == '__main__':
-
+    # ================================================================================================================
     # pkl_path = '/media/junz/m2ssd/2017-09-25-preprocessing-test/m255_presynapticpop_vol1_bessel_DriftingGratingsTemp.pkl'
 
     # pkl_path = '/media/junz/m2ssd/2017-10-24-camstim-analysis/642817351_338502_20171010_stim.pkl'
@@ -373,9 +373,16 @@ if __name__ == '__main__':
     # pkl_path = '/media/junz/m2ssd/2017-10-24-camstim-analysis/643543433_338502_20171016_stim.pkl'
     # pkl_path = '/media/junz/m2ssd/2017-10-24-camstim-analysis/643646020_338502_20171017_stim.pkl'
     # pkl_path = '/media/junz/m2ssd/2017-10-24-camstim-analysis/643792098_338502_20171018_stim.pkl'
+    #
+    # pkl_path = '/media/junz/data3/data_soumya/2018-10-23-Soumya-LSN-analysis/1' \
+    #            '/m255_presynapticpop_vol1_2nd_pass_LocallySparseNoiseTemp.pkl'
+    # lsn_npy_path = '/media/junz/data3/data_soumya/2018-10-23-Soumya-LSN-analysis/sparse_noise_8x14_short.npy'
+    # stim_dicts = get_stim_dict_list(pkl_path=pkl_path, lsn_npy_path=lsn_npy_path)
+    # ================================================================================================================
 
-    pkl_path = '/media/junz/data3/data_soumya/2018-10-23-Soumya-LSN-analysis/1' \
-               '/m255_presynapticpop_vol1_2nd_pass_LocallySparseNoiseTemp.pkl'
-    lsn_npy_path = '/media/junz/data3/data_soumya/2018-10-23-Soumya-LSN-analysis/sparse_noise_8x14_short.npy'
+    # ================================================================================================================
+    pkl_path = r"Z:\v1dd\example_stim.pkl"
+    lsn_npy_path = r"Z:\v1dd\v1dd_jun\meta\sparse_noise_no_boundary_16x28_scaled.npy"
     stim_dicts = get_stim_dict_list(pkl_path=pkl_path, lsn_npy_path=lsn_npy_path)
+    # ================================================================================================================
     print('for debug')

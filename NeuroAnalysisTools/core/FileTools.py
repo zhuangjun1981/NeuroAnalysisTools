@@ -70,9 +70,9 @@ def saveFile(path,data):
     f.close()
 
 
-def loadFile(path):
+def loadFile(path, encoding='bytes'):
     f = open(path,'rb')
-    data = pickle.load(f, encoding='bytes')
+    data = pickle.load(f, encoding=encoding)
     f.close()
     return data
 
