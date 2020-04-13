@@ -1594,6 +1594,7 @@ class Preprocessor(object):
                 notes = ff.read()
         else:
             print('Cannot find notebook.txt in {}. Skip.'.format(os.path.realpath(notebook_path)))
+            notes = ''
 
         general = nt.DEFAULT_GENERAL
         general['experimenter'] = experimenter
