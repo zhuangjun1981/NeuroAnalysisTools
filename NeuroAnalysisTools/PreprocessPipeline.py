@@ -93,8 +93,8 @@ def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
     if t_num % chunk_size != 0:
         chunks.append([chunk_num * chunk_size, t_num])
 
-    v_max = np.amax(traces)
-    v_min = np.amin(traces)
+    v_max = np.nanmax(traces)
+    v_min = np.nanmin(traces)
 
     fig = plt.figure(figsize=(75, 20))
     fig.suptitle('neuropil subtraction for ROI: {}'.format(roi_ind))

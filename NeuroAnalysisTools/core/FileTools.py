@@ -845,10 +845,10 @@ def look_for_file_list(source, identifiers, file_type=None, is_full_path=False):
     for identifier in identifiers:
         fns = [fn for fn in fns if identifier in fn]
 
-    fns.sort()
-
     if is_full_path:
         fns = [os.path.abspath(os.path.join(source, f)) for f in fns]
+
+    fns.sort()
 
     return fns
 

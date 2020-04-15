@@ -889,6 +889,7 @@ def plot_dire_distribution(dires, weights=None, is_arc=False, bins=12,  plot_ax=
 
     return plot_ax, counts[:-1], bin_lst[:-1]
 
+
 def plot_orie_distribution(ories, weights=None, is_arc=False, bins=12,  plot_ax=None, plot_type='bar',
                            plot_color='#888888', **kwargs):
     """
@@ -951,6 +952,7 @@ def plot_orie_distribution(ories, weights=None, is_arc=False, bins=12,  plot_ax=
     plot_ax.set_xticklabels([])
 
     return plot_ax, counts[:-1], bin_lst[:-1]
+
 
 if __name__ == '__main__':
     plt.ioff()
