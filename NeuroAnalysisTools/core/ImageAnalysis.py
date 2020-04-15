@@ -79,6 +79,9 @@ def array_nor(A):
 
     B = A.astype(np.float)
 
+    if np.isnan(A).all():
+        return A
+
     if np.isnan(A).any():
         maxv = np.nanmax(B.flat)
         minv = np.nanmin(B.flat)

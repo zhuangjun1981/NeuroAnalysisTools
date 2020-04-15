@@ -96,12 +96,13 @@ def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
     v_max = np.nanmax(traces)
     v_min = np.nanmin(traces)
 
-    fig = plt.figure(figsize=(75, 20))
-    fig.suptitle('neuropil subtraction for ROI: {}'.format(roi_ind))
+    fig = plt.figure(figsize=(50, 20))
+    fig.suptitle('traces for ROI: {}'.format(roi_ind), fontsize=25)
     for chunk_ind, chunk in enumerate(chunks):
         curr_ax = fig.add_subplot(len(chunks), 1, chunk_ind + 1)
         for trace_ind in range(traces.shape[0]):
-           curr_ax.plot(traces[trace_ind, chunk[0]: chunk[1]], label=labels[trace_ind])
+           curr_ax.plot(traces[trace_ind, chunk[0]: chunk[1]], label=labels[trace_ind],
+                        lw=0.1, alpha=0.5)
 
         curr_ax.set_xlim([0, chunk_size])
         curr_ax.set_ylim([v_min, v_max * 1.2])
@@ -1584,7 +1585,7 @@ class Preprocessor(object):
     def generate_nwb_file(save_folder, date, mouse_id, session_id='unknown', experimenter='unknown', genotype='unknown',
                           sex='unknown', age='unknown', indicator='unknown', imaging_rate='unknown',
                           imaging_depth='unknown', imaging_location='unknown', imaging_device='unknown',
-                          imaging_excitation_lambda='unknown'):
+                          imaging_excitation_lambda='unknown', is_date_back=False):
 
         print('\nGenerating .nwb file.')
 
@@ -1611,7 +1612,10 @@ class Preprocessor(object):
         general['optophysiology']['imaging_plane_0'].update({'excitation_lambda': imaging_excitation_lambda})
         general['notes'] = notes
 
-        file_name = '{}_M{}_{}.nwb'.format(date, mouse_id, session_id)
+        if is_date_back:
+            file_name = 'M{}_{}_{}.nwb'.format(mouse_id, session_id, date)
+        else:
+            file_name = '{}_M{}_{}.nwb'.format(date, mouse_id, session_id)
 
         rf = nt.RecordedFile(os.path.join(save_folder, file_name), identifier=file_name[:-4], description='')
         rf.add_general(general=general)
