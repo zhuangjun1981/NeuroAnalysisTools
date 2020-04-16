@@ -167,12 +167,18 @@ def fit_ellipse(df_pts,
             frame_cols = cols[frame_i][good_pt_msk]
             frame_rows = rows[frame_i][good_pt_msk]
             frame_contour = np.array([frame_cols, frame_rows]).T
-            frame_ell = ia.Ellipse.from_cv2_box(fit_func(frame_contour))
-            ellipses.append([frame_ell.center[0],
-                             frame_ell.center[1],
-                             frame_ell.axes[0],
-                             frame_ell.axes[1],
-                             frame_ell.angle])
+
+            if (np.max(frame_contour[:, 0]) - np.min(frame_contour[:, 0]) > 1) and \
+                    (np.max(frame_contour[:, 1]) - np.min(frame_contour[:, 1]) > 1):
+
+                frame_ell = ia.Ellipse.from_cv2_box(fit_func(frame_contour))
+                ellipses.append([frame_ell.center[0],
+                                 frame_ell.center[1],
+                                 frame_ell.axes[0],
+                                 frame_ell.axes[1],
+                                 frame_ell.angle])
+            else:
+                ellipses.append([np.nan] * 5)
         else:
             ellipses.append([np.nan] * 5)
 
