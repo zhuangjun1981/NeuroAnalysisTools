@@ -4759,9 +4759,9 @@ class BoutonClassifier(object):
 
                 axon_plot_ind = axon_lst.index(axon_n)
                 if trace_type == 'f_center_raw':
-                    trace_center = axon_traces_raw[axon_plot_ind, :]
+                    trace_center = axon_traces_raw[axon_plot_ind, :][:len(win_mask)][win_mask]
                 elif trace_type == 'f_center_subtracted':
-                    trace_center = axon_traces_sub[axon_plot_ind, :]
+                    trace_center = axon_traces_sub[axon_plot_ind, :][:len(win_mask)][win_mask]
                 else:
                     raise LookupError("do not under stand 'trace_type' ({}). Should be "
                                       "'f_center_raw' or 'f_center_subtracted'.".format(trace_type))
