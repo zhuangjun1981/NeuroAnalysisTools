@@ -3480,7 +3480,7 @@ class BoutonClassifier(object):
 
         :param skew_filter_sigma: float, in second, sigma for gaussian filter for skewness
         :param skew_thr: float, threshold of skewness of filtered trace to pickup responsive traces
-        :param lowpass_sigma: float, in second, sigma for gaussian filter to highpass single trace
+        :param lowpass_sigma: float, in second, sigma for gaussian filter to lowpass single trace
         :param detrend_sigma: float, in second, sigma for gaussian filter to remove slow trend
         :param event_std_thr: float, how many standard deviation above mean to detect events
         :param peri_event_dur: list of two floats, in seconds, pre- and post- duration to be included into detected
