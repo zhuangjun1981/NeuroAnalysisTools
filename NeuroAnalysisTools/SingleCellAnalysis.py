@@ -891,7 +891,7 @@ class SpatialTemporalReceptiveField(object):
             for j, axis in enumerate(axisList):
                 indexList = indexLists[i][j]
                 axis.set_axis_off()
-                axis.set_xticks([]);
+                axis.set_xticks([])
                 axis.set_yticks([])
                 for pos in ['top', 'bottom', 'left', 'right']:
                     axis.spines[pos].set_linewidth(0.5)

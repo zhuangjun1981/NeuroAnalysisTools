@@ -2440,7 +2440,6 @@ class Preprocessor(object):
                 rf_off.plot_rf(plot_axis=ax_off, is_colorbar=True, cmap='RdBu_r', vmin=zscore_range[0],
                                vmax=zscore_range[1])
                 ax_off.set_title('OFF zscore RF')
-                plt.close()
 
                 # plt.show()
                 pdff.savefig(f)
