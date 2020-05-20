@@ -2147,7 +2147,8 @@ class DriftingGratingResponseTable(DataFrame):
         if self.blank_condi_ind is None:
             return self['resp_mean'].argmax()
         else:
-            return self.drop(self.blank_condi_ind)['resp_mean'].idxmax()
+            cpy = DataFrame(self)
+            return cpy.drop(self.blank_condi_ind)['resp_mean'].idxmax()
 
     @property
     def peak_condi_ind_neg(self):
@@ -2155,7 +2156,8 @@ class DriftingGratingResponseTable(DataFrame):
         if self.blank_condi_ind is None:
             return self['resp_mean'].argmin()
         else:
-            return self.drop(self.blank_condi_ind)['resp_mean'].idxmin()
+            cpy = DataFrame(self)
+            return cpy.drop(self.blank_condi_ind)['resp_mean'].idxmin()
 
     @property
     def peak_response_pos(self):

@@ -681,6 +681,9 @@ def get_roi(nwb_f, plane_n, roi_n):
         pixel_size = None
         pixel_size_unit = None
 
+    if isinstance(roi_n, bytes):
+        roi_n = roi_n.decode('utf-8')
+
     roi_grp = nwb_f['processing/rois_and_traces_{}/ImageSegmentation/imaging_plane/{}'.format(plane_n, roi_n)]
     mask = roi_grp['img_mask'][()]
     return ia.WeightedROI(mask=mask, pixelSize=pixel_size, pixelSizeUnit=pixel_size_unit)
@@ -5119,6 +5122,58 @@ class BulkPaperFunctions(object):
         assert(len(df_dgc) == len(df_dgcds)+ len(df_dgcnds))
 
         return df_dgcds, df_dgcnds
+
+    def get_dataframe_sbc(self, df, response_type='dff', rf_z_thr_abs=1.6, dgc_p_anova_thr=0.01,
+                          rf_supp_index_thr=0., dgc_supp_index_thr=0.5):
+        """
+        get suppressed-by-contrast sub dataframe
+
+        :param df:
+        :param response_type: 'df', 'dff' or 'raw
+        :param rf_z_thr_abs: float, the bouton with pos_rf_z larger than this number will be
+                             exclued, making sure there will be no RF boutons in this group
+        :param dgc_p_anova_thr: float, the bouton with pos_dgc_p_anova larger than this number
+                                will be excluded making sure all returned boutons have significant
+                                response to dgc, either positive or negative
+        :param rf_supp_index_thr: float, rf_supp_index =
+                                  (neg_rf_peak_z - pos_rf_peak_z) / (neg_rf_peak_z + pos_rf_peak_z)
+                                  an SBC bouton should have rf_supp_index larger than this value
+        :param dgc_supp_index_thr: float, dgc_supp_index =
+                                  (neg_dgc_peak_z - pos_dgc_peak_z) / (neg_dgc_peak_z + pos_dgc_peak_z)
+                                  an SBC bouton should have dgc_supp_index larger than this value
+        :return df_sbc: dataframe of suppressed by contrast boutons
+        :return df_nsbc: dataframe of non suppress by contrast boutons
+        """
+
+        df1 = df.copy()
+
+        df1 = self.get_dataframe_has_rf(df1)
+        df1 = self.get_dataframe_has_dgc(df1)
+
+        df1 = df1[(df1['dgc_p_anova_{}'.format(response_type)] <= dgc_p_anova_thr)]
+
+        rf_pos_z = np.max(np.array(df1[['rf_pos_on_peak_z', 'rf_pos_off_peak_z']]), axis=1)
+        rf_neg_z = np.max(np.array(df1[['rf_neg_on_peak_z', 'rf_neg_off_peak_z']]), axis=1)
+        nrf_ind = rf_pos_z < rf_z_thr_abs
+        df1 = df1[nrf_ind]
+        rf_neg_z = rf_neg_z[nrf_ind]
+        rf_pos_z = rf_pos_z[nrf_ind]
+        rf_pos_z[rf_pos_z < 0] = 0
+        rf_neg_z[rf_neg_z < 0] = 0
+        rf_supp_index = (rf_neg_z - rf_pos_z) / (rf_neg_z + rf_pos_z)
+
+        dgc_pos_dff = np.array(df1['dgc_pos_peak_{}'.format(response_type)])
+        dgc_neg_dff = np.array(-df1['dgc_neg_peak_{}'.format(response_type)])
+        dgc_pos_dff[dgc_pos_dff < 0] = 0
+        dgc_neg_dff[dgc_neg_dff < 0] = 0
+        dgc_supp_index = (dgc_neg_dff - dgc_pos_dff) / (dgc_neg_dff + dgc_pos_dff)
+
+        df_sbc = df1[(rf_supp_index > rf_supp_index_thr) & (dgc_supp_index > dgc_supp_index_thr)]
+        df_nsbc = df1[(rf_supp_index <= rf_supp_index_thr) | (dgc_supp_index <= dgc_supp_index_thr)]
+
+        assert(len(df_sbc) + len(df_nsbc) == len(df1))
+
+        return df_sbc, df_nsbc
 
     def get_dataframe_all_groups(self, df, response_dir='pos', rf_z_thr_abs=1.6, response_type='dff',
                                  dgc_peak_z_thr=3., dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi',
