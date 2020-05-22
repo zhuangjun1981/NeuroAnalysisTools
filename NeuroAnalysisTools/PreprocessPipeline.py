@@ -71,7 +71,7 @@ def get_traces(params):
     return None
 
 
-def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
+def plot_traces_chunks(traces, labels, chunk_size, roi_ind, **kwargs):
     """
     for multiprocessing
 
@@ -80,6 +80,7 @@ def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
     :param chunk_size:
     :param figures_folder:
     :param roi_ind:
+    :param **kwargs: more inputs to plt.axes.plot() function
     :return:
     """
 
@@ -102,7 +103,7 @@ def plot_traces_chunks(traces, labels, chunk_size, roi_ind):
         curr_ax = fig.add_subplot(len(chunks), 1, chunk_ind + 1)
         for trace_ind in range(traces.shape[0]):
            curr_ax.plot(traces[trace_ind, chunk[0]: chunk[1]], label=labels[trace_ind],
-                        lw=0.1, alpha=0.5)
+                        **kwargs)
 
         curr_ax.set_xlim([0, chunk_size])
         curr_ax.set_ylim([v_min, v_max * 1.2])
