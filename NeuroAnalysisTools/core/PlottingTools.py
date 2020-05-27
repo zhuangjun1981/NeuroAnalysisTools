@@ -834,7 +834,8 @@ def plot_multiple_traces(traces, x=None, plot_axis=None, mean_kw=None, is_plot_s
     return plot_axis
 
 
-def plot_dire_distribution(dires, weights=None, is_arc=False, bins=12,  plot_ax=None, plot_type='bar', **kwargs):
+def plot_dire_distribution(dires, weights=None, is_arc=False, bins=12,
+                           plot_ax=None, plot_type='bar', is_normalize=False, **kwargs):
     """
     plot the distribution of a list of directions in a nice way.
 
@@ -872,6 +873,10 @@ def plot_dire_distribution(dires, weights=None, is_arc=False, bins=12,  plot_ax=
 
     # print(plot_dires)
     counts, bin_lst = np.histogram(plot_dires, weights=weights, bins=bins, range=[-bin_width / 2., (np.pi * 2) - (bin_width / 2)])
+
+    if is_normalize:
+        counts = counts / len(plot_dires)
+
     bin_lst = bin_lst[0:-1] + (bin_width / 2)
 
     if plot_type == 'bar':
