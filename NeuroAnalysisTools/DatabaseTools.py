@@ -5252,7 +5252,7 @@ class BulkPaperFunctions(object):
         return df_DSnRF, df_RFnDS, df_RFDS, df_nRFnDS
 
     @staticmethod
-    def break_into_planes(df):
+    def break_into_planes(df, is_reset_index=False):
         plane_dfs = []
 
         planes = df[['date', 'mouse_id', 'plane_n']].drop_duplicates().reset_index()
@@ -5267,12 +5267,14 @@ class BulkPaperFunctions(object):
                           (df['plane_n'] == plane_n)]
 
             if len(plane_df) > 0:
+                if is_reset_index:
+                    plane_df = plane_df.reset_index(drop=True)
                 plane_dfs.append(plane_df)
 
         return plane_dfs
 
     @staticmethod
-    def break_into_volumes(df):
+    def break_into_volumes(df, is_reset_index=False):
         vol_dfs = []
 
         vols = df['vol_n'].drop_duplicates().reset_index()
@@ -5281,6 +5283,8 @@ class BulkPaperFunctions(object):
             vol_df = df[df['vol_n'] == vol_row['vol_n']]
 
             if len(vol_df) > 0:
+                if is_reset_index:
+                    vol_df = vol_df.reset_index(drop=True)
                 vol_dfs.append(vol_df)
 
         return vol_dfs
