@@ -971,6 +971,46 @@ def plot_orie_distribution(ories, weights=None, is_arc=False, bins=12,  plot_ax=
 
     return plot_ax, counts[:-1], bin_lst[:-1]
 
+def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_density=True, is_cumulative=True,
+                      is_plot_mean=True, **kwargs):
+    """
+
+    :param data: 1d array
+    :param bin_centers: 1d array
+    :param plot_ax: matplotlib.axes object
+    :param plot_type: str, 'line' or 'step'
+    :param is_density: bool
+    :param is_cumulative: bool
+    :param is_plot_mean: bool
+    :param kwargs: more parameters to matplotlib plot/step functions
+    :return: plot_ax
+    """
+
+    bin_width = np.mean(np.diff(bin_centers))
+    hist_range = [bin_centers[0] - (bin_width / 2.), bin_centers[-1] + (bin_width / 2.)]
+    hist, bine = np.histogram(data, bins=len(bin_centers), range=hist_range)
+    if is_density:
+        hist = hist / len(data)
+
+    if is_cumulative:
+        hist = np.cumsum(hist)
+
+    if plot_ax is None:
+        f = plt.figure(figsize=(5, 5))
+        plot_ax = f.add_subplot(111)
+
+    if is_plot_mean:
+        plot_ax.axvline(x=np.mean(data), **kwargs)
+
+    if plot_type == 'line':
+        plot_ax.plot(bin_centers, hist, **kwargs)
+
+    if plot_type == 'step':
+        hist = np.concatenate(([hist[0]], hist))
+        plot_ax.step(bine, hist, where='pre', **kwargs)
+
+    return plot_ax
+
 
 if __name__ == '__main__':
     plt.ioff()

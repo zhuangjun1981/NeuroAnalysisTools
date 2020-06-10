@@ -1123,7 +1123,7 @@ def get_everything_from_roi(nwb_f, plane_n, roi_n, params=ANALYSIS_PARAMS, verbo
         # print(sigma)
 
         # ON positive spatial receptive field
-        rf_pos_on_z, rf_pos_on_new = get_rf_properties(srf= srf_pos_on,
+        rf_pos_on_z, rf_pos_on_new = get_rf_properties(srf=srf_pos_on,
                                                        polarity='positive',
                                                        sigma=params['gaussian_filter_sigma_rf'],
                                                        interpolate_rate=params['interpolate_rate_rf'],

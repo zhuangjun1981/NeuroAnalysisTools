@@ -13,7 +13,7 @@ from .core import PlottingTools as pt
 from .core import ImageAnalysis as ia
 
 
-warnings.simplefilter('always', RuntimeWarning)
+# warnings.simplefilter('always', RuntimeWarning)
 
 def get_sparse_noise_onset_index(sparseNoiseDisplayLog):
     """
@@ -620,7 +620,7 @@ class SpatialReceptiveField(ia.WeightedROI):
         if dataType == 'None':
             dataType = None
 
-        thr = h5Group['lev_thr'][()]
+        thr = h5Group['thr'][()]
         if isinstance(thr, bytes):
             thr = thr.decode('utf-8')
         if thr == 'None':
@@ -1607,6 +1607,31 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return DriftingGratingResponseTable(trace_type=self.trace_type, data=dgcrt)
 
+    def get_condi_resp_trials_df(self, condi_ind, baseline_win=(-0.5, 0.), response_win=(0., 1.)):
+
+        baseline_ind = np.logical_and(self.sta_ts > baseline_win[0], self.sta_ts <= baseline_win[1])
+        response_ind = np.logical_and(self.sta_ts > response_win[0], self.sta_ts <= response_win[1])
+
+        resp_arr = self.loc[condi_ind, 'matrix']
+        baseline = np.mean(resp_arr[:, baseline_ind], axis=1)
+        resp = np.mean(resp_arr[:, response_ind], axis=1)
+        return resp - baseline
+
+    def get_condi_resp_trials_dff(self, condi_ind, baseline_win=(-0.5, 0.), response_win=(0., 1.),
+                                  trace_min=1.):
+
+        baseline_ind = np.logical_and(self.sta_ts > baseline_win[0], self.sta_ts <= baseline_win[1])
+        response_ind = np.logical_and(self.sta_ts > response_win[0], self.sta_ts <= response_win[1])
+
+        resp_arr = self.loc[condi_ind, 'matrix']
+
+        if np.min(resp_arr[:]) < trace_min:
+            resp_arr = resp_arr - np.min(resp_arr[:]) + trace_min
+
+        baseline = np.mean(resp_arr[:, baseline_ind], axis=1)
+        resp = np.mean(resp_arr[:, response_ind], axis=1)
+        return (resp - baseline) / baseline
+
     def get_df_response_table(self, baseline_win=(-0.5, 0.), response_win=(0., 1.)):
         """
         this is suppose to give the most robust measurement of df response table.
@@ -1888,7 +1913,6 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return ymin, ymax
 
-
     def get_alt_list(self):
         return list(self['alt'].drop_duplicates())
 
@@ -1912,16 +1936,19 @@ class DriftingGratingResponseMatrix(DataFrame):
 
     def get_blank_ind(self):
         blank_rows = self[(self['sf'] == 0) &
-                         (self['tf'] == 0) &
-                         (self['dire'] == 0) &
-                         (self['con'] == 0) &
-                         (self['rad'] == 0)]
+                          (self['tf'] == 0) &
+                          (self['dire'] == 0) &
+                          (self['con'] == 0) &
+                          (self['rad'] == 0)]
 
         return blank_rows.index
 
-    def remove_blank_cond(self):
-        return DriftingGratingResponseMatrix(sta_ts=self.sta_ts, trace_type=self.trace_type,
-                                             data=self.drop(index=self.get_blank_ind()))
+    # def remove_blank_cond(self):
+    #
+    #     return self.drop(index=self.get_blank_ind())
+    #
+    #     return DriftingGratingResponseMatrix(sta_ts=self.sta_ts, trace_type=self.trace_type,
+    #                                          data=self.drop(index=self.get_blank_ind()))
 
     def get_min_max_value(self):
 
@@ -2171,6 +2198,18 @@ class DriftingGratingResponseTable(DataFrame):
     def peak_response_abs(self):
         return np.max([abs(self.peak_response_pos),
                        abs(self.peak_response_neg)])
+
+    @property
+    def peak_sf_condi_pos(self):
+        return self.loc[self.peak_condi_ind_pos, 'sf']
+
+    @property
+    def peak_tf_condi_pos(self):
+        return self.loc[self.peak_condi_ind_pos, 'tf']
+
+    @property
+    def peak_dire_condi_pos(self):
+        return self.loc[self.peak_condi_ind_pos, 'dire']
 
     def get_sf_tf_matrix(self, response_dir='pos'):
         """
