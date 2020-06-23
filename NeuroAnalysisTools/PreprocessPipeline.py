@@ -189,7 +189,9 @@ def motion_correction_single_stack_step(param):
 
 def apply_offsets_single_stack_step(param):
 
-    movie_path, offsets_path = param
+    movie_path, offsets_path, step_n = param
+
+    print('\t\tapplying offsets for step: {}'.format(step_n))
 
     offsets_f = h5py.File(offsets_path, 'r')
     ref_path = offsets_f['file_0000'].attrs['path']
@@ -687,11 +689,10 @@ class Preprocessor(object):
             print('\tCurrent channel: {}'.format(ch_n))
             mc_params = []
             for step_n in step_ns:
-                print('\t\tapplying offsets for step: {}'.format(step_n))
                 movie_path = os.path.join(data_folder, ch_n, step_n, step_n + '.tif')
                 offsets_path = os.path.join(data_folder, reference_channel_name,
                                             step_n, 'correction_offsets.hdf5')
-                mc_params.append((movie_path, offsets_path))
+                mc_params.append((movie_path, offsets_path, step_n))
 
             chunk_p.map(apply_offsets_single_stack_step, mc_params)
         print('\tDone.')
