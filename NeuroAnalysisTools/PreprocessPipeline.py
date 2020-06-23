@@ -375,8 +375,15 @@ class Preprocessor(object):
         if scope == 'sutter':
             vasmaps = []
             for vasmap_fn in vasmap_fns:
-                vasmap_focused, _, _ = ft.importRawJCamF(os.path.join(data_folder, vasmap_fn), column=1024, row=1024,
-                                                         headerLength=116, tailerLength=452)  # try 452 if 218 does not work
+
+                try:
+                    vasmap_focused, _, _ = ft.importRawJCamF(os.path.join(data_folder, vasmap_fn),
+                                                             column=1024, row=1024,
+                                                             headerLength=116, tailerLength=452)
+                except ValueError:
+                    vasmap_focused, _, _ = ft.importRawJCamF(os.path.join(data_folder, vasmap_fn),
+                                                             column=1024, row=1024,
+                                                             headerLength=116, tailerLength=218)
                 vasmap_focused = vasmap_focused[2:]
                 vasmap_focused[vasmap_focused > 50000] = 400
                 vasmap_focused = np.mean(vasmap_focused, axis=0)
@@ -529,9 +536,46 @@ class Preprocessor(object):
                                            channels, frames_per_step):
         """this is for zstacks without online averaging"""
 
+        def save_buffer(curr_step, buffer, save_folders, frames_per_step):
+            """
+
+            :param curr_step: int
+            :param buffer: 4d array, channel x frame x row x col
+            :param save_folders: list of str
+            :param frames_per_step: int
+            :return:
+            """
+
+            # print(save_folders)
+
+            if buffer.shape[1] < frames_per_step:
+                curr_step_new = curr_step
+                buffer_new = buffer
+            else:
+                step_num = buffer.shape[1] // frames_per_step
+                curr_step_new = curr_step + step_num
+                if buffer.shape[1] % frames_per_step == 0:
+                    buffer_new = None
+                else:
+                    buffer_new = buffer[:, step_num * frames_per_step:, :, :]
+
+                for step_i in range(step_num):
+                    curr_step_n = f'step_{curr_step+step_i:04d}'
+                    for ch_i, ch_n in enumerate(channels):
+                        mov_ch = buffer[ch_i,
+                                        step_i * frames_per_step : (step_i + 1) * frames_per_step,
+                                        :, :]
+                        curr_step_folder = os.path.join(save_folders[ch_i], curr_step_n)
+                        os.mkdir(curr_step_folder)
+                        tf.imsave(os.path.join(curr_step_folder, curr_step_n + '.tif'), mov_ch)
+
+            return curr_step_new, buffer_new
+
         print('\nReorganizing single frame zstacks: ')
         fns = ft.look_for_file_list(source=data_folder, identifiers=[identifier])
         _ = [print('\t{}'.format(fn)) for fn in fns]
+
+        channel_num = len(channels)
 
         save_folders = []
         for ch_n in channels:
@@ -541,33 +585,59 @@ class Preprocessor(object):
             save_folders.append(curr_save_folder)
 
         curr_step = 0
+        buffer = None
 
         for file_n in fns:
             curr_mov = tf.imread(os.path.join(data_folder, file_n))
 
             curr_frame_num = curr_mov.shape[0] / len(channels)
+            if curr_frame_num % len(channels) != 0:
+                raise ValueError(f'{file_n}: total frame number ({curr_frame_num}) '
+                                 f'is not divisible by number of channels ({len(channels)}).')
 
-            if curr_frame_num % frames_per_step != 0:
-                raise ValueError('{}: total frame number is not divisible by frames per step.'.format(file_n))
+            curr_mov_reshape = []
+            for ch_i in range(channel_num):
+                curr_mov_reshape.append(curr_mov[ch_i::channel_num, :, :])
+            curr_mov_reshape = np.array(curr_mov_reshape)
 
-            curr_mov_chs = []
-            for ch_i in range(len(channels)):
-                curr_mov_chs.append(curr_mov[ch_i::len(channels)])
+            if buffer is None:
+                buffer = curr_mov_reshape
+            else:
+                buffer = np.concatenate((buffer, curr_mov_reshape), axis=1)
 
-            steps = int(curr_frame_num // frames_per_step)
-            for step_ind in range(steps):
+            curr_step, buffer = save_buffer(curr_step, buffer,
+                                            save_folders, frames_per_step)
 
-                print('\tcurrent step: {}'.format(curr_step))
+        if buffer is not None:
+            for ch_i, ch_n in enumerate(channels):
+                mov_ch = buffer[ch_i, :, :, :]
+                curr_step_n = f'step_{curr_step:04d}'
+                curr_step_folder = os.path.join(save_folders[ch_i], curr_step_n)
+                os.mkdir(curr_step_folder)
+                tf.imsave(os.path.join(curr_step_folder, curr_step_n + '.tif'), mov_ch)
 
-                for ch_i in range(len(channels)):
-                    curr_step_mov_ch = curr_mov_chs[ch_i][step_ind * frames_per_step:(step_ind + 1) * frames_per_step,
-                                       :, :]
-                    curr_step_n = 'step_' + ft.int2str(curr_step, 4)
-                    curr_step_folder = os.path.join(save_folders[ch_i], curr_step_n)
-                    os.mkdir(curr_step_folder)
-                    tf.imsave(os.path.join(curr_step_folder, curr_step_n + '.tif'), curr_step_mov_ch)
 
-                curr_step += 1
+            # if curr_frame_num % frames_per_step != 0:
+            #     raise ValueError('{}: total frame number is not divisible by frames per step.'.format(file_n))
+            #
+            # curr_mov_chs = []
+            # for ch_i in range(len(channels)):
+            #     curr_mov_chs.append(curr_mov[ch_i::len(channels)])
+            #
+            # steps = int(curr_frame_num // frames_per_step)
+            # for step_ind in range(steps):
+            #
+            #     print('\tcurrent step: {}'.format(curr_step))
+            #
+            #     for ch_i in range(len(channels)):
+            #         curr_step_mov_ch = curr_mov_chs[ch_i][step_ind * frames_per_step:(step_ind + 1) * frames_per_step,
+            #                            :, :]
+            #         curr_step_n = 'step_' + ft.int2str(curr_step, 4)
+            #         curr_step_folder = os.path.join(save_folders[ch_i], curr_step_n)
+            #         os.mkdir(curr_step_folder)
+            #         tf.imsave(os.path.join(curr_step_folder, curr_step_n + '.tif'), curr_step_mov_ch)
+            #
+            #     curr_step += 1
 
         print('\tDone.')
 

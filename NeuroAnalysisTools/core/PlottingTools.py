@@ -972,7 +972,7 @@ def plot_orie_distribution(ories, weights=None, is_arc=False, bins=12,  plot_ax=
     return plot_ax, counts[:-1], bin_lst[:-1]
 
 def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_density=True, is_cumulative=True,
-                      is_plot_mean=True, **kwargs):
+                      is_plot_mean=True, color=None, label=None, **kwargs):
     """
 
     :param data: 1d array
@@ -989,6 +989,10 @@ def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_dens
     bin_width = np.mean(np.diff(bin_centers))
     hist_range = [bin_centers[0] - (bin_width / 2.), bin_centers[-1] + (bin_width / 2.)]
     hist, bine = np.histogram(data, bins=len(bin_centers), range=hist_range)
+
+    if color is None:
+        color = random_color(1)[0]
+
     if is_density:
         hist = hist / len(data)
 
@@ -1000,14 +1004,14 @@ def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_dens
         plot_ax = f.add_subplot(111)
 
     if is_plot_mean:
-        plot_ax.axvline(x=np.mean(data), **kwargs)
+        plot_ax.axvline(x=np.mean(data), color=color, **kwargs)
 
     if plot_type == 'line':
-        plot_ax.plot(bin_centers, hist, **kwargs)
+        plot_ax.plot(bin_centers, hist, color=color, label=label, **kwargs)
 
     if plot_type == 'step':
         hist = np.concatenate(([hist[0]], hist))
-        plot_ax.step(bine, hist, where='pre', **kwargs)
+        plot_ax.step(bine, hist, where='pre', color=color, label=label, **kwargs)
 
     return plot_ax
 
@@ -1016,9 +1020,9 @@ if __name__ == '__main__':
     plt.ioff()
 
     # ----------------------------------------------------
-    dires = [0,0,0,90,90,90,90,90,90,180,180]
-    plot_dire_distribution(dires=dires, is_arc=False)
-    plt.show()
+    # dires = [0,0,0,90,90,90,90,90,90,180,180]
+    # plot_dire_distribution(dires=dires, is_arc=False)
+    # plt.show()
     # ----------------------------------------------------
 
     # ----------------------------------------------------
@@ -1146,6 +1150,17 @@ if __name__ == '__main__':
     # ----------------------------------------------------
     # grid_axis2(nrows=4, ncols=3, share_level=1)
     # plt.show()
+    # ----------------------------------------------------
+
+    # ----------------------------------------------------
+    data = [1,2,2,3,3,4,4,4,5,6,7,7,8,8,9,9,9,9,9,10]
+    bin_centers = np.arange(1, 11)
+    print(bin_centers)
+    plot_distribution(data, bin_centers, plot_ax=None, plot_type='step',
+                      is_density=False, is_cumulative=False,
+                      is_plot_mean=True)
+    plt.show()
+
     # ----------------------------------------------------
 
     print('for debug')
