@@ -1408,15 +1408,16 @@ class Preprocessor(object):
         _ = [print('\t\t{}'.format(p)) for p in plane_ns]
 
         for plane_n in plane_ns:
+
+            # copy applied channel
             plane_save_folder = os.path.join(save_folder, plane_n)
             if not os.path.isdir(plane_save_folder):
                 os.makedirs(plane_save_folder)
 
             plane_folder = os.path.join(data_folder, plane_n, apply_channel_name, 'corrected')
-
             correction_files = [fn for fn in os.listdir(plane_folder) if fn[0:10] == 'corrected_']
             correction_files.sort()
-            print('\t\tcopying:')
+            print(f'\t\tcopying corrected file ({apply_channel_name}):')
             _ = [print('\t\t\t{}'.format(fn)) for fn in correction_files]
 
             for cf in correction_files:
@@ -1426,6 +1427,20 @@ class Preprocessor(object):
             shutil.copyfile(os.path.join(data_folder, plane_n, reference_channel_name,
                                          'corrected', 'correction_offsets.hdf5'),
                             os.path.join(plane_save_folder, 'correction_offsets.hdf5'))
+
+            # copy reference channel
+            ref_save_folder = os.path.join(save_folder, plane_n, reference_channel_name)
+            if not os.path.isdir(ref_save_folder):
+                os.makedirs(ref_save_folder)
+
+            ref_folder = os.path.join(data_folder, plane_n, reference_channel_name, 'corrected')
+            ref_correction_files = [fn for fn in os.listdir(ref_folder) if fn[0:10] == 'corrected_']
+            ref_correction_files.sort()
+            print(f'\t\tcopying corrected file ({reference_channel_name}):')
+            _ = [print('\t\t\t{}'.format(fn)) for fn in ref_correction_files]
+
+            for cf in ref_correction_files:
+                shutil.copyfile(os.path.join(ref_folder, cf), os.path.join(ref_save_folder, cf))
 
     @staticmethod
     def get_downsampled_small_movies(data_folder, save_folder, identifier, xy_downsample_rate=2,

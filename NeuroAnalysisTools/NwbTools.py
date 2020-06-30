@@ -2,6 +2,7 @@ import os
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
+import warnings
 # import corticalmapping.ephys.OpenEphysWrapper as oew
 # import corticalmapping.ephys.KilosortWrapper as kw
 from .core import FileTools as ft
@@ -1259,8 +1260,9 @@ class RecordedFile(NWB):
         # check vsync_stim number and total frame number
         print('\nnumber of total frames in log file: {}'.format(stim_log.num_frame_tot))
         print('number of vsync_stim TTL rise events: {}'.format(len(vsync_ts)))
-        if stim_log.num_frame_tot != len(vsync_ts):
-            raise ValueError('number of vsync_stim TTL rise events does not equal number of total frames in log file!')
+        # if stim_log.num_frame_tot != len(vsync_ts):
+        #     raise ValueError('number of vsync_stim TTL rise events does not equal number of total frames in log file!')
+        warnings.warn('number of vsync_stim TTL rise events does not equal number of total frames in log file!')
 
         # get photodiode onset timestamps from vsync_stim (before display)
         stim_dict = stim_log.get_stim_dict()
