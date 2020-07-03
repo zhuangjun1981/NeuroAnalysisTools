@@ -207,6 +207,17 @@ def run():
     #                                   photodiode_thr=pd_color_thr, ccg_t_range=ccg_t_range,
     #                                   ccg_bins=ccg_bins, is_plot=is_plot_ccg)
 
+    # # adding 2p imaging data
+    # psr.add_2p_image_to_nwb(nwb_folder=curr_folder, image_identifier='{}_M{}_{}'.format(date, mid, sess_id),
+    #                         zoom=zoom, scope=scope, plane_ns=plane_ns, plane_depths=plane_depths,
+    #                         temporal_downsample_rate=online_td_rate * reorg_td_rate)
+    #
+    # # add motion correction module to nwb file
+    # psr.add_motion_correction_module_to_nwb(nwb_folder=curr_folder,
+    #                                         movie_fn='{}_M{}_{}_2p_movies.hdf5'.format(date, mid, sess_id),
+    #                                         plane_num=plane_num,
+    #                                         post_correction_td_rate=post_correction_td_rate)
+
     # # add eyetracking data
     # psr.add_eyetracking_to_nwb_deeplabcut(nwb_folder=curr_folder,
     #                                       eyetracking_folder=os.path.join(curr_folder, 'videomon'),
@@ -218,16 +229,6 @@ def run():
     #                                       diagonal_length=et_diagonal_length,
     #                                       eyetracking_ts_name=et_ts_name)
     #
-    # # adding 2p imaging data
-    # psr.add_2p_image_to_nwb(nwb_folder=curr_folder, image_identifier='{}_M{}_{}'.format(date, mid, sess_id),
-    #                         zoom=zoom, scope=scope, plane_ns=plane_ns, plane_depths=plane_depths,
-    #                         temporal_downsample_rate=online_td_rate * reorg_td_rate)
-    #
-    # # add motion correction module to nwb file
-    # psr.add_motion_correction_module_to_nwb(nwb_folder=curr_folder,
-    #                                         movie_fn='{}_M{}_{}_2p_movies.hdf5'.format(date, mid, sess_id),
-    #                                         plane_num=plane_num,
-    #                                         post_correction_td_rate=post_correction_td_rate)
 
     # ppsr = pp.PlaneProcessor()
 

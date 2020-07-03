@@ -62,10 +62,11 @@ def run():
     # ppr.remove_corrected_files_unaveraged_zstack(data_folder=os.path.join(sess_folder, identifier, identifier),
     #                                              channels=chs_apply, is_remove_img=True)
     #
+    # ppr.remove_all_tif_files(os.path.join(sess_folder, identifier))
+
+
     # ppr.remove_uncorrected_files_unaveraged_zstack(data_folder=os.path.join(sess_folder, identifier, identifier),
     #                                                channels=chs_apply)
-    #
-    # ppr.remove_all_tif_files(os.path.join(sess_folder, identifier))
 
 if __name__ == "__main__":
     run()
