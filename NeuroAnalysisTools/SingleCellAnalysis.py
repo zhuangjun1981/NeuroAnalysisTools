@@ -1937,9 +1937,7 @@ class DriftingGratingResponseMatrix(DataFrame):
     def get_blank_ind(self):
         blank_rows = self[(self['sf'] == 0) &
                           (self['tf'] == 0) &
-                          (self['dire'] == 0) &
-                          (self['con'] == 0) &
-                          (self['rad'] == 0)]
+                          (self['dire'] == 0)]
 
         return blank_rows.index
 
@@ -2047,7 +2045,10 @@ class DriftingGratingResponseMatrix(DataFrame):
             if is_plot_face_color:
                 f_color = pt.value_2_rgb(value=(df_mean + df_max_abs) / (2 * df_max_abs),
                                          cmap=face_cmap)
-                ax.set_axis_bgcolor(f_color)
+                try:
+                    ax.set_axis_bgcolor(f_color)
+                except AttributeError:
+                    ax.set_facecolor(f_color)
             ax.axvspan(response_win[0], response_win[1], alpha=0.4, color='#777777', ec='none')
 
             for trace in cond_row['matrix']:
@@ -2086,6 +2087,13 @@ class DriftingGratingResponseMatrix(DataFrame):
                 else:
                     pass
         return f
+
+    def remove_blank_cond(self):
+        blank_ind = self.get_blank_ind()
+        new_dgcrm = self[np.logical_not(self.index.isin(blank_ind))]
+        new_dgcrm = DriftingGratingResponseMatrix(data=new_dgcrm, sta_ts=self.sta_ts,
+                                                  trace_type=self.trace_type)
+        return new_dgcrm
 
 
 class DriftingGratingResponseTable(DataFrame):
