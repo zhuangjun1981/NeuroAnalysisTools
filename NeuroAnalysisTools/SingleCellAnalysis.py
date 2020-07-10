@@ -1372,14 +1372,14 @@ class SpatialTemporalReceptiveField(object):
                 curr_trace_high = curr_trace
 
             if v_min is None:
-                v_min = np.amin(curr_trace_low)
+                v_min = np.nanmin(curr_trace_low)
             else:
-                v_min = min([v_min, np.amin(curr_trace_low)])
+                v_min = min([v_min, np.nanmin(curr_trace_low)])
 
             if v_max is None:
-                v_max = np.max(curr_trace_high)
+                v_max = np.nanmax(curr_trace_high)
             else:
-                v_max = max([v_max, np.amax(curr_trace_high)])
+                v_max = max([v_max, np.nanmax(curr_trace_high)])
 
         return v_min, v_max
 
