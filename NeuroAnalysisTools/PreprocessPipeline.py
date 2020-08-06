@@ -3450,7 +3450,7 @@ class PlaneProcessor(object):
                 # print('\t\t' + roi1_name, ':', roi1_mask.get_binary_area(), ': retained')
 
         print('\tnumber of rois to be removed because of overlapping: {}'.format(len(remove_rois)))
-        print('\ttotal number of reatined rois:', len(retain_rois))
+        print('\ttotal number of retained rois:', len(retain_rois))
 
         # plotting
         colors = pt.random_color(len(rois.keys()))

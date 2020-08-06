@@ -3,17 +3,17 @@ import cv2
 import NeuroAnalysisTools.PreprocessPipeline as pp
 
 def run():
-    date = '200720'
+    date = '200723'
     mid = '522470'
     scope = 'sutter' # 'sutter', 'deepscope' or 'scientifica'
     plane_num = 1
-    plane_depths = [231]
+    plane_depths = [271]
     zoom = 4
     file_identifier_2p = '110_LSNDGCUC'
     experimenter = 'Jun'
     genotype = 'wildtype'
     sex = 'male'
-    age = '115'
+    age = '118'
     indicator = 'GCaMP6s'
     imaging_rate = '30'
     imaging_location = 'visual cortex'
