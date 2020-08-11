@@ -207,6 +207,52 @@ def apply_offsets_single_stack_step(param):
                                 verbose=False)
 
 
+def transform_images_to_standard_orientation(img, scope):
+    """
+
+    :param img: 2d or 3d array
+    :param scope: str, 'sutter', 'sutter_wf', 'deepscope', 'deepscope_wf',
+                       'scientifica'
+    :return: 2d or 3d array, same shape as img
+    """
+
+    if scope == 'scientifica':
+        if len(img.shape) == 2:
+            img_r = img[::-1, :].astype(np.float32)
+            img_r = ia.rigid_transform_cv2_2d(img_r, rotation=135).astype(np.float32)
+        elif len(img.shape) == 3:
+            img_r = img[:, ::-1, :].astype(np.float32)
+            img_r = ia.rigid_transform_cv2(img_r, rotation=135).astype(np.float32)
+        else:
+            raise ValueError('input image should be 2d or 3d array.')
+    elif scope == 'sutter':
+        if len(img.shape) == 2:
+            img_r = img.transpose()[::-1, :].astype(np.float32)
+        elif len(img.shape) == 3:
+            img_r = img.transpose(0, 2, 1)[:, ::-1, :].astype(np.float32)
+        else:
+            raise ValueError('input image should be 2d or 3d array.')
+    elif scope == 'sutter_wf':
+        if len(img.shape) == 2:
+            img_r = img[::-1, :].astype(np.float32)
+        elif len(img.shape) == 3:
+            img_r = img[:, ::-1, :].astype(np.float32)
+        else:
+            raise ValueError('input image should be 2d or 3d array.')
+    elif scope == 'deepscope' or scope == 'deepscope_wf':
+        if len(img.shape) == 2:
+            img_r = ia.rigid_transform_cv2_2d(img, rotation=140)[:, ::-1].astype(np.float32)
+        elif len(img.shape) == 3:
+            img_r = ia.rigid_transform_cv2(img, rotation=140)[:, :, ::-1].astype(np.float32)
+        else:
+            raise ValueError('input image should be 2d or 3d array.')
+    else:
+        raise LookupError("Do not understand scope type. Should be 'sutter', 'sutter_wf', "
+                          "'deepscope', 'deepscope_wf', or 'scientifica'.")
+
+    return img_r
+
+
 class Preprocessor(object):
     """
     pipeline to preprocess two-photon full session data
@@ -333,15 +379,7 @@ class Preprocessor(object):
         for ch_n, ch_vasmap in vasmaps.items():
             save_vasmap = ia.array_nor(np.mean(ch_vasmap, axis=0)).astype(np.float32)
 
-            if scope == 'scientifica':
-                save_vasmap_r = save_vasmap[::-1, :].astype(np.float32)
-                save_vasmap_r = ia.rigid_transform_cv2_2d(save_vasmap_r, rotation=135).astype(np.float32)
-            elif scope == 'sutter':
-                save_vasmap_r = save_vasmap.transpose()[::-1, :].astype(np.float32)
-            elif scope == 'deepscope':
-                save_vasmap_r = ia.rigid_transform_cv2(save_vasmap, rotation=140)[:, ::-1].astype(np.float32)
-            else:
-                raise LookupError("Do not understand scope type. Should be 'sutter' or 'deepscope' or 'scientifica'.")
+            save_vasmap_r = transform_images_to_standard_orientation(img=save_vasmap, scope=scope)
 
             vasmaps_final['{}_original'.format(ch_n)] = save_vasmap
             vasmaps_final['{}_rotated'.format(ch_n)] = save_vasmap_r
@@ -390,33 +428,21 @@ class Preprocessor(object):
                 vasmap_focused[vasmap_focused > 50000] = 400
                 vasmap_focused = np.mean(vasmap_focused, axis=0)
                 vasmaps.append(ia.array_nor(vasmap_focused))
-
-            vasmap = ia.array_nor(np.mean(vasmaps, axis=0)).astype(np.float32)
-            vasmap_r = vasmap[::-1, :].astype(np.float32)
-
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf{}.tif'.format(save_suffix)), vasmap)
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated{}.tif'.format(save_suffix)), vasmap_r)
-            print('\tvasmap_2p saved.')
-
-            return vasmap, vasmap_r
-
         elif scope == 'deepscope':
             vasmaps = []
             for vasmap_fn in vasmap_fns:
                 curr_map = tf.imread(os.path.join(data_folder, vasmap_fn)).astype(np.float32)
                 vasmaps.append(ia.array_nor(curr_map))
-
-            vasmap = ia.array_nor(np.mean(vasmaps, axis=0)).astype(np.float32)
-            vasmap_r = ia.array_nor(ia.rigid_transform_cv2(vasmap, rotation=140)[:, ::-1]).astype(np.float32)
-
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf{}.tif'.format(save_suffix)), vasmap)
-            tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated{}.tif'.format(save_suffix)), vasmap_r)
-            print('\tvasmap_wf saved.')
-
-            return vasmap, vasmap_r
-
         else:
             raise LookupError('\tDo not understand scope type "{}", should be "sutter" or "deepscope"'.format(scope))
+
+        vasmap = ia.array_nor(np.mean(vasmaps, axis=0)).astype(np.float32)
+        vasmap_r = transform_images_to_standard_orientation(img=vasmap, scope=f'{scope}_wf')
+        tf.imsave(os.path.join(save_folder, 'vasmap_wf{}.tif'.format(save_suffix)), vasmap)
+        tf.imsave(os.path.join(save_folder, 'vasmap_wf_rotated{}.tif'.format(save_suffix)), vasmap_r)
+        print('\tvasmap_wf saved.')
+
+        return vasmap, vasmap_r
 
     @staticmethod
     def save_png_vasmap(tif_path, prefix, saturation_level=10.):
@@ -428,7 +454,7 @@ class Preprocessor(object):
         :return:
         """
 
-        print('\nSave vasculature map as png file.')
+        print('\nSaving vasculature map as png file.')
 
         save_folder, tif_fn = os.path.split(tif_path)
         fn = os.path.splitext(tif_fn)[0]
@@ -1286,6 +1312,51 @@ class Preprocessor(object):
                                             is_equalizing_histogram=False)
                 shutil.copyfile(offsets_path,
                                 os.path.join(working_folder, 'corrected', os.path.split(offsets_path)[1]))
+
+    @staticmethod
+    def get_mean_projection_after_motion_correction(data_folder, save_folder, scope,
+                                                    save_prefix='', saturation_level=10.):
+
+        print('Saving rotated max projection of imaging plane as png')
+
+        plane_ns = [f for f in os.listdir(data_folder) if f[0:5] == 'plane' and
+                    os.path.isdir(os.path.join(data_folder, f))]
+        plane_ns.sort()
+
+        for plane_n in plane_ns:
+            plane_folder = os.path.join(data_folder, plane_n)
+            ch_ns = [c for c in os.listdir(plane_folder) if os.path.isdir(os.path.join(plane_folder, c))]
+            ch_ns.sort()
+
+            for ch_n in ch_ns:
+                ch_folder = os.path.join(plane_folder, ch_n, 'corrected')
+                tifp = ft.look_for_unique_file(source=ch_folder,
+                                               identifiers=['corrected_mean_projections.tif'],
+                                               file_type='tif',
+                                               is_full_path=True)
+                # print(tifp)
+                img_porj = np.max(tf.imread(tifp), axis=0)
+                img_proj_r = transform_images_to_standard_orientation(img=img_porj, scope=scope)
+                f = plt.figure(figsize=(5, 5))
+                ax = f.add_subplot(111)
+                ax.imshow(img_proj_r, vmin=np.percentile(img_proj_r[:], saturation_level),
+                          vmax=np.percentile(img_proj_r[:], 100 - saturation_level), cmap='gray',
+                          interpolation='nearest')
+
+
+                save_fn = f'{save_prefix}_{plane_n}_{ch_n}_rotated.png'
+                if ch_n == 'green':
+                    pt.save_figure_without_borders(f, savePath=os.path.join(save_folder,
+                                                                            plane_n,
+                                                                            save_fn))
+                else:
+                    pt.save_figure_without_borders(f, savePath=os.path.join(save_folder,
+                                                                            plane_n,
+                                                                            ch_n,
+                                                                            save_fn))
+                plt.close(f)
+
+        print('\tDone.')
 
     @staticmethod
     def downsample_corrected_files(data_folder, identifier, temporal_downsample_rate,
@@ -3379,7 +3450,7 @@ class PlaneProcessor(object):
                 # print('\t\t' + roi1_name, ':', roi1_mask.get_binary_area(), ': retained')
 
         print('\tnumber of rois to be removed because of overlapping: {}'.format(len(remove_rois)))
-        print('\ttotal number of reatined rois:', len(retain_rois))
+        print('\ttotal number of retained rois:', len(retain_rois))
 
         # plotting
         colors = pt.random_color(len(rois.keys()))

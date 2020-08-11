@@ -3,17 +3,17 @@ import cv2
 import NeuroAnalysisTools.PreprocessPipeline as pp
 
 def run():
-    date = '200625'
-    mid = '513381'
+    date = '200723'
+    mid = '522470'
     scope = 'sutter' # 'sutter', 'deepscope' or 'scientifica'
     plane_num = 1
-    plane_depths = [361]
+    plane_depths = [271]
     zoom = 4
     file_identifier_2p = '110_LSNDGCUC'
     experimenter = 'Jun'
-    genotype = 'Vipr2-IRES2-Cre-neo'
-    sex = 'female'
-    age = '204'
+    genotype = 'wildtype'
+    sex = 'male'
+    age = '118'
     indicator = 'GCaMP6s'
     imaging_rate = '30'
     imaging_location = 'visual cortex'
@@ -120,8 +120,8 @@ def run():
 
     # # copy relevant data to local folder
     # psr.copy_initial_files(session_folder, curr_folder, date=date, mouse_id=mid)
-
-    # get 2p vasculature maps as tif
+    #
+    # # get 2p vasculature maps as tif
     # _ = psr.get_vasmap_2p(data_folder=os.path.join(session_folder, 'vasmap_2p'),
     #                       scope=scope,
     #                       channels=vasmap_2p_chs,
@@ -132,7 +132,7 @@ def run():
     # # save aligned 2p vasculature maps as png
     # for vasmap_2p_ch in vasmap_2p_chs:
     #     psr.save_png_vasmap(tif_path=os.path.join(curr_folder, 'vasmap_2p_{}_rotated.tif'.format(vasmap_2p_ch)),
-    #                         prefix='{}_{}'.format(date, mid), saturation_level=10)
+    #                         prefix='{}_M{}'.format(date, mid), saturation_level=10)
     #
     # # get widefield vasculature maps as tif
     # _ = psr.get_vasmap_wf(data_folder=os.path.join(session_folder, 'vasmap_wf'),
@@ -142,7 +142,7 @@ def run():
     #
     # # save aligned widefield vasculature maps as png
     # psr.save_png_vasmap(tif_path=os.path.join(curr_folder, 'vasmap_wf_rotated.tif'),
-    #                     prefix='{}_{}'.format(date, mid), saturation_level=5)
+    #                     prefix='{}_M{}'.format(date, mid), saturation_level=5)
     #
     # # reorganized raw 2p movies
     # psr.reorganize_raw_2p_data(data_folder=os.path.join(session_folder, 'movie'),
@@ -154,7 +154,7 @@ def run():
     #                            temporal_downsample_rate=reorg_td_rate,
     #                            frames_per_file=movie_save_frames_per_file,
     #                            low_thr=movie_low_threshold)
-
+    #
     # # motion correction
     # psr.motion_correction(data_folder=reorg_folder,
     #                       reference_channel_name=reference_ch_n,
@@ -164,7 +164,12 @@ def run():
     # # copy correction results to local folder
     # psr.copy_correction_results(reorg_folder, curr_folder, apply_channel_name=apply_ch_n,
     #                             reference_channel_name=reference_ch_n)
-
+    #
+    # # get mean projection of imaging plane
+    # psr.get_mean_projection_after_motion_correction(data_folder=reorg_folder, save_folder=curr_folder,
+    #                                                 scope=scope, saturation_level=5.,
+    #                                                 save_prefix=f'{date}_M{mid}')
+    #
     # # downsample corrected files
     # psr.get_downsampled_small_movies(reorg_folder, curr_folder,
     #                                  identifier=file_identifier_2p,
@@ -210,7 +215,7 @@ def run():
     #                                   photodiode_ts_path='analysis/digital_photodiode_rise',
     #                                   photodiode_thr=pd_color_thr, ccg_t_range=ccg_t_range,
     #                                   ccg_bins=ccg_bins, is_plot=is_plot_ccg)
-
+    #
     # # adding 2p imaging data
     # psr.add_2p_image_to_nwb(nwb_folder=curr_folder, image_identifier='{}_M{}_{}'.format(date, mid, sess_id),
     #                         zoom=zoom, scope=scope, plane_ns=plane_ns, plane_depths=plane_depths,
@@ -221,7 +226,7 @@ def run():
     #                                         movie_fn='{}_M{}_{}_2p_movies.hdf5'.format(date, mid, sess_id),
     #                                         plane_num=plane_num,
     #                                         post_correction_td_rate=post_correction_td_rate)
-
+    #
     # # add eyetracking data
     # psr.add_eyetracking_to_nwb_deeplabcut(nwb_folder=curr_folder,
     #                                       eyetracking_folder=os.path.join(curr_folder, 'videomon'),
@@ -232,42 +237,41 @@ def run():
     #                                       side=et_side, nasal_dir=et_nasal_dir,
     #                                       diagonal_length=et_diagonal_length,
     #                                       eyetracking_ts_name=et_ts_name)
-    #
 
     # ppsr = pp.PlaneProcessor()
-
+    #
     # # get rois from caiman segmentation results
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
     #     ppsr.get_rois_from_caiman_results(plane_folder=plane_folder, filter_sigma=roi_filter_sigma,
     #                                       cut_thr=roi_cut_thr, bg_fn='corrected_mean_projections.tif')
-
+    #
     # # filter rois
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
     #     ppsr.filter_rois(plane_folder=plane_folder, margin_pix_num=roi_margin_pix_num,
     #                      area_range=roi_area_range, overlap_thr=roi_overlap_thr,
     #                      bg_fn='corrected_mean_projections.tif')
-
+    #
     # # get center and surround rois
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
     #     ppsr.get_rois_and_surrounds(plane_folder=plane_folder, surround_limit=roi_surround_limit,
     #                                 bg_fn='corrected_mean_projections.tif')
-
+    #
     # # extract traces
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
     #     ppsr.get_raw_center_and_surround_traces(plane_folder=plane_folder, chunk_size=roi_chunk_size,
     #                                             process_num=roi_process_num)
-
+    #
     # # neuropil subtraction
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
     #     ppsr.get_neuropil_subtracted_traces(plane_folder=plane_folder, lam=roi_lambda,
     #                                         plot_chunk_size=roi_plot_chunk_size,
     #                                         plot_process_num=roi_plot_process_num)
-
+    #
     # # generate downsampled labeled movie
     # for plane_n in plane_ns:
     #     plane_folder = os.path.join(curr_folder, plane_n)
@@ -276,49 +280,49 @@ def run():
     #                                 process_num=roi_label_movie_process_num,
     #                                 chunk_size=roi_label_movie_chunk_size,
     #                                 frame_size=roi_label_movie_frame_size)
-
+    #
     # # add rois and traces to nwb file
     # psr.add_rois_and_traces_to_nwb_caiman(nwb_folder=curr_folder, plane_ns=plane_ns,
     #                                       plane_depths=plane_depths)
-
+    #
     # # add response tables
     # psr.add_response_tables(nwb_folder=curr_folder, strf_response_window=strf_t_win,
     #                         dgc_response_window=dgc_t_win, lsn_stim_name=lsn_stim_name,
     #                         dgc_stim_name=dgc_stim_name)
-
-    # ==================================Plotting==========================================
+    #
+    # # ==================================Plotting==========================================
     # plot_strf_grp_name = 'strf_{}'.format(lsn_stim_name)
     # plot_dgc_grp_name = 'response_table_{}'.format(dgc_stim_name)
-
+    #
     # # plot drifting grating tuning curves
     # psr.plot_dgc_tuning_curves(nwb_folder=curr_folder, response_table_name=plot_dgc_grp_name,
     #                            t_window_response=plot_dgc_t_window_response,
     #                            t_window_baseline=plot_dgc_t_window_baseline,
     #                            trace_type=plot_trace_type, bias=plot_bias)
-
+    #
     # # plot receptive field contours
     # psr.plot_RF_contours(nwb_folder=curr_folder, response_table_name=plot_strf_grp_name,
     #                      trace_type=plot_trace_type, bias=plot_bias, t_window=plot_rf_t_window,
     #                      filter_sigma=plot_rf_filter_sigma, interpolation_rate=plot_rf_interoplation_rate,
     #                      absolute_thr=plot_rf_absolute_thr, thr_ratio=plot_rf_thr_ratio)
-
+    #
     # # plot zscore receptive field maps
     # psr.plot_zscore_RF_maps(nwb_folder=curr_folder, response_table_name=plot_strf_grp_name,
     #                         t_window=plot_rf_t_window, trace_type=plot_trace_type, bias=plot_bias,
     #                         zscore_range=plot_rf_zscore_range)
-
+    #
     # # plot drifting grating mean responses
     # psr.plot_dgc_mean_responses(nwb_folder=curr_folder, response_table_name=plot_dgc_grp_name,
     #                             t_window_response=plot_dgc_t_window_response,
     #                             t_window_baseline=plot_dgc_t_window_baseline,
     #                             trace_type=plot_trace_type, bias=plot_bias)
-
+    #
     # # plot drifting grating trial responses
     # psr.plot_dgc_trial_responses(nwb_folder=curr_folder, response_table_name=plot_dgc_grp_name,
     #                              t_window_response=plot_dgc_t_window_response,
     #                              t_window_baseline=plot_dgc_t_window_baseline,
     #                              trace_type=plot_trace_type, bias=plot_bias)
-
+    #
     # # plot spatial temporal receptive field
     # psr.plot_STRF(nwb_folder=curr_folder, response_table_name=plot_strf_grp_name,
     #               trace_type=plot_trace_type, bias=plot_bias)
