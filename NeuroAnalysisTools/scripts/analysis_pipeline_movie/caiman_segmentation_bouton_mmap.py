@@ -63,8 +63,14 @@ def run():
   # ========================= caiman parameters for boutons ================================================
   curr_folder = os.path.dirname(os.path.realpath(__file__))
 
-  data_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data\{}-{}-{}" \
-                r"\{}".format(date_recorded, mouse_id, imaging_mode, data_folder_n)
+  # windows
+  source_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data"
+
+  # # ubuntu
+  # source_folder = "/media/nc-ophys/Jun/raw_data"
+
+  data_folder = os.path.join(source_folder, f'{date_recorded}-{mouse_id}-'
+                                            f'{imaging_mode}/{data_folder_n}')
 
 
   plane_ns = [f for f in os.listdir(data_folder) if
