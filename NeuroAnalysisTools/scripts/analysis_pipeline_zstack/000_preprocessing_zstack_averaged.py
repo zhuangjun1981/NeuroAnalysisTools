@@ -11,7 +11,11 @@ zstack_chs = ('green',)
 ch_rf = 'green'
 chs_apply = ('green',)
 
+# windows
 source_folder = r"\\allen\programs\braintv\workgroups\nc-ophys\Jun\raw_data"
+
+# # ubuntu
+# source_folder = '/media/nc-ophys/jun/raw_data'
 
 curr_folder = os.path.dirname(os.path.realpath(__file__))
 os.chdir(curr_folder)
