@@ -732,6 +732,7 @@ class SpatialTemporalReceptiveField(object):
 
         # self.merge_duplication()
         self.sort_probes()
+        self.data.reset_index(drop=True, inplace=True)
         # print(self.data)
         # print(self.get_data_types())
         # print(self.get_probes())
@@ -1223,8 +1224,8 @@ class SpatialTemporalReceptiveField(object):
                             else:
                                 indOFF[j][k] = i
 
-        indON = np.array([np.array(x) for x in indON]);
-        indOFF = np.array([np.array(x) for x in indOFF])
+        indON = np.array(indON)
+        indOFF = np.array(indOFF)
 
         return indON, indOFF, allAltPos, allAziPos
 
