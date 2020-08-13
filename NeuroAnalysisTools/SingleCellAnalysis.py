@@ -1968,13 +1968,15 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return v_min, v_max
 
-    def plot_all_traces(self, baseline_win=(-0.5, 0.), response_win=(0., 1.), f=None, trace_lw=1,
-                        is_plot_face_color=True, face_cmap='RdBu_r', face_c_range=None, trace_color='k',
-                        is_display_title=True):
+    def plot_all_traces(self, baseline_win=(-0.5, 0.), response_win=(0., 1.), f=None,
+                        is_plot_face_color=True, face_cmap='RdBu_r', face_c_range=None,
+                        is_display_title=True, y_range=None, **kwargs):
         """
         plot all traces for all conditions, except blank condition
 
         currently this does not work for multiple contrast or multiple radius conditions
+
+        **kwargs is inputs to the plot() function for each condition
         """
 
         for_plot = self.remove_blank_cond()
@@ -2011,7 +2013,11 @@ class DriftingGratingResponseMatrix(DataFrame):
                                                           wspace=0.05, hspace=0.05)
             gs_in_dict[gs_ind] = curr_gs_in
 
-        vmin, vmax = for_plot.get_min_max_value()
+        if y_range is None:
+            vmin, vmax = for_plot.get_min_max_value()
+        else:
+            vmin = y_range[0]
+            vmax = y_range[1]
 
         dgcrt, _, _, _ = for_plot.get_df_response_table(baseline_win=baseline_win, response_win=response_win)
         if face_c_range is None:
@@ -2052,7 +2058,7 @@ class DriftingGratingResponseMatrix(DataFrame):
             ax.axvspan(response_win[0], response_win[1], alpha=0.4, color='#777777', ec='none')
 
             for trace in cond_row['matrix']:
-                ax.plot(for_plot.sta_ts, trace, ls='-', color=trace_color, lw=trace_lw)
+                ax.plot(for_plot.sta_ts, trace, **kwargs)
 
             ax.axvline(x=0, ls='--', color='k', lw=1)
             ax.axhline(y=0, ls='--', color='k', lw=1)
