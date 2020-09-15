@@ -2937,6 +2937,22 @@ class DriftingGratingResponseTableTrial(DataFrame):
         self.baseline_window_sec = baseline_window_sec
         self.response_window_sec = response_window_sec
 
+    def get_blank_ind(self):
+        blank_rows = self[(self['sf'] == 0) &
+                          (self['tf'] == 0) &
+                          (self['dire'] == 0)]
+
+        return blank_rows.index
+
+    def remove_blank_cond(self):
+        blank_ind = self.get_blank_ind()
+        new_dgcrtt = self[np.logical_not(self.index.isin(blank_ind))]
+        new_dgcrtt = DriftingGratingResponseTableTrial(data=new_dgcrtt,
+                                                       baseline_window_sec=self.baseline_window_sec,
+                                                       response_window_sec=self.response_window_sec,
+                                                       trace_type=self.trace_type)
+        return new_dgcrtt
+
 
 if __name__ == '__main__':
     plt.ioff()
