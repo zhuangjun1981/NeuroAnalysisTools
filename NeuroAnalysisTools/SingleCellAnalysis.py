@@ -1861,6 +1861,45 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return zscore_response_table, p_anova, p_ttest_pos, p_ttest_neg
 
+    def get_response_table_trial(self, baseline_win=(-0.5, 0.), response_win=(0., 1.)):
+        """
+        this returns a DriftingGratingResponseTableTrial object, which contains trial infomation
+
+        for each condition:
+        1. baseline for each trial is calculated by averaging across the data points in the baseline_win
+        2. response for each trail is calculated by averaging across the data points in the response_win
+        3. df for each trail is defined by (response - baseline) and response table is generated
+
+        :param baseline_win:
+        :param response_win:
+        :return dgcrtt: DriftingGratingCircleResponseTableTrial object
+        """
+
+        baseline_ind = np.logical_and(self.sta_ts > baseline_win[0], self.sta_ts <= baseline_win[1])
+        response_ind = np.logical_and(self.sta_ts > response_win[0], self.sta_ts <= response_win[1])
+
+        dgcrtt = DriftingGratingResponseTableTrial(trace_type=self.trace_type,
+                                                   columns=['alt', 'azi', 'sf', 'tf',
+                                                            'dire', 'con', 'rad',
+                                                            'resp_trial'])
+
+        for cond_i, cond_row in self.iterrows():
+
+            matrix = cond_row['matrix']
+            b = np.mean(matrix[:, baseline_ind], axis=1)
+            r = np.mean(matrix[:, response_ind], axis=1)
+            rt = r - b
+
+            dgcrtt.loc[cond_i] = [cond_row['alt'],
+                                  cond_row['azi'],
+                                  cond_row['sf'],
+                                  cond_row['tf'],
+                                  cond_row['dire'],
+                                  cond_row['con'],
+                                  cond_row['rad'],
+                                  rt]
+        return dgcrtt
+
     def plot_traces(self, condi_ind, axis=None, blank_ind=None, block_dur=None, response_window=None,
                     baseline_window=None, trace_color='#ff0000', block_face_color='#aaaaaa',
                     response_window_color='#ff00ff', baseline_window_color='#888888', blank_trace_color='#888888',
@@ -2125,6 +2164,8 @@ class DriftingGratingResponseTable(DataFrame):
     resp_std - float, standard deviation across trials
     resp_stdev - float, standard error of mean across trials
     """
+
+    _metadata = ['trace_type']
 
     def __init__(self, trace_type='', *args, **kwargs):
 
@@ -2812,6 +2853,33 @@ class DriftingGratingResponseTable(DataFrame):
         axis.set_yticks([ymax])
 
         return ymax
+
+
+class DriftingGratingResponseTableTrial(DataFrame):
+    """
+    class for response table to drifting grating circle
+    contains responses to all conditions of one roi
+
+    subclassed from pandas.DataFrame with more attribute:
+    trace_type: str, type of traces
+
+    columns:
+    alt  - float, altitute of circle center
+    azi  - float, azimuth of circle center
+    sf   - float, spatial frequency, cpd
+    tf   - float, temporal frequency, Hz
+    dire - int, drifting direction, deg, 0 is to right, increase counter-clockwise
+    con  - float, contrast, [0, 1]
+    rad  - float, radius, deg
+    resp_trial - 1d array, responses to each trial for the given condition
+    """
+
+    _metadata = ['trace_type']
+
+    def __init__(self, trace_type='', *args, **kwargs):
+        super(DriftingGratingResponseTableTrial, self).__init__(*args, **kwargs)
+
+        self.trace_type = trace_type
 
 
 if __name__ == '__main__':
