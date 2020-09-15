@@ -293,6 +293,52 @@ def get_dgc_response_matrix_from_nwb(h5_grp, roi_ind, trace_type='sta_f_center_s
     return DriftingGratingResponseMatrix(sta_ts=sta_ts, trace_type=trace_type, data=dgcrm)
 
 
+def get_dgc_response_table_trial_from_hdf5(h5_grp, roi_ind, trace_type='sta_f_center_subtracted'):
+
+    if 'baseline_window_sec' in h5_grp.attrs:
+        baseline_window_sec = h5_grp.attrs['baseline_window_sec']
+    else:
+        baseline_window_sec = None
+
+    if 'response_window_sec' in h5_grp.attrs:
+        response_window_sec = h5_grp.attrs['response_window_sec']
+    else:
+        response_window_sec = None
+
+    dgcrtt = DataFrame([], columns=['alt', 'azi', 'sf', 'tf', 'dire', 'con', 'rad', 'onset_ts', 'resp_trial'])
+
+    condi_ns = list(h5_grp.keys())
+    condi_ns.sort()
+
+    for condi_i, condi_n in enumerate(condi_ns):
+
+        condi_grp = h5_grp[condi_n]
+
+        alt, azi, sf, tf, dire, con, rad = get_dgc_condition_params(condi_name=condi_n)
+
+        if 'global_trigger_timestamps' in condi_grp.attrs:
+            onset_ts = condi_grp.attrs['global_trigger_timestamps']
+        else:
+            onset_ts = []
+
+        resp_trial = condi_grp[trace_type][roi_ind, :]
+
+        dgcrtt.loc[condi_i, 'alt'] = alt
+        dgcrtt.loc[condi_i, 'azi'] = azi
+        dgcrtt.loc[condi_i, 'sf'] = sf
+        dgcrtt.loc[condi_i, 'tf'] = tf
+        dgcrtt.loc[condi_i, 'dire'] = dire
+        dgcrtt.loc[condi_i, 'con'] = con
+        dgcrtt.loc[condi_i, 'rad'] = rad
+        dgcrtt.loc[condi_i, 'onset_ts'] = onset_ts
+        dgcrtt.loc[condi_i, 'resp_trial'] = resp_trial
+
+    return DriftingGratingResponseTableTrial(trace_type=trace_type,
+                                             baseline_window_sec=baseline_window_sec,
+                                             response_window_sec=response_window_sec,
+                                             data=dgcrtt)
+
+
 def get_local_similarity_index(mask1, mask2):
     """
     calculate local similarity index between two receptive field maps
@@ -1879,8 +1925,10 @@ class DriftingGratingResponseMatrix(DataFrame):
         response_ind = np.logical_and(self.sta_ts > response_win[0], self.sta_ts <= response_win[1])
 
         dgcrtt = DriftingGratingResponseTableTrial(trace_type=self.trace_type,
+                                                   baseline_window_sec=baseline_win,
+                                                   response_window_sec=response_win,
                                                    columns=['alt', 'azi', 'sf', 'tf',
-                                                            'dire', 'con', 'rad',
+                                                            'dire', 'con', 'rad', 'onset_ts',
                                                             'resp_trial'])
 
         for cond_i, cond_row in self.iterrows():
@@ -1897,6 +1945,7 @@ class DriftingGratingResponseMatrix(DataFrame):
                                   cond_row['dire'],
                                   cond_row['con'],
                                   cond_row['rad'],
+                                  cond_row['onset_ts'],
                                   rt]
         return dgcrtt
 
@@ -2862,6 +2911,8 @@ class DriftingGratingResponseTableTrial(DataFrame):
 
     subclassed from pandas.DataFrame with more attribute:
     trace_type: str, type of traces
+    baseline_window_sec: list of 2 floats, baseline time window
+    response_window_sec: list of 2 floats, response time window
 
     columns:
     alt  - float, altitute of circle center
@@ -2871,15 +2922,20 @@ class DriftingGratingResponseTableTrial(DataFrame):
     dire - int, drifting direction, deg, 0 is to right, increase counter-clockwise
     con  - float, contrast, [0, 1]
     rad  - float, radius, deg
+    onset_ts - 1d array, global onset time stamps for each trial
     resp_trial - 1d array, responses to each trial for the given condition
     """
 
-    _metadata = ['trace_type']
+    _metadata = ['trace_type', 'baseline_window_sec', 'response_window_sec']
 
-    def __init__(self, trace_type='', *args, **kwargs):
+    def __init__(self, trace_type='', baseline_window_sec=None,
+                 response_window_sec=None, *args, **kwargs):
+
         super(DriftingGratingResponseTableTrial, self).__init__(*args, **kwargs)
 
         self.trace_type = trace_type
+        self.baseline_window_sec = baseline_window_sec
+        self.response_window_sec = response_window_sec
 
 
 if __name__ == '__main__':
