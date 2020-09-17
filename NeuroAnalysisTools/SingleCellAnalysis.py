@@ -2953,6 +2953,35 @@ class DriftingGratingResponseTableTrial(DataFrame):
                                                        trace_type=self.trace_type)
         return new_dgcrtt
 
+    @property
+    def sfs(self):
+        return self['sf'].unique()
+
+    @property
+    def tfs(self):
+        return self['tf'].unique()
+
+    @property
+    def dires(self):
+        return self['dire'].unique()
+
+    @property
+    def cons(self):
+        return self['con'].unique()
+
+    @property
+    def rads(self):
+        return self['rad'].unique()
+
+    def get_min(self):
+        min_lst = [a.min() for a in self['resp_trial']]
+        return min(min_lst)
+
+    def get_max(self):
+        max_lst = [a.max() for a in self['resp_trial']]
+        return max(max_lst)
+
+
 
 if __name__ == '__main__':
     plt.ioff()
