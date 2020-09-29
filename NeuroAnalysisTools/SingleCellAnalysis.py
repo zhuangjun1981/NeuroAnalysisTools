@@ -3032,7 +3032,7 @@ class DriftingGratingResponseTableTrial(DataFrame):
         """
         return min([len(r['resp_trial']) for i, r in self.iterrows()])
 
-    def get_subtable(self, trial_lst):
+    def get_subtable_by_trial(self, trial_lst):
         """
         return a new DriftingGratingResponseTableTrial object
         with only trials listed trial_lst retained.
@@ -3050,6 +3050,19 @@ class DriftingGratingResponseTableTrial(DataFrame):
             cond_r['resp_trial'] = cond_r['resp_trial'][trial_lst]
 
         return sub_table
+
+    def get_optimal_condition(self):
+        """
+        return the index and mean response of the optimal condition
+        :return opt_ind: int, index of the optimal condition
+        :return opt_resp: float, response of the optimal condition
+        """
+
+        resp_cond = [np.mean(r['resp_trial']) for i, r in self.iterrows()]
+        # print(self.index[np.argmax(resp_cond)])
+        opt_ind = self.index[np.argmax(resp_cond)]
+        opt_resp = resp_cond[opt_ind]
+        return opt_ind, opt_resp
 
 
 
