@@ -297,11 +297,15 @@ def get_dgc_response_table_trial_from_hdf5(h5_grp, roi_ind, trace_type='sta_f_ce
 
     if 'baseline_window_sec' in h5_grp.attrs:
         baseline_window_sec = h5_grp.attrs['baseline_window_sec']
+    elif 'baseline_time_window_sec' in h5_grp.attrs:
+        baseline_window_sec = h5_grp.attrs['baseline_time_window_sec']
     else:
         baseline_window_sec = None
 
     if 'response_window_sec' in h5_grp.attrs:
         response_window_sec = h5_grp.attrs['response_window_sec']
+    if 'response_time_window_sec' in h5_grp.attrs:
+        response_window_sec = h5_grp.attrs['response_time_window_sec']
     else:
         response_window_sec = None
 
@@ -2937,6 +2941,12 @@ class DriftingGratingResponseTableTrial(DataFrame):
         self.baseline_window_sec = baseline_window_sec
         self.response_window_sec = response_window_sec
 
+    def copy_self(self, deep=True):
+        return  DriftingGratingResponseTableTrial(data=self.copy(deep=deep),
+                                                  trace_type=self.trace_type,
+                                                  baseline_window_sec=self.baseline_window_sec,
+                                                  response_window_sec=self.response_window_sec)
+
     def get_blank_ind(self):
         blank_rows = self[(self['sf'] == 0) &
                           (self['tf'] == 0) &
@@ -2952,6 +2962,35 @@ class DriftingGratingResponseTableTrial(DataFrame):
                                                        response_window_sec=self.response_window_sec,
                                                        trace_type=self.trace_type)
         return new_dgcrtt
+
+    def check_trials(self, is_raise_exception=False, is_verbose=False):
+        """
+        for each conditions check if the trail number in onset_ts is equal
+        to the trail number in resp_trail
+
+        :return is_match: bool, True trial numbers match for all conditions,
+                                otherwise False.
+        """
+
+        match = True
+
+        for condi_i, condi_r in self.iterrows():
+            assert(len(condi_r['onset_ts'].shape) == 1)
+            assert(len(condi_r['resp_trial'].shape) == 1)
+
+            if len(condi_r['onset_ts']) != len(condi_r['resp_trial']):
+                match = False
+
+                if is_verbose:
+                    print(f'condi: sf{condi_r["sf"]:04.2f}_tf{condi_r["tf"]:04.1f}_dire{condi_r["dire"]:03.0f}_'
+                          f'rad{condi_r["rad"]:05.0f}_con{condi_r["con"]:04.2f}: '
+                          f'{len(condi_r["onset_ts"])} onsets, '
+                          f'{len(condi_r["resp_trial"])} responses.')
+
+        if is_raise_exception and (not match):
+            raise ValueError('Trial number in onsets does not match trail numbers in responses')
+
+        return match
 
     @property
     def sfs(self):
@@ -2980,6 +3019,37 @@ class DriftingGratingResponseTableTrial(DataFrame):
     def get_max(self):
         max_lst = [a.max() for a in self['resp_trial']]
         return max(max_lst)
+
+    def get_max_trial_num(self):
+        """
+        :return max_trial_num: int, the maximum trail number across all conditions
+        """
+        return max([len(r['resp_trial']) for i, r in self.iterrows()])
+
+    def get_min_trial_num(self):
+        """
+        :return min_trial_num: int, the minimum trail number across all conditions
+        """
+        return min([len(r['resp_trial']) for i, r in self.iterrows()])
+
+    def get_subtable(self, trial_lst):
+        """
+        return a new DriftingGratingResponseTableTrial object
+        with only trials listed trial_lst retained.
+
+        :param trial_lst: 1d array-like,
+                          with non-negative integers,
+                          trial indices to be retained.
+        """
+
+        sub_table = self.copy_self()
+
+        for cond_i, cond_r in sub_table.iterrows():
+
+            cond_r['onset_ts'] = cond_r['onset_ts'][trial_lst]
+            cond_r['resp_trial'] = cond_r['resp_trial'][trial_lst]
+
+        return sub_table
 
 
 
