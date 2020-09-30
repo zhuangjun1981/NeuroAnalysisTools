@@ -2372,7 +2372,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_sf: bool,
         :param is_collapse_tf: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return dire_tuning: dataframe with two columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
@@ -2413,6 +2413,21 @@ class DriftingGratingResponseTable(DataFrame):
 
         return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
 
+    def get_dire_tuning_by_given_condition(self, opt_ind, response_dir='pos'):
+        """
+        get dire tuning from conditions constrained by an arbitrary condition,
+        just pick conditions with same sf, tf, rad, con, azi, alt but different directions
+        as the given condition.
+
+        :param opt_ind: int, index of the given condition
+        :param response_dir: str, 'pos' or 'neg', looking for upward calcium activity or
+                             activity below the baseline
+        :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+                             'resp_stdev'
+        """
+        #todo: finish this
+        pass
+
     def get_sf_tuning(self, response_dir='pos', is_collapse_tf=False, is_collapse_dire=False):
         """
         dataframe of sf responses, other conditions are at peak in positive or negative direction, if not
@@ -2420,7 +2435,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_tf: bool,
         :param is_collapse_dire: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return sf_tuning: dataframe with two columns: 'sf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return sf_tuning: dataframe with six columns: 'sf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
@@ -2464,7 +2479,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_sf: bool,
         :param is_collapse_dire: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return tf_tuning: dataframe with two columns: 'tf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return tf_tuning: dataframe with six columns: 'tf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
