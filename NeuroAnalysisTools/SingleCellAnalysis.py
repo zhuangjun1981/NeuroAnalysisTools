@@ -3064,6 +3064,29 @@ class DriftingGratingResponseTableTrial(DataFrame):
         opt_resp = resp_cond[opt_ind]
         return opt_ind, opt_resp
 
+    def get_response_table(self):
+        """
+        collapse trial responses of each condition to generate a
+        DriftingGratingResponseTable object
+        """
+
+        dgcrt = DataFrame(columns=['alt', 'azi', 'sf', 'tf', 'dire', 'con', 'rad',
+                                   'resp_mean', 'resp_max', 'resp_min', 'resp_std',
+                                   'resp_stdev'])
+        dgcrt['alt'] = self['alt']
+        dgcrt['azi'] = self['azi']
+        dgcrt['sf'] = self['sf']
+        dgcrt['tf'] = self['tf']
+        dgcrt['dire'] = self['dire']
+        dgcrt['con'] = self['con']
+        dgcrt['rad'] = self['rad']
+        dgcrt['resp_mean'] = [np.mean(r) for r in self['resp_trial']]
+        dgcrt['resp_max'] = [np.max(r) for r in self['resp_trial']]
+        dgcrt['resp_min'] = [np.min(r) for r in self['resp_trial']]
+        dgcrt['resp_std'] = [np.std(r) for r in self['resp_trial']]
+        dgcrt['resp_stdev'] = [np.std(r) / np.sqrt(len(r)) for r in self['resp_trial']]
+
+        return DriftingGratingResponseTable(data=dgcrt, trace_type=self.trace_type)
 
 
 if __name__ == '__main__':
