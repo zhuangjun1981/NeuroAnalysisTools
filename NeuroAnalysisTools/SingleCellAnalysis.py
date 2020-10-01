@@ -2034,13 +2034,6 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return blank_rows.index
 
-    # def remove_blank_cond(self):
-    #
-    #     return self.drop(index=self.get_blank_ind())
-    #
-    #     return DriftingGratingResponseMatrix(sta_ts=self.sta_ts, trace_type=self.trace_type,
-    #                                          data=self.drop(index=self.get_blank_ind()))
-
     def get_min_max_value(self):
 
         v_min = None
@@ -2187,9 +2180,13 @@ class DriftingGratingResponseMatrix(DataFrame):
                     pass
         return f
 
-    def remove_blank_cond(self):
+    def remove_blank_cond(self, is_reset_index=True):
         blank_ind = self.get_blank_ind()
         new_dgcrm = self[np.logical_not(self.index.isin(blank_ind))]
+
+        if is_reset_index:
+            new_dgcrm = new_dgcrm.reset_index(drop=True)
+
         new_dgcrm = DriftingGratingResponseMatrix(data=new_dgcrm, sta_ts=self.sta_ts,
                                                   trace_type=self.trace_type)
         return new_dgcrm
@@ -2982,13 +2979,17 @@ class DriftingGratingResponseTableTrial(DataFrame):
 
         return blank_rows.index
 
-    def remove_blank_cond(self):
+    def remove_blank_cond(self, is_reset_index=True):
         blank_ind = self.get_blank_ind()
         new_dgcrtt = self[np.logical_not(self.index.isin(blank_ind))]
+        if is_reset_index:
+            new_dgcrtt = new_dgcrtt.reset_index(drop=True)
+
         new_dgcrtt = DriftingGratingResponseTableTrial(data=new_dgcrtt,
                                                        baseline_window_sec=self.baseline_window_sec,
                                                        response_window_sec=self.response_window_sec,
                                                        trace_type=self.trace_type)
+
         return new_dgcrtt
 
     def check_trials(self, is_raise_exception=False, is_verbose=False):
@@ -3089,6 +3090,7 @@ class DriftingGratingResponseTableTrial(DataFrame):
         resp_cond = [np.mean(r['resp_trial']) for i, r in self.iterrows()]
         # print(self.index[np.argmax(resp_cond)])
         opt_ind = self.index[np.argmax(resp_cond)]
+
         opt_resp = resp_cond[opt_ind]
         return opt_ind, opt_resp
 
