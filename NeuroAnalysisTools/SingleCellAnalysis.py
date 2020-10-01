@@ -2402,31 +2402,45 @@ class DriftingGratingResponseTable(DataFrame):
         if is_collapse_sf:
             df_sub = df_sub.groupby(['tf', 'dire']).mean().reset_index()
         else:
-            df_sub = df_sub.loc[df_sub['sf'] == sf_p].drop('sf', axis=1)
+            df_sub = df_sub.loc[df_sub['sf'] == sf_p].drop('sf', axis=1).reset_index()
 
         if is_collapse_tf:
             df_sub = df_sub.groupby(['dire']).mean().reset_index()
         else:
-            df_sub = df_sub.loc[df_sub['tf'] == tf_p].drop('tf', axis=1)
+            df_sub = df_sub.loc[df_sub['tf'] == tf_p].drop('tf', axis=1).reset_index()
 
         # print(df_sub)
 
         return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
 
-    def get_dire_tuning_by_given_condition(self, opt_ind, response_dir='pos'):
+    def get_dire_tuning_by_given_condition(self, cond_ind):
         """
         get dire tuning from conditions constrained by an arbitrary condition,
         just pick conditions with same sf, tf, rad, con, azi, alt but different directions
         as the given condition.
 
-        :param opt_ind: int, index of the given condition
-        :param response_dir: str, 'pos' or 'neg', looking for upward calcium activity or
-                             activity below the baseline
+        :param cond_ind: int, index of the given condition
         :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
-        #todo: finish this
-        pass
+        alt_p = f"{self.loc[cond_ind, 'alt']}:06.1f"
+        azi_p = f"{self.loc[cond_ind, 'azi']}:06.1f"
+        sf_p = f"{self.loc[cond_ind, 'sf']}:04.2f"
+        tf_p = f"{self.loc[cond_ind, 'tf']}:04.1f"
+        con_p = f"{self.loc[cond_ind, 'con']}:04.2f"
+        rad_p = f"{self.loc[cond_ind, 'rad']}:03.0f"
+
+        alt_arr = np.array([f"{a}:06.1f" for a in self['alt']])
+        azi_arr = np.array([f"{a}:06.1f" for a in self['azi']])
+        sf_arr  = np.array([f"{s}:04.2f" for s in self['sf']])
+        tf_arr  = np.array([f"{t}:04.1f" for t in self['tf']])
+        con_arr = np.array([f"{c}:04.2f" for c in self['con']])
+        rad_arr = np.array([f"{r}:03.0f" for r in self['rad']])
+
+        df_sub = self.loc[(alt_arr == alt_p) & (azi_arr == azi_p) & (sf_arr == sf_p) &
+                          (tf_arr == tf_p) &(con_arr == con_p) & (rad_arr == rad_p)].reset_index()
+
+        return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
 
     def get_sf_tuning(self, response_dir='pos', is_collapse_tf=False, is_collapse_dire=False):
         """
@@ -2577,7 +2591,6 @@ class DriftingGratingResponseTable(DataFrame):
 
             dire_tuning_2['resp_mean_rec'] = dire_tuning_2['resp_mean']
             dire_tuning_2.loc[dire_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0
-
 
             # get orientation indices
             peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
@@ -3069,7 +3082,7 @@ class DriftingGratingResponseTableTrial(DataFrame):
     def get_optimal_condition(self):
         """
         return the index and mean response of the optimal condition
-        :return opt_ind: int, index of the optimal condition
+        :return cond_ind: int, index of the optimal condition
         :return opt_resp: float, response of the optimal condition
         """
 
