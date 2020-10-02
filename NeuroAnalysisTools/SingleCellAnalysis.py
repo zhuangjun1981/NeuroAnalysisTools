@@ -3080,6 +3080,36 @@ class DriftingGratingResponseTableTrial(DataFrame):
 
         return sub_table
 
+    def split_by_trial(self, trial_lst):
+        """
+        return two new DriftingGratingResponseTableTrial object
+        first talbe with trials defined by trial_lst
+        second table with the rest trials
+
+        :param trial_lst: 1d array-like,
+                          with non-negative integers,
+                          trial indices to be retained.
+        """
+        trial_lst1 = list(trial_lst)
+        trial_lst1.sort()
+
+        sub_table1 = self.copy_self()
+        sub_table2 = self.copy_self()
+
+        for cond_i, cond_r in self.iterrows():
+
+            curr_trial_num = len(cond_r['onset_ts'])
+            trial_lst2 = list(set(range(curr_trial_num)) - set(trial_lst1))
+            trial_lst2.sort()
+
+            sub_table1.loc[cond_i, 'onset_ts'] = cond_r['onset_ts'][trial_lst1]
+            sub_table1.loc[cond_i, 'resp_trial'] = cond_r['resp_trial'][trial_lst1]
+
+            sub_table2.loc[cond_i, 'onset_ts'] = cond_r['onset_ts'][trial_lst2]
+            sub_table2.loc[cond_i, 'resp_trial'] = cond_r['resp_trial'][trial_lst2]
+
+        return sub_table1, sub_table2
+
     def get_optimal_condition(self):
         """
         return the index and mean response of the optimal condition
