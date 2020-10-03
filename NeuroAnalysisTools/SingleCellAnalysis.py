@@ -293,6 +293,56 @@ def get_dgc_response_matrix_from_nwb(h5_grp, roi_ind, trace_type='sta_f_center_s
     return DriftingGratingResponseMatrix(sta_ts=sta_ts, trace_type=trace_type, data=dgcrm)
 
 
+def get_dgc_response_table_trial_from_hdf5(h5_grp, roi_ind, trace_type='sta_f_center_subtracted'):
+
+    if 'baseline_window_sec' in h5_grp.attrs:
+        baseline_window_sec = h5_grp.attrs['baseline_window_sec']
+    elif 'baseline_time_window_sec' in h5_grp.attrs:
+        baseline_window_sec = h5_grp.attrs['baseline_time_window_sec']
+    else:
+        baseline_window_sec = None
+
+    if 'response_window_sec' in h5_grp.attrs:
+        response_window_sec = h5_grp.attrs['response_window_sec']
+    if 'response_time_window_sec' in h5_grp.attrs:
+        response_window_sec = h5_grp.attrs['response_time_window_sec']
+    else:
+        response_window_sec = None
+
+    dgcrtt = DataFrame([], columns=['alt', 'azi', 'sf', 'tf', 'dire', 'con', 'rad', 'onset_ts', 'resp_trial'])
+
+    condi_ns = list(h5_grp.keys())
+    condi_ns.sort()
+
+    for condi_i, condi_n in enumerate(condi_ns):
+
+        condi_grp = h5_grp[condi_n]
+
+        alt, azi, sf, tf, dire, con, rad = get_dgc_condition_params(condi_name=condi_n)
+
+        if 'global_trigger_timestamps' in condi_grp.attrs:
+            onset_ts = condi_grp.attrs['global_trigger_timestamps']
+        else:
+            onset_ts = []
+
+        resp_trial = condi_grp[trace_type][roi_ind, :]
+
+        dgcrtt.loc[condi_i, 'alt'] = alt
+        dgcrtt.loc[condi_i, 'azi'] = azi
+        dgcrtt.loc[condi_i, 'sf'] = sf
+        dgcrtt.loc[condi_i, 'tf'] = tf
+        dgcrtt.loc[condi_i, 'dire'] = dire
+        dgcrtt.loc[condi_i, 'con'] = con
+        dgcrtt.loc[condi_i, 'rad'] = rad
+        dgcrtt.loc[condi_i, 'onset_ts'] = onset_ts
+        dgcrtt.loc[condi_i, 'resp_trial'] = resp_trial
+
+    return DriftingGratingResponseTableTrial(trace_type=trace_type,
+                                             baseline_window_sec=baseline_window_sec,
+                                             response_window_sec=response_window_sec,
+                                             data=dgcrtt)
+
+
 def get_local_similarity_index(mask1, mask2):
     """
     calculate local similarity index between two receptive field maps
@@ -732,6 +782,7 @@ class SpatialTemporalReceptiveField(object):
 
         # self.merge_duplication()
         self.sort_probes()
+        self.data.reset_index(drop=True, inplace=True)
         # print(self.data)
         # print(self.get_data_types())
         # print(self.get_probes())
@@ -1223,8 +1274,8 @@ class SpatialTemporalReceptiveField(object):
                             else:
                                 indOFF[j][k] = i
 
-        indON = np.array([np.array(x) for x in indON]);
-        indOFF = np.array([np.array(x) for x in indOFF])
+        indON = np.array(indON)
+        indOFF = np.array(indOFF)
 
         return indON, indOFF, allAltPos, allAziPos
 
@@ -1860,6 +1911,48 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return zscore_response_table, p_anova, p_ttest_pos, p_ttest_neg
 
+    def get_response_table_trial(self, baseline_win=(-0.5, 0.), response_win=(0., 1.)):
+        """
+        this returns a DriftingGratingResponseTableTrial object, which contains trial infomation
+
+        for each condition:
+        1. baseline for each trial is calculated by averaging across the data points in the baseline_win
+        2. response for each trail is calculated by averaging across the data points in the response_win
+        3. df for each trail is defined by (response - baseline) and response table is generated
+
+        :param baseline_win:
+        :param response_win:
+        :return dgcrtt: DriftingGratingCircleResponseTableTrial object
+        """
+
+        baseline_ind = np.logical_and(self.sta_ts > baseline_win[0], self.sta_ts <= baseline_win[1])
+        response_ind = np.logical_and(self.sta_ts > response_win[0], self.sta_ts <= response_win[1])
+
+        dgcrtt = DriftingGratingResponseTableTrial(trace_type=self.trace_type,
+                                                   baseline_window_sec=baseline_win,
+                                                   response_window_sec=response_win,
+                                                   columns=['alt', 'azi', 'sf', 'tf',
+                                                            'dire', 'con', 'rad', 'onset_ts',
+                                                            'resp_trial'])
+
+        for cond_i, cond_row in self.iterrows():
+
+            matrix = cond_row['matrix']
+            b = np.mean(matrix[:, baseline_ind], axis=1)
+            r = np.mean(matrix[:, response_ind], axis=1)
+            rt = r - b
+
+            dgcrtt.loc[cond_i] = [cond_row['alt'],
+                                  cond_row['azi'],
+                                  cond_row['sf'],
+                                  cond_row['tf'],
+                                  cond_row['dire'],
+                                  cond_row['con'],
+                                  cond_row['rad'],
+                                  cond_row['onset_ts'],
+                                  rt]
+        return dgcrtt
+
     def plot_traces(self, condi_ind, axis=None, blank_ind=None, block_dur=None, response_window=None,
                     baseline_window=None, trace_color='#ff0000', block_face_color='#aaaaaa',
                     response_window_color='#ff00ff', baseline_window_color='#888888', blank_trace_color='#888888',
@@ -1941,13 +2034,6 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return blank_rows.index
 
-    # def remove_blank_cond(self):
-    #
-    #     return self.drop(index=self.get_blank_ind())
-    #
-    #     return DriftingGratingResponseMatrix(sta_ts=self.sta_ts, trace_type=self.trace_type,
-    #                                          data=self.drop(index=self.get_blank_ind()))
-
     def get_min_max_value(self):
 
         v_min = None
@@ -1968,13 +2054,15 @@ class DriftingGratingResponseMatrix(DataFrame):
 
         return v_min, v_max
 
-    def plot_all_traces(self, baseline_win=(-0.5, 0.), response_win=(0., 1.), f=None, trace_lw=1,
-                        is_plot_face_color=True, face_cmap='RdBu_r', face_c_range=None, trace_color='k',
-                        is_display_title=True):
+    def plot_all_traces(self, baseline_win=(-0.5, 0.), response_win=(0., 1.), f=None,
+                        is_plot_face_color=True, face_cmap='RdBu_r', face_c_range=None,
+                        is_display_title=True, y_range=None, **kwargs):
         """
         plot all traces for all conditions, except blank condition
 
         currently this does not work for multiple contrast or multiple radius conditions
+
+        **kwargs is inputs to the plot() function for each condition
         """
 
         for_plot = self.remove_blank_cond()
@@ -2011,7 +2099,11 @@ class DriftingGratingResponseMatrix(DataFrame):
                                                           wspace=0.05, hspace=0.05)
             gs_in_dict[gs_ind] = curr_gs_in
 
-        vmin, vmax = for_plot.get_min_max_value()
+        if y_range is None:
+            vmin, vmax = for_plot.get_min_max_value()
+        else:
+            vmin = y_range[0]
+            vmax = y_range[1]
 
         dgcrt, _, _, _ = for_plot.get_df_response_table(baseline_win=baseline_win, response_win=response_win)
         if face_c_range is None:
@@ -2052,7 +2144,7 @@ class DriftingGratingResponseMatrix(DataFrame):
             ax.axvspan(response_win[0], response_win[1], alpha=0.4, color='#777777', ec='none')
 
             for trace in cond_row['matrix']:
-                ax.plot(for_plot.sta_ts, trace, ls='-', color=trace_color, lw=trace_lw)
+                ax.plot(for_plot.sta_ts, trace, **kwargs)
 
             ax.axvline(x=0, ls='--', color='k', lw=1)
             ax.axhline(y=0, ls='--', color='k', lw=1)
@@ -2088,9 +2180,13 @@ class DriftingGratingResponseMatrix(DataFrame):
                     pass
         return f
 
-    def remove_blank_cond(self):
+    def remove_blank_cond(self, is_reset_index=True):
         blank_ind = self.get_blank_ind()
         new_dgcrm = self[np.logical_not(self.index.isin(blank_ind))]
+
+        if is_reset_index:
+            new_dgcrm = new_dgcrm.reset_index(drop=True)
+
         new_dgcrm = DriftingGratingResponseMatrix(data=new_dgcrm, sta_ts=self.sta_ts,
                                                   trace_type=self.trace_type)
         return new_dgcrm
@@ -2118,6 +2214,8 @@ class DriftingGratingResponseTable(DataFrame):
     resp_std - float, standard deviation across trials
     resp_stdev - float, standard error of mean across trials
     """
+
+    _metadata = ['trace_type']
 
     def __init__(self, trace_type='', *args, **kwargs):
 
@@ -2271,7 +2369,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_sf: bool,
         :param is_collapse_tf: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return dire_tuning: dataframe with two columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
@@ -2301,14 +2399,43 @@ class DriftingGratingResponseTable(DataFrame):
         if is_collapse_sf:
             df_sub = df_sub.groupby(['tf', 'dire']).mean().reset_index()
         else:
-            df_sub = df_sub.loc[df_sub['sf'] == sf_p].drop('sf', axis=1)
+            df_sub = df_sub.loc[df_sub['sf'] == sf_p].drop('sf', axis=1).reset_index()
 
         if is_collapse_tf:
             df_sub = df_sub.groupby(['dire']).mean().reset_index()
         else:
-            df_sub = df_sub.loc[df_sub['tf'] == tf_p].drop('tf', axis=1)
+            df_sub = df_sub.loc[df_sub['tf'] == tf_p].drop('tf', axis=1).reset_index()
 
         # print(df_sub)
+
+        return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
+
+    def get_dire_tuning_by_given_condition(self, cond_ind):
+        """
+        get dire tuning from conditions constrained by an arbitrary condition,
+        just pick conditions with same sf, tf, rad, con, azi, alt but different directions
+        as the given condition.
+
+        :param cond_ind: int, index of the given condition
+        :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+                             'resp_stdev'
+        """
+        alt_p = f"{self.loc[cond_ind, 'alt']}:06.1f"
+        azi_p = f"{self.loc[cond_ind, 'azi']}:06.1f"
+        sf_p = f"{self.loc[cond_ind, 'sf']}:04.2f"
+        tf_p = f"{self.loc[cond_ind, 'tf']}:04.1f"
+        con_p = f"{self.loc[cond_ind, 'con']}:04.2f"
+        rad_p = f"{self.loc[cond_ind, 'rad']}:03.0f"
+
+        alt_arr = np.array([f"{a}:06.1f" for a in self['alt']])
+        azi_arr = np.array([f"{a}:06.1f" for a in self['azi']])
+        sf_arr  = np.array([f"{s}:04.2f" for s in self['sf']])
+        tf_arr  = np.array([f"{t}:04.1f" for t in self['tf']])
+        con_arr = np.array([f"{c}:04.2f" for c in self['con']])
+        rad_arr = np.array([f"{r}:03.0f" for r in self['rad']])
+
+        df_sub = self.loc[(alt_arr == alt_p) & (azi_arr == azi_p) & (sf_arr == sf_p) &
+                          (tf_arr == tf_p) &(con_arr == con_p) & (rad_arr == rad_p)].reset_index()
 
         return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
 
@@ -2319,7 +2446,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_tf: bool,
         :param is_collapse_dire: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return sf_tuning: dataframe with two columns: 'sf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return sf_tuning: dataframe with six columns: 'sf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
@@ -2363,7 +2490,7 @@ class DriftingGratingResponseTable(DataFrame):
         :param is_collapse_sf: bool,
         :param is_collapse_dire: bool,
         :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return tf_tuning: dataframe with two columns: 'tf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
+        :return tf_tuning: dataframe with six columns: 'tf','resp_mean', 'resp_max', 'resp_min', 'resp_std',
                              'resp_stdev'
         """
 
@@ -2461,7 +2588,6 @@ class DriftingGratingResponseTable(DataFrame):
 
             dire_tuning_2['resp_mean_rec'] = dire_tuning_2['resp_mean']
             dire_tuning_2.loc[dire_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0
-
 
             # get orientation indices
             peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
@@ -2805,6 +2931,222 @@ class DriftingGratingResponseTable(DataFrame):
         axis.set_yticks([ymax])
 
         return ymax
+
+
+class DriftingGratingResponseTableTrial(DataFrame):
+    """
+    class for response table to drifting grating circle
+    contains responses to all conditions of one roi
+
+    subclassed from pandas.DataFrame with more attribute:
+    trace_type: str, type of traces
+    baseline_window_sec: list of 2 floats, baseline time window
+    response_window_sec: list of 2 floats, response time window
+
+    columns:
+    alt  - float, altitute of circle center
+    azi  - float, azimuth of circle center
+    sf   - float, spatial frequency, cpd
+    tf   - float, temporal frequency, Hz
+    dire - int, drifting direction, deg, 0 is to right, increase counter-clockwise
+    con  - float, contrast, [0, 1]
+    rad  - float, radius, deg
+    onset_ts - 1d array, global onset time stamps for each trial
+    resp_trial - 1d array, responses to each trial for the given condition
+    """
+
+    _metadata = ['trace_type', 'baseline_window_sec', 'response_window_sec']
+
+    def __init__(self, trace_type='', baseline_window_sec=None,
+                 response_window_sec=None, *args, **kwargs):
+
+        super(DriftingGratingResponseTableTrial, self).__init__(*args, **kwargs)
+
+        self.trace_type = trace_type
+        self.baseline_window_sec = baseline_window_sec
+        self.response_window_sec = response_window_sec
+
+    def copy_self(self, deep=True):
+        return  DriftingGratingResponseTableTrial(data=self.copy(deep=deep),
+                                                  trace_type=self.trace_type,
+                                                  baseline_window_sec=self.baseline_window_sec,
+                                                  response_window_sec=self.response_window_sec)
+
+    def get_blank_ind(self):
+        blank_rows = self[(self['sf'] == 0) &
+                          (self['tf'] == 0) &
+                          (self['dire'] == 0)]
+
+        return blank_rows.index
+
+    def remove_blank_cond(self, is_reset_index=True):
+        blank_ind = self.get_blank_ind()
+        new_dgcrtt = self[np.logical_not(self.index.isin(blank_ind))]
+        if is_reset_index:
+            new_dgcrtt = new_dgcrtt.reset_index(drop=True)
+
+        new_dgcrtt = DriftingGratingResponseTableTrial(data=new_dgcrtt,
+                                                       baseline_window_sec=self.baseline_window_sec,
+                                                       response_window_sec=self.response_window_sec,
+                                                       trace_type=self.trace_type)
+
+        return new_dgcrtt
+
+    def check_trials(self, is_raise_exception=False, is_verbose=False):
+        """
+        for each conditions check if the trail number in onset_ts is equal
+        to the trail number in resp_trail
+
+        :return is_match: bool, True trial numbers match for all conditions,
+                                otherwise False.
+        """
+
+        match = True
+
+        for condi_i, condi_r in self.iterrows():
+            assert(len(condi_r['onset_ts'].shape) == 1)
+            assert(len(condi_r['resp_trial'].shape) == 1)
+
+            if len(condi_r['onset_ts']) != len(condi_r['resp_trial']):
+                match = False
+
+                if is_verbose:
+                    print(f'condi: sf{condi_r["sf"]:04.2f}_tf{condi_r["tf"]:04.1f}_dire{condi_r["dire"]:03.0f}_'
+                          f'rad{condi_r["rad"]:05.0f}_con{condi_r["con"]:04.2f}: '
+                          f'{len(condi_r["onset_ts"])} onsets, '
+                          f'{len(condi_r["resp_trial"])} responses.')
+
+        if is_raise_exception and (not match):
+            raise ValueError('Trial number in onsets does not match trail numbers in responses')
+
+        return match
+
+    @property
+    def sfs(self):
+        return self['sf'].unique()
+
+    @property
+    def tfs(self):
+        return self['tf'].unique()
+
+    @property
+    def dires(self):
+        return self['dire'].unique()
+
+    @property
+    def cons(self):
+        return self['con'].unique()
+
+    @property
+    def rads(self):
+        return self['rad'].unique()
+
+    def get_min(self):
+        min_lst = [a.min() for a in self['resp_trial']]
+        return min(min_lst)
+
+    def get_max(self):
+        max_lst = [a.max() for a in self['resp_trial']]
+        return max(max_lst)
+
+    def get_max_trial_num(self):
+        """
+        :return max_trial_num: int, the maximum trail number across all conditions
+        """
+        return max([len(r['resp_trial']) for i, r in self.iterrows()])
+
+    def get_min_trial_num(self):
+        """
+        :return min_trial_num: int, the minimum trail number across all conditions
+        """
+        return min([len(r['resp_trial']) for i, r in self.iterrows()])
+
+    def get_subtable_by_trial(self, trial_lst):
+        """
+        return a new DriftingGratingResponseTableTrial object
+        with only trials listed trial_lst retained.
+
+        :param trial_lst: 1d array-like,
+                          with non-negative integers,
+                          trial indices to be retained.
+        """
+
+        sub_table = self.copy_self()
+
+        for cond_i, cond_r in sub_table.iterrows():
+
+            cond_r['onset_ts'] = cond_r['onset_ts'][trial_lst]
+            cond_r['resp_trial'] = cond_r['resp_trial'][trial_lst]
+
+        return sub_table
+
+    def split_by_trial(self, trial_lst):
+        """
+        return two new DriftingGratingResponseTableTrial object
+        first talbe with trials defined by trial_lst
+        second table with the rest trials
+
+        :param trial_lst: 1d array-like,
+                          with non-negative integers,
+                          trial indices to be retained.
+        """
+        trial_lst1 = list(trial_lst)
+        trial_lst1.sort()
+
+        sub_table1 = self.copy_self()
+        sub_table2 = self.copy_self()
+
+        for cond_i, cond_r in self.iterrows():
+
+            curr_trial_num = len(cond_r['onset_ts'])
+            trial_lst2 = list(set(range(curr_trial_num)) - set(trial_lst1))
+            trial_lst2.sort()
+
+            sub_table1.loc[cond_i, 'onset_ts'] = cond_r['onset_ts'][trial_lst1]
+            sub_table1.loc[cond_i, 'resp_trial'] = cond_r['resp_trial'][trial_lst1]
+
+            sub_table2.loc[cond_i, 'onset_ts'] = cond_r['onset_ts'][trial_lst2]
+            sub_table2.loc[cond_i, 'resp_trial'] = cond_r['resp_trial'][trial_lst2]
+
+        return sub_table1, sub_table2
+
+    def get_optimal_condition(self):
+        """
+        return the index and mean response of the optimal condition
+        :return cond_ind: int, index of the optimal condition
+        :return opt_resp: float, response of the optimal condition
+        """
+
+        resp_cond = [np.mean(r['resp_trial']) for i, r in self.iterrows()]
+        # print(self.index[np.argmax(resp_cond)])
+        opt_ind = self.index[np.argmax(resp_cond)]
+
+        opt_resp = resp_cond[opt_ind]
+        return opt_ind, opt_resp
+
+    def get_response_table(self):
+        """
+        collapse trial responses of each condition to generate a
+        DriftingGratingResponseTable object
+        """
+
+        dgcrt = DataFrame(columns=['alt', 'azi', 'sf', 'tf', 'dire', 'con', 'rad',
+                                   'resp_mean', 'resp_max', 'resp_min', 'resp_std',
+                                   'resp_stdev'])
+        dgcrt['alt'] = self['alt']
+        dgcrt['azi'] = self['azi']
+        dgcrt['sf'] = self['sf']
+        dgcrt['tf'] = self['tf']
+        dgcrt['dire'] = self['dire']
+        dgcrt['con'] = self['con']
+        dgcrt['rad'] = self['rad']
+        dgcrt['resp_mean'] = [np.mean(r) for r in self['resp_trial']]
+        dgcrt['resp_max'] = [np.max(r) for r in self['resp_trial']]
+        dgcrt['resp_min'] = [np.min(r) for r in self['resp_trial']]
+        dgcrt['resp_std'] = [np.std(r) for r in self['resp_trial']]
+        dgcrt['resp_stdev'] = [np.std(r) / np.sqrt(len(r)) for r in self['resp_trial']]
+
+        return DriftingGratingResponseTable(data=dgcrt, trace_type=self.trace_type)
 
 
 if __name__ == '__main__':

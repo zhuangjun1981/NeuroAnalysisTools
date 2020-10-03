@@ -170,6 +170,11 @@ def run():
     #                                                 scope=scope, saturation_level=5.,
     #                                                 save_prefix=f'{date}_M{mid}')
     #
+    # # get .mmap file for caiman bouton segmentation
+    # psr.get_mmap_files_for_caiman_bouton(reorg_folder,
+    #                                      save_name_base='{}_M{}_{}'.format(date, mid, sess_id),
+    #                                      identifier=file_identifier_2p,
+    #                                      temporal_downsample_rate=5, channel_name='green')
     # # downsample corrected files
     # psr.get_downsampled_small_movies(reorg_folder, curr_folder,
     #                                  identifier=file_identifier_2p,
@@ -181,11 +186,6 @@ def run():
     # psr.get_2p_data_file_for_nwb(reorg_folder, curr_folder, identifier=file_identifier_2p,
     #                              file_prefix='{}_M{}_{}'.format(date, mid, sess_id))
     #
-    # # get .mmap file for caiman bouton segmentation
-    # psr.get_mmap_files_for_caiman_bouton(reorg_folder,
-    #                                      save_name_base='{}_M{}_{}'.format(date, mid, sess_id),
-    #                                      identifier=file_identifier_2p,
-    #                                      temporal_downsample_rate=5, channel_name='green')
 
     # # generate nwb file
     # psr.generate_nwb_file(save_folder=curr_folder, date=date, mouse_id=mid, session_id=sess_id,
