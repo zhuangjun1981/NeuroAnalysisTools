@@ -1217,8 +1217,8 @@ class Preprocessor(object):
                                  anchor_frame_ind_projection=0,
                                  iteration_chunk=10,
                                  iteration_projection=10,
-                                 max_offset_chunk=(100., 100.),
-                                 max_offset_projection=(100., 100.),
+                                 max_offset_chunk=(50., 50.),
+                                 max_offset_projection=(50., 50.),
                                  align_func=mc.phase_correlation,
                                  preprocessing_type=6,
                                  fill_value=0.)

@@ -122,7 +122,7 @@ def zscore(A):
     return Z score of an array.
     '''
 
-    if np.isnan(A).any(): return (A-np.nanmean(A.flatten()))/np.nanstd(A.flatten())
+    if np.isnan(A[:]).any(): return (A-np.nanmean(A.flatten()))/np.nanstd(A.flatten())
     else: A = A.astype(np.float); return (A-np.mean(A.flatten()))/np.std(A.flatten())
 
 
