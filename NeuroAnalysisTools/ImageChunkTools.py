@@ -2,6 +2,7 @@ import numpy as np
 import scipy.ndimage as ni
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.TimingAnalysis as ta
+import cv2
 
 
 def downsample_planes(img, d_rate):
@@ -61,7 +62,7 @@ def threshold(img, std_thr):
     return img
 
 
-def filter_planes(img, vox_size_x, vox_size_y,sigma_size):
+def filter_planes(img, vox_size_x, vox_size_y, sigma_size, is_use_cv2=True):
     """
     2d gaussian filter for each plane
 
@@ -75,9 +76,19 @@ def filter_planes(img, vox_size_x, vox_size_y,sigma_size):
     if len(img.shape) != 3:
         raise ValueError('input array should be 3d.')
 
-    imgf = ni.gaussian_filter(img, sigma=(1,
-                                          sigma_size / vox_size_y,
-                                          sigma_size / vox_size_x))
+    sig_y = sigma_size / vox_size_y
+    sig_x = sigma_size / vox_size_x
+
+    if is_use_cv2:
+        imgf = np.empty(img.shape, dtype=img.dtype)
+        for z in range(img.shape[0]):
+            imgf[z, :, :] = cv2.GaussianBlur(img[z, :, :],
+                                             ksize=(0, 0),
+                                             sigmaX=sig_x,
+                                             sigmaY=sig_y)
+    else:
+        imgf = ni.gaussian_filter(img, sigma=(1, sig_y, sig_x))
+
     return imgf
 
 
@@ -205,9 +216,11 @@ def flatten_both_sides(img, top, bottom):
 
     for yi in range(y):
         for xi in range(x):
+
             col = img[top[yi, xi]:bottom[yi, xi], yi, xi]
+            # print(col)
             colz = np.arange(len(col))
-            imgtb[:, yi, xi] = np.interp(colz_tb, colz, col)
+            imgtb[:, yi, xi] = np.interp(x=colz_tb, xp=colz, fp=col)
 
     return imgtb
 
