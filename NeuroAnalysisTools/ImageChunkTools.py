@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.ndimage as ni
+import matplotlib.pyplot as plt
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.TimingAnalysis as ta
 import cv2
@@ -103,7 +104,7 @@ def filter_planes(img, vox_size_x, vox_size_y, sigma_size, is_use_cv2=True):
     return imgf
 
 
-def find_surface(img, surface_thr):
+def find_surface(img, surface_thr, is_plot=True):
     """
 
     :param img: 3d array, ZYX, assume small z = top; large z = bottom
@@ -120,12 +121,20 @@ def find_surface(img, surface_thr):
     top = np.zeros((y, x), dtype=np.int)
     bot = np.ones((y, x), dtype=np.int) * z
 
+    if is_plot:
+        f = plt.figure(figsize=(5, 5))
+        ax = f.add_subplot(111)
+
     for yi in range(y):
         for xi in range(x):
             curr_t = img[:, yi, xi]
 
             if curr_t.max() != curr_t.min():
                 curr_t = (curr_t - curr_t.min()) / (curr_t.max() - curr_t.min())
+
+                if is_plot:
+                    if yi % 10 == 0 and xi % 10 == 0:
+                        ax.plot(range(len(curr_t)), curr_t, '-b', lw=0.5, alpha=0.1)
 
                 if curr_t[0] < surface_thr:
                     curr_top = ta.up_crossings(curr_t, surface_thr)
@@ -136,6 +145,9 @@ def find_surface(img, surface_thr):
                     curr_bot = ta.down_crossings(curr_t, surface_thr)
                     if len(curr_bot) != 0:
                         bot[yi, xi] = curr_bot[-1]
+
+    if is_plot:
+        plt.show()
 
     return top, bot
 
