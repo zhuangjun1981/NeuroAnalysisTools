@@ -24,15 +24,11 @@ def downsample_planes(img, d_rate):
 
         img = img[:(yd * d_rate), :(xd * d_rate)]
 
-        imgd = np.zeros((yd, xd, d_rate, d_rate), dtype=np.float64)
-
-        for yi in range(d_rate):
-            for xi in range(d_rate):
-                imgd[:, :, yi, xi] = img[yi::d_rate, xi::d_rate]
-
-        imgd = np.mean(imgd, axis=-1)
-        imgd = np.mean(imgd, axis=-1)
-        imgd = imgd.astype(dtype)
+        imgd = cv2.resize(src=img,
+                          dsize=(xd, yd),
+                          fx=d_rate,
+                          fy=d_rate,
+                          interpolation=cv2.INTER_LINEAR).astype(dtype)
 
     elif len(img.shape) == 3:
         z, y, x = img.shape
@@ -44,17 +40,13 @@ def downsample_planes(img, d_rate):
                   :(yd * d_rate),
                   :(xd * d_rate)]
 
-        # imgd = ia.rigid_transform_cv2(img=img, zoom=1 / d_rate).astype(dtype)
-
-        imgd = np.zeros((z, yd, xd, d_rate, d_rate), dtype=np.float64)
-
-        for yi in range(d_rate):
-            for xi in range(d_rate):
-                imgd[:, :, :, yi, xi] = img[:, yi::d_rate, xi::d_rate]
-
-        imgd = np.mean(imgd, axis=-1)
-        imgd = np.mean(imgd, axis=-1)
-        imgd = imgd.astype(dtype)
+        imgd = np.zeros((z, yd, xd), dtype=dtype)
+        for zi in range(z):
+            imgd[zi,:,:] = cv2.resize(src=img[zi,:,:],
+                                      dsize=(xd, yd),
+                                      fx=d_rate,
+                                      fy=d_rate,
+                                      interpolation=cv2.INTER_LINEAR).astype(dtype)
     else:
         raise ValueError('input array should be 3d.')
 

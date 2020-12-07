@@ -315,10 +315,11 @@ def zoom_image(img, zoom, interpolation ='cubic'): #'cubic','linear','area','nea
     except TypeError: zoomH = float(zoom); zoomW = float(zoom)
 
     if interpolation == 'cubic': interpo = cv2.INTER_CUBIC
-    if interpolation == 'linear': interpo = cv2.INTER_LINEAR
-    if interpolation == 'area': interpo = cv2.INTER_AREA
-    if interpolation == 'nearest': interpo = cv2.INTER_NEAREST
-    if interpolation == 'lanczos4': interpo = cv2.INTER_LANCZOS4
+    elif interpolation == 'linear': interpo = cv2.INTER_LINEAR
+    elif interpolation == 'area': interpo = cv2.INTER_AREA
+    elif interpolation == 'nearest': interpo = cv2.INTER_NEAREST
+    elif interpolation == 'lanczos4': interpo = cv2.INTER_LANCZOS4
+    else: raise ValueError('do not understand interpolation method')
 
     newImg= cv2.resize(img.astype(np.float),dsize=(int(img.shape[1]*zoomW),int(img.shape[0]*zoomH)),interpolation=interpo)
     return newImg
