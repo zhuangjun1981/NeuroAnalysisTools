@@ -14,30 +14,49 @@ def downsample_planes(img, d_rate):
     :return imgd: 3d array, downsampled image chunk
     """
 
-    if len(img.shape) != 3:
-        raise ValueError('input array should be 3d.')
-
     dtype = img.dtype
-    z, y, x = img.shape
 
-    yd = img.shape[1] // d_rate
-    xd = img.shape[2] // d_rate
+    if len(img.shape) == 2:
+        y, x = img.shape
 
-    img = img[:,
-              :yd * d_rate,
-              :xd * d_rate]
+        yd = int(y // d_rate)
+        xd = int(x // d_rate)
 
-    # imgd = ia.rigid_transform_cv2(img=img, zoom=1 / d_rate).astype(dtype)
+        img = img[:(yd * d_rate), :(xd * d_rate)]
 
-    imgd = np.zeros((z, yd, xd, d_rate, d_rate), dtype=np.float64)
+        imgd = np.zeros((yd, xd, d_rate, d_rate), dtype=np.float64)
 
-    for yi in range(d_rate):
-        for xi in range(d_rate):
-            imgd[:, :, :, yi, xi] = img[:, yi::d_rate, xi::d_rate]
+        for yi in range(d_rate):
+            for xi in range(d_rate):
+                imgd[:, :, yi, xi] = img[yi::d_rate, xi::d_rate]
 
-    imgd = np.mean(imgd, axis=-1)
-    imgd = np.mean(imgd, axis=-1)
-    imgd = imgd.astype(dtype)
+        imgd = np.mean(imgd, axis=-1)
+        imgd = np.mean(imgd, axis=-1)
+        imgd = imgd.astype(dtype)
+
+    elif len(img.shape) == 3:
+        z, y, x = img.shape
+
+        yd = int(y // d_rate)
+        xd = int(x // d_rate)
+
+        img = img[:,
+                  :(yd * d_rate),
+                  :(xd * d_rate)]
+
+        # imgd = ia.rigid_transform_cv2(img=img, zoom=1 / d_rate).astype(dtype)
+
+        imgd = np.zeros((z, yd, xd, d_rate, d_rate), dtype=np.float64)
+
+        for yi in range(d_rate):
+            for xi in range(d_rate):
+                imgd[:, :, :, yi, xi] = img[:, yi::d_rate, xi::d_rate]
+
+        imgd = np.mean(imgd, axis=-1)
+        imgd = np.mean(imgd, axis=-1)
+        imgd = imgd.astype(dtype)
+    else:
+        raise ValueError('input array should be 3d.')
 
     return imgd
 
@@ -216,9 +235,7 @@ def flatten_both_sides(img, top, bottom):
 
     for yi in range(y):
         for xi in range(x):
-
             col = img[top[yi, xi]:bottom[yi, xi], yi, xi]
-            # print(col)
             colz = np.arange(len(col))
             imgtb[:, yi, xi] = np.interp(x=colz_tb, xp=colz, fp=col)
 
