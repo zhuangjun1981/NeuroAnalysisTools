@@ -104,7 +104,7 @@ def filter_planes(img, vox_size_x, vox_size_y, sigma_size, is_use_cv2=True):
     return imgf
 
 
-def find_surface(img, surface_thr, is_plot=True):
+def find_surface(img, surface_thr, is_plot=False):
     """
 
     :param img: 3d array, ZYX, assume small z = top; large z = bottom
@@ -176,6 +176,7 @@ def flatten_top(img, top):
             col = img[t:, yi, xi]
             imgt[:len(col), yi, xi] = col
 
+    imgt = imgt[-(z-np.amin(top)):, :, :]
     return imgt
 
 
@@ -200,8 +201,11 @@ def flatten_bottom(img, bottom):
     for yi in range(y):
         for xi in range(x):
             b = bottom[yi, xi]
-            col = img[:b, yi, xi]
-            imgb[-len(col):, yi, xi] = col
+            if b!= 0:
+                col = img[:b, yi, xi]
+                imgb[-len(col):, yi, xi] = col
+
+    imgb = imgb[-np.amax(bottom):, :, :]
 
     return imgb
 
