@@ -19,6 +19,7 @@ from .core import ImageAnalysis as ia
 from .core import PlottingTools as pt
 from .core import DataAnalysis as da
 from .core import TimingAnalysis as ta
+from . import PreprocessPipeline as pp
 
 # import NeuroAnalysisTools.SingleCellAnalysis as sca
 # import NeuroAnalysisTools.core.ImageAnalysis as ia
@@ -201,7 +202,10 @@ def get_scope(nwb_f):
     except KeyError:
         device = nwb_f['general/optophysiology/imaging_plane_0/device'][()]
 
-    device = device.decode('utf-8')
+    try:
+        device = device.decode('utf-8')
+    except AttributeError:
+        pass
 
     if device in ['DeepScope', 'Deep Scope', 'deepscope', 'Deepscope', 'deep scope', 'Deep scope']:
         return 'deepscope'
@@ -3228,15 +3232,22 @@ def axon_page_report(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARAMS, plot
         rf_img = rf_img_grp['mean_projection/data'][()]
     else:
         rf_img = rf_img_grp['max_projection/data'][()]
+    rf_img = pp.transform_images_to_standard_orientation(img=rf_img, scope=get_scope(nwb_f))
 
     f = plt.figure(figsize=plot_params['fig_size'], facecolor=plot_params['fig_facecolor'])
 
     # plot roi mask
     f.subplots_adjust(0, 0, 1, 1)
     ax_roi_img = f.add_axes(plot_params['ax_roi_img_coord'])
+
+    mask = roi.get_binary_mask()
+    mask = pp.transform_images_to_standard_orientation(img=mask, scope=get_scope(nwb_f))
+    mask[mask > 0.5] = 1
+    mask[mask < 0.5] = 0
+    mask = mask.astype(np.uint8)
     ax_roi_img.imshow(ia.array_nor(rf_img), cmap='gray', vmin=plot_params['rf_img_vmin'],
                       vmax=plot_params['rf_img_vmax'], interpolation='nearest')
-    pt.plot_mask_borders(mask=roi.get_binary_mask(), plotAxis=ax_roi_img, color=plot_params['roi_border_color'],
+    pt.plot_mask_borders(mask, plotAxis=ax_roi_img, color=plot_params['roi_border_color'],
                          borderWidth=plot_params['roi_border_width'])
     ax_roi_img.set_axis_off()
 

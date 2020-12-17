@@ -72,12 +72,17 @@ def resample2(t1, y1, t2, kind = 'linear', isPlot=False, bounds_error=False):
     return y2
 
 
-def array_nor(A):
+def array_nor(A, float_bit=64):
     '''
     normalize a np.array to the scale [0, 1]
     '''
 
-    B = A.astype(np.float)
+    if float_bit == 64:
+        B = A.astype(np.float64)
+    elif float_bit == 32:
+        B = A.astype(np.float32)
+    else:
+        raise ValueError("input 'float_bit' should be 64 or 32.")
 
     if np.isnan(A).all():
         return A
