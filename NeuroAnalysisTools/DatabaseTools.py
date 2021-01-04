@@ -5086,19 +5086,25 @@ class BulkPaperFunctions(object):
         """
 
         df_has_dgc = self.get_dataframe_has_dgc(df=df)
+        z_key = f'dgc_{response_dir}_peak_z'
+        p_key = f'dgc_p_anova_{response_type}'
 
         if is_use_reliability:
-            df_dgc = df_has_dgc[df_has_dgc['dgc_{}_relia_{}'.format(response_dir,
-                                                                    response_type)] >= dgc_reliability_thr]
+            reli_key = f'dgc_{response_dir}_relia_{response_type}'
 
-            df_ndgc = df_has_dgc[df_has_dgc['dgc_{}_relia_{}'.format(response_dir,
-                                                                     response_type)] < dgc_reliability_thr]
+            df_dgc = df_has_dgc[(df_has_dgc[z_key] >= dgc_peak_z_thr) &
+                                (df_has_dgc[p_key] <= dgc_p_anova_thr) &
+                                (df_has_dgc[reli_key] >= dgc_reliability_thr)]
+
         else:
-            df_dgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] >= dgc_peak_z_thr) &
-                                (df_has_dgc['dgc_p_anova_{}'.format(response_type)] <= dgc_p_anova_thr)]
+            df_dgc = df_has_dgc[(df_has_dgc[z_key] >= dgc_peak_z_thr) &
+                                (df_has_dgc[p_key] <= dgc_p_anova_thr)]
 
-            df_ndgc = df_has_dgc[(df_has_dgc['dgc_{}_peak_z'.format(response_dir)] < dgc_peak_z_thr) |
-                            (df_has_dgc['dgc_p_anova_{}'.format(response_type)] > dgc_p_anova_thr)]
+        df_ndgc = df_has_dgc.drop(df_dgc.index)
+
+        # print(len(df_has_dgc))
+        # print(len(df_dgc))
+        # print(len(df_ndgc))
 
         assert(len(df_has_dgc) == len(df_dgc) + len(df_ndgc))
 
@@ -5125,14 +5131,38 @@ class BulkPaperFunctions(object):
                                                           post_process_type,
                                                           response_type)] >= dsi_thr]
 
-        df_dgcnds = df_dgc[df_dgc['dgc_{}_{}_{}_{}'.format(response_dir,
-                                                           dsi_type,
-                                                           post_process_type,
-                                                           response_type)] <= dsi_thr]
+        df_dgcnds = df_dgc.drop(df_dgcds.index)
 
         assert(len(df_dgc) == len(df_dgcds)+ len(df_dgcnds))
 
         return df_dgcds, df_dgcnds
+
+    def get_dataframe_os(self, df, response_dir='pos', response_type='dff', dgc_peak_z_thr=3.,
+                         dgc_p_anova_thr=0.01, post_process_type='ele', osi_type='gdsi', osi_thr=0.5,
+                         is_use_reliability=False, dgc_reliability_thr=0.25):
+        """
+        return two subsets of the input df
+            1. rows that have significant dgc response and that are also orientation selective
+            2. rows that have significant dgc response but not orientation selective
+
+        rows that do not have dgc measurement or do not have significant dgc response will be excluded
+        """
+
+        df_dgc, _ = self.get_dataframe_dgc(df=df, response_dir=response_dir, response_type=response_type,
+                                           dgc_peak_z_thr=dgc_peak_z_thr, dgc_p_anova_thr=dgc_p_anova_thr,
+                                           is_use_reliability=is_use_reliability,
+                                           dgc_reliability_thr=dgc_reliability_thr)
+
+        df_dgcos = df_dgc[df_dgc['dgc_{}_{}_{}_{}'.format(response_dir,
+                                                          osi_type,
+                                                          post_process_type,
+                                                          response_type)] >= osi_thr]
+
+        df_dgcnos = df_dgc.drop(df_dgcos.index)
+
+        assert (len(df_dgc) == len(df_dgcos) + len(df_dgcnos))
+
+        return df_dgcos, df_dgcnos
 
     def get_dataframe_sbc(self, df, response_type='dff', rf_z_thr_abs=1.6, dgc_p_anova_thr=0.01,
                           rf_supp_index_thr=0., dgc_supp_index_thr=0.5):

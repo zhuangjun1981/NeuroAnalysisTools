@@ -63,9 +63,10 @@ def threshold(img, std_thr):
     v_median = np.median(img.flat)
     v_std = np.std(img.flat)
 
-    thr_low = v_median - std_thr * v_std
-    if thr_low < 0:
-        thr_low = 0
+    # thr_low = v_median - std_thr * v_std
+    # if thr_low < 0:
+    #     thr_low = 0
+    thr_low = 0
 
     thr_high = v_median + std_thr * v_std
 
