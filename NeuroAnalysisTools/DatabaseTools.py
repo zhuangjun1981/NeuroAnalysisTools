@@ -5003,14 +5003,14 @@ class BulkPaperFunctions(object):
         """
         return a subset dataframe of input dataframe the has dgc measurement
         """
-        return df.dropna(axis=0, how='any', subset=['dgc_pos_peak_z'])
+        return df.dropna(axis=0, how='any', subset=['dgc_pos_peak_z']).copy()
 
     @staticmethod
     def get_dataframe_has_rf(df):
         """
         return a subset dataframe of input dataframe the has dgc measurement
         """
-        return df.dropna(axis=0, how='all', subset=['rf_pos_on_peak_z', 'rf_pos_off_peak_z'])
+        return df.dropna(axis=0, how='all', subset=['rf_pos_on_peak_z', 'rf_pos_off_peak_z']).copy()
 
     def get_dataframe_rf(self, df, response_dir='pos', rf_z_thr_abs=1.6):
         """
@@ -5026,12 +5026,11 @@ class BulkPaperFunctions(object):
         df_rf = df_has_rf[(df_has_rf['rf_{}_on_peak_z'.format(response_dir)] >= rf_z_thr_abs) |
                           (df_has_rf['rf_{}_off_peak_z'.format(response_dir)] >= rf_z_thr_abs)]
 
-        df_nrf = df_has_rf[(df_has_rf['rf_{}_on_peak_z'.format(response_dir)] < rf_z_thr_abs) &
-                           (df_has_rf['rf_{}_off_peak_z'.format(response_dir)] < rf_z_thr_abs)]
+        df_nrf = df_has_rf.drop(df_rf.index)
 
-        assert(len(df_has_rf) == len(df_rf) + len(df_nrf))
+        # assert(len(df_has_rf) == len(df_rf) + len(df_nrf))
 
-        return df_rf, df_nrf
+        return df_rf.copy(), df_nrf.copy()
 
     def get_dataframe_rf_type(self, df, response_dir='pos', rf_z_thr_abs=1.6):
         """
@@ -5102,13 +5101,9 @@ class BulkPaperFunctions(object):
 
         df_ndgc = df_has_dgc.drop(df_dgc.index)
 
-        # print(len(df_has_dgc))
-        # print(len(df_dgc))
-        # print(len(df_ndgc))
+        # assert(len(df_has_dgc) == len(df_dgc) + len(df_ndgc))
 
-        assert(len(df_has_dgc) == len(df_dgc) + len(df_ndgc))
-
-        return df_dgc, df_ndgc
+        return df_dgc.copy(), df_ndgc.copy()
 
     def get_dataframe_ds(self, df, response_dir='pos', response_type='dff', dgc_peak_z_thr=3.,
                          dgc_p_anova_thr=0.01, post_process_type='ele', dsi_type='gdsi', dsi_thr=0.5,
@@ -5133,9 +5128,9 @@ class BulkPaperFunctions(object):
 
         df_dgcnds = df_dgc.drop(df_dgcds.index)
 
-        assert(len(df_dgc) == len(df_dgcds)+ len(df_dgcnds))
+        # assert(len(df_dgc) == len(df_dgcds)+ len(df_dgcnds))
 
-        return df_dgcds, df_dgcnds
+        return df_dgcds.copy(), df_dgcnds.copy()
 
     def get_dataframe_os(self, df, response_dir='pos', response_type='dff', dgc_peak_z_thr=3.,
                          dgc_p_anova_thr=0.01, post_process_type='ele', osi_type='gdsi', osi_thr=0.5,
@@ -5162,7 +5157,7 @@ class BulkPaperFunctions(object):
 
         assert (len(df_dgc) == len(df_dgcos) + len(df_dgcnos))
 
-        return df_dgcos, df_dgcnos
+        return df_dgcos.copy(), df_dgcnos.copy()
 
     def get_dataframe_sbc(self, df, response_type='dff', rf_z_thr_abs=1.6, dgc_p_anova_thr=0.01,
                           rf_supp_index_thr=0., dgc_supp_index_thr=0.5):
@@ -5291,6 +5286,143 @@ class BulkPaperFunctions(object):
         df_nRFnDS = df_nrfdgcnds
 
         return df_DSnRF, df_RFnDS, df_RFDS, df_nRFnDS
+
+    def get_dataframe_all_LSMS_groups(self, df, response_dir='pos', rf_z_thr_abs=1.6, response_type='dff',
+                                      dgc_peak_z_thr=3., dgc_p_anova_thr=0.01, post_process_type='ele',
+                                      dsi_type='gdsi', dsi_thr=0.5, osi_type='gosi', osi_thr=0.5,
+                                      is_use_reliability=False, dgc_reliability_thr=0.25):
+        """
+        nomenclature:
+            RF: with significant spatial receptive field
+            nRF: without significant spatial receptive field
+            DGC: with significant response to drifting grating
+            nDGC: without significant response to drifting grating
+            DS: direction selective
+            nDS: not direction selective
+            nDSOS: not direction selective but orientation selective
+            nDSnOS: neither direction selective nor orientation selective
+
+            LS: location sensitive
+            nLS: not location sensitive
+            MS: motion sensitive
+            nMS: not motion sensitive
+
+        :return:
+            df_RF, df_RFDGCnDSnOS: these are LSnMS units
+            df_RFDGCDSnOS, df_RFDGCnDSOS: these are LSMS units
+            df_nRFDGCnDSnOS: these are nLSnMS units
+            df_nRFDGCDSnAS, df_nRFDGCnDSAS: these are nLSMS units
+            df_nRFnDGC: these are units to be excluded
+        """
+
+        df_has_rf = self.get_dataframe_has_rf(df=df)
+        df_has_rfdgc = self.get_dataframe_has_dgc(df=df_has_rf)
+
+        df_RF, df_nRF = self.get_dataframe_rf(df=df_has_rfdgc, response_dir=response_dir,
+                                              rf_z_thr_abs=rf_z_thr_abs)
+        df_RFDGC, df_RFnDGC = self.get_dataframe_dgc(df=df_RF, response_dir=response_dir,
+                                                     response_type=response_type,
+                                                     dgc_peak_z_thr=dgc_peak_z_thr,
+                                                     dgc_p_anova_thr=dgc_p_anova_thr,
+                                                     is_use_reliability=is_use_reliability,
+                                                     dgc_reliability_thr=dgc_reliability_thr)
+
+        df_nRFDGC, df_nRFnDGC = self.get_dataframe_dgc(df=df_nRF, response_dir=response_dir,
+                                                       response_type=response_type,
+                                                       dgc_peak_z_thr=dgc_peak_z_thr,
+                                                       dgc_p_anova_thr=dgc_p_anova_thr,
+                                                       is_use_reliability=is_use_reliability,
+                                                       dgc_reliability_thr=dgc_reliability_thr)
+
+        df_RFDGCDS, df_RFDGCnDS = self.get_dataframe_ds(df=df_RFDGC, response_dir=response_dir,
+                                                        response_type=response_type,
+                                                        dgc_peak_z_thr=dgc_peak_z_thr,
+                                                        dgc_p_anova_thr=dgc_p_anova_thr,
+                                                        post_process_type=post_process_type,
+                                                        dsi_type=dsi_type, dsi_thr=dsi_thr,
+                                                        is_use_reliability=is_use_reliability,
+                                                        dgc_reliability_thr=dgc_reliability_thr)
+
+        df_RFDGCnDSOS, df_RFDGCnDSnOS = self.get_dataframe_os(df=df_RFDGCnDS, response_dir=response_dir,
+                                                              response_type=response_type,
+                                                              dgc_peak_z_thr=dgc_peak_z_thr,
+                                                              dgc_p_anova_thr=dgc_p_anova_thr,
+                                                              post_process_type=post_process_type,
+                                                              osi_type=osi_type, osi_thr=osi_thr,
+                                                              is_use_reliability=is_use_reliability,
+                                                              dgc_reliability_thr=dgc_reliability_thr)
+
+        df_nRFDGCDS, df_nRFDGCnDS = self.get_dataframe_ds(df=df_nRFDGC, response_dir=response_dir,
+                                                          response_type=response_type,
+                                                          dgc_peak_z_thr=dgc_peak_z_thr,
+                                                          dgc_p_anova_thr=dgc_p_anova_thr,
+                                                          post_process_type=post_process_type,
+                                                          dsi_type=dsi_type, dsi_thr=dsi_thr,
+                                                          is_use_reliability=is_use_reliability,
+                                                          dgc_reliability_thr=dgc_reliability_thr)
+
+        df_nRFDGCnDSOS, df_nRFDGCnDSnOS = self.get_dataframe_os(df=df_nRFDGCnDS, response_dir=response_dir,
+                                                                response_type=response_type,
+                                                                dgc_peak_z_thr=dgc_peak_z_thr,
+                                                                dgc_p_anova_thr=dgc_p_anova_thr,
+                                                                post_process_type=post_process_type,
+                                                                osi_type=osi_type, osi_thr=osi_thr,
+                                                                is_use_reliability=is_use_reliability,
+                                                                dgc_reliability_thr=dgc_reliability_thr)
+
+        assert(len(df_RFnDGC) + len(df_RFDGCDS) + len(df_RFDGCnDSOS) + len(df_RFDGCnDSnOS) +
+               len(df_nRFnDGC) + len(df_nRFDGCDS) + len(df_nRFDGCnDSOS) + len(df_nRFDGCnDSnOS) == len(df))
+
+        return df_RFnDGC,  df_RFDGCDS,  df_RFDGCnDSOS,  df_RFDGCnDSnOS, \
+               df_nRFnDGC, df_nRFDGCDS, df_nRFDGCnDSOS, df_nRFDGCnDSnOS
+
+    def get_dataframe_final_LSMS_groups(self, df, response_dir='pos', rf_z_thr_abs=1.6, response_type='dff',
+                                  dgc_peak_z_thr=3., dgc_p_anova_thr=0.01, post_process_type='ele',
+                                  dsi_type='gdsi', dsi_thr=0.5, osi_type='gosi', osi_thr=0.5,
+                                  is_use_reliability=False, dgc_reliability_thr=0.25):
+        """
+        nomenclature:
+            RF: with significant spatial receptive field
+            nRF: without significant spatial receptive field
+            DGC: with significant response to drifting grating
+            nDGC: without significant response to drifting grating
+            DS: direction selective
+            nDS: not direction selective
+            nDSOS: not direction selective but orientation selective
+            nDSnOS: neither direction selective nor orientation selective
+
+            LS: location sensitive
+            nLS: not location sensitive
+            MS: motion sensitive
+            nMS: not motion sensitive
+
+        :return:
+            df_LSMS: both location sensitive and motion sensitive
+            df_LSnMS: location sensitive but not motion sensitive
+            df_nLSMS: not location sensitive but motion sensitive
+            df_nLSnMS: neiter location sensitive nor motion sensitive
+        """
+        _ = self.get_dataframe_all_LSMS_groups(df, response_dir=response_dir,
+                                               rf_z_thr_abs=rf_z_thr_abs, response_type=response_type,
+                                               dgc_peak_z_thr=dgc_peak_z_thr,
+                                               dgc_p_anova_thr=dgc_p_anova_thr,
+                                               post_process_type=post_process_type,
+                                               dsi_type=dsi_type, dsi_thr=dsi_thr,
+                                               osi_type=osi_type, osi_thr=osi_thr,
+                                               is_use_reliability=is_use_reliability,
+                                               dgc_reliability_thr=dgc_reliability_thr)
+
+        df_RFnDGC, df_RFDGCDS, df_RFDGCnDSOS, df_RFDGCnDSnOS, \
+        df_nRFnDGC, df_nRFDGCDS, df_nRFDGCnDSOS, df_nRFDGCnDSnOS = _
+
+        df_LSnMS = pd.concat([df_RFnDGC, df_RFDGCnDSnOS])
+        df_LSMS = pd.concat([df_RFDGCDS, df_RFDGCnDSOS])
+        df_nLSnMS = df_nRFDGCnDSnOS
+        df_nLSMS = pd.concat([df_nRFDGCDS, df_nRFDGCnDSOS])
+
+        assert(len(df_LSMS) + len(df_LSnMS) + len(df_nLSMS) + len(df_nLSnMS) + len(df_nRFnDGC) == len(df))
+
+        return df_LSMS, df_LSnMS, df_nLSMS, df_nLSnMS
 
     @staticmethod
     def break_into_planes(df, is_reset_index=False):
