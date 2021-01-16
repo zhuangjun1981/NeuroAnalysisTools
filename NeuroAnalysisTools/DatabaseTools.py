@@ -3279,6 +3279,7 @@ def axon_page_report(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARAMS, plot
                                rf_off=srf_pos_off.get_weighted_mask(), vmax=plot_params['rf_zscore_vmax'])
         ax_rf_pos.imshow(zscore_pos, interpolation='nearest')
         ax_rf_pos.set_axis_off()
+        ax_rf_pos.invert_yaxis()
 
         # plotting negative ON and OFF receptive fields
         ax_rf_neg = f.add_axes(plot_params['ax_rf_neg_coord'])
@@ -3286,6 +3287,7 @@ def axon_page_report(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARAMS, plot
                                rf_off=-srf_neg_off.get_weighted_mask(), vmax=plot_params['rf_zscore_vmax'])
         ax_rf_neg.imshow(zscore_neg, interpolation='nearest')
         ax_rf_neg.set_axis_off()
+        ax_rf_neg.invert_yaxis()
 
     # select dgc response matrix and response table for plotting
     if plot_params['response_type_for_plot'] == 'df':
@@ -3971,7 +3973,8 @@ class BoutonClassifier(object):
             print('the nwb file does not contain the specified stimulus: {}. Do nothing.'.format(trace_window))
             return
 
-        traces_sub = traces[:, win_mask]
+        # traces_sub = traces[:, win_mask]
+        traces_sub = traces[:, 0:len(win_mask)][:, win_mask]
 
         roi_ns = get_roi_ns(nwb_f=nwb_f, plane_n=plane_n)
 
@@ -4263,7 +4266,8 @@ class BoutonClassifier(object):
                     trace, _ = get_single_trace(nwb_f=nwb_f, plane_n=plane_n, roi_n=roi_n, trace_type=trace_type)
                     traces_p.append(trace)
                 traces_p = np.array(traces_p)
-                traces_p = traces_p[:, win_mask]
+                # traces_p = traces_p[:, win_mask]
+                traces_p = traces_p[:, 0:len(win_mask)][:, win_mask]
 
                 axon_plot_ind = axon_lst.index(axon_n)
                 if trace_type == 'f_center_raw':
