@@ -25,17 +25,19 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None):
     with open(file_path, "r") as f:
         for line in f.readlines():
             line = line.strip()
-            if line.startswith("##"):
-                columns = line[2:].split(',')
+            if line.startswith("#"):
                 n_skip += 1
-            elif line.startswith("#name"):
-                if len(line) > 5:
-                    name = line[5:]
-                n_skip += 1
-            elif line.startswith("#comment"):
-                if len(line) > 8:
-                    comment = line[8:]
-                n_skip += 1
+
+                if line.startswith("#n"):
+                    columns = line[1:].split(' ')[0:7]
+                elif line.startswith("##n"):
+                    columns = line[2:].split(',')[0:7]
+                elif line.startswith("#name"):
+                    if len(line) > 5:
+                        name = line[5:]
+                elif line.startswith("#comment"):
+                    if len(line) > 8:
+                        comment = line[8:]
             else:
                 break
     f.close()
