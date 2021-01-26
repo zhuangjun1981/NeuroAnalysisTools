@@ -835,12 +835,10 @@ def look_for_unique_file(source, identifiers, file_type=None, print_prefix='', i
 
 def look_for_file_list(source, identifiers, file_type=None, is_full_path=False):
 
+    fns = [fn for fn in os.listdir(source) if os.path.isfile(os.path.join(source, fn))]
+
     if file_type is not None:
-        ft_len = len(file_type)
-        fns = [fn for fn in os.listdir(source) if len(fn) >= ft_len and
-               fn[-ft_len:] == file_type]
-    else:
-        fns = [fn for fn in os.listdir(source)]
+        fns = [fn for fn in os.listdir(source) if os.path.splitext(fn)[1] == f'.{file_type}']
 
     for identifier in identifiers:
         fns = [fn for fn in fns if identifier in fn]
