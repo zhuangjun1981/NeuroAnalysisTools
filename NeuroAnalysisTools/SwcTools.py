@@ -5,6 +5,7 @@ morphology reconstruction
 
 import os
 import pandas as pd
+import numpy as np
 
 
 def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None):
@@ -128,4 +129,33 @@ class SwcFile(pd.DataFrame):
 
         f.close()
         return
+
+    def get_min_distances(self, swc):
+        """
+        for the every node in the input swc file, calculate the
+        minimum distance from that node to all nodes in self.
+
+        return a list of all these minimum distances.
+
+        used for matching a small axon segment (swc, usually the
+        segment with in vivo imaging data) to a fully reconstructed
+        axon arbor (self).
+
+        :param swc: SwcFile
+        :return min_diss: 1d array
+        """
+
+        min_diss = []
+
+        for _, seg_node in swc.iterrows():
+
+            dx = self['x'] - seg_node['x']
+            dy = self['y'] - seg_node['y']
+            dz = self['z'] - seg_node['z']
+
+            diss = np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+
+            min_diss.append(np.min(diss))
+
+        return np.array(min_diss)
 

@@ -3950,6 +3950,8 @@ class BoutonClassifier(object):
         print('\tclustering ...')
 
         nwb_id = nwb_f['identifier'][()]
+        if not isinstance(nwb_id, str):
+            nwb_id = nwb_id.decode('utf-8')
         date = nwb_id.split('_')[0]
         mid = nwb_id.split('_')[1]
 
