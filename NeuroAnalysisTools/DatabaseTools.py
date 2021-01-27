@@ -2110,12 +2110,17 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
     :return:
     """
 
-    date = nwb_f['identifier'][()][0:6]
+    identifier = nwb_f['identifier'][()]
+    if not isinstance(identifier, str):
+        identifier = identifier.decode('utf-8')
+
+    date = identifier[0:6]
+
     if clu_f['meta/date'][()] != date:
         raise ValueError('the date ({}) specified in nwb_f does not match the date ({}) specified in '
                          '"clu_f".'.format(date, clu_f['meta/date'][()]))
 
-    mid = nwb_f['identifier'][()][7:14]
+    mid = identifier[7:14]
     if clu_f['meta/mouse_id'][()] != mid:
         raise ValueError('the mouse_id ({}) specified in nwb_f does not match the mouse_id ({}) '
                          'specified in clu_f.'.format(plane_n, clu_f['meta/mouse_id'][()]))
