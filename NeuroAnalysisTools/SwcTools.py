@@ -8,13 +8,14 @@ import pandas as pd
 import numpy as np
 
 
-def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None):
+def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None, unit=''):
     """
 
     :param file_path: str, path to the swc file
-    :param vox_size_x: float, voxel size in x (um)
-    :param vox_size_y: float, voxel size in y (um)
-    :param vox_size_z: float, voxel size in z (um)
+    :param vox_size_x: float, voxel size in x
+    :param vox_size_y: float, voxel size in y
+    :param vox_size_z: float, voxel size in z
+    :param unit: str, unit of voxel sizes
     :return: SwcFile object
     """
     n_skip = 0
@@ -22,6 +23,7 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None):
     columns = ["##n", "type", "z", "y", "x", "r", "parent"]
     name = ''
     comment = ''
+    unit = ''
 
     with open(file_path, "r") as f:
         for line in f.readlines():
@@ -60,7 +62,8 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None):
     if vox_size_z is not None:
         swc.z = swc.z * vox_size_z
 
-    swc_f = SwcFile(data=swc.copy(deep=True), name=name, comment=comment)
+    swc_f = SwcFile(data=swc.copy(deep=True), name=name, comment=comment,
+                    unit=unit)
 
     return swc_f
 
@@ -83,14 +86,15 @@ class SwcFile(pd.DataFrame):
     comment: str
     """
 
-    _metadata = ['name', 'comment']
+    _metadata = ['name', 'comment', 'unit']
 
-    def __init__(self, name='', comment='', *args, **kwargs):
+    def __init__(self, name='', comment='', unit='', *args, **kwargs):
 
         super(SwcFile, self).__init__(*args, **kwargs)
 
         self.name = name
         self.comment = comment
+        self.unit = unit
 
     def sort_node(self):
 
@@ -158,4 +162,38 @@ class SwcFile(pd.DataFrame):
             min_diss.append(np.min(diss))
 
         return np.array(min_diss)
+
+    def move_to_origin(self, new_origin):
+        """
+        move the structure to a new origin
+        this happen in place
+
+        :param new_origin: 1d array, [x, y, z] for the new origion
+        :return: None
+        """
+        self.x = self.x - new_origin[0]
+        self.y = self.y - new_origin[1]
+        self.z = self.z - new_origin[2]
+
+    def get_center(self):
+        """
+        return the center coordinates of all nodes
+        :return center: 1d array, [x, y, z] of the average
+                        coordinates of all nodes
+        """
+
+        return np.array([self.x.mean(), self.y.mean(), self.z.mean()])
+
+    def scale(self, vox_size_x, vox_size_y, vox_size_z, unit=''):
+        """
+        scale self to standard unit basd on voxel size
+        :return: None
+        """
+
+        self.x = self.x * vox_size_x
+        self.y = self.y * vox_size_y
+        self.z = self.z * vox_size_z
+
+        self.unit = unit
+
 
