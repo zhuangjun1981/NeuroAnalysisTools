@@ -253,6 +253,9 @@ class SwcFile(pd.DataFrame):
                         color=curr_color)
 
         ax.invert_zaxis()
+        ax.set_xlabel(f'x ({self.unit})')
+        ax.set_ylabel(f'y ({self.unit})')
+        ax.set_zlabel(f'z ({self.unit})')
 
         return ax
 
