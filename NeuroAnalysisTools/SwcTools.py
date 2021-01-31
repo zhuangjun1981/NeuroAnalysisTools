@@ -6,6 +6,14 @@ morphology reconstruction
 import os
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+COLOR_DICT = {
+    2 : '#ff0000', # axon?
+    3 : '#0000ff', # apical dendrite?
+    4 : '#ff0000', # basal dendrite?
+              }
 
 
 def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None, unit=''):
@@ -225,4 +233,97 @@ class SwcFile(pd.DataFrame):
 
         self.unit = unit
 
+    def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT):
+
+        if ax is None:
+            f = plt.figure(figsize=(8, 8))
+            ax = f.add_subplot(111, projection='3d')
+
+        for node_i, node_row in self.iterrows():
+            if node_row.parent != -1:
+
+                if color_dict is None:
+                    curr_color = '#ff0000'
+                else:
+                    curr_color = color_dict[node_row.type]
+
+                ax.plot([self.loc[node_row.parent, 'x'], node_row.x],
+                        [self.loc[node_row.parent, 'y'], node_row.y],
+                        [self.loc[node_row.parent, 'z'], node_row.z],
+                        color=curr_color)
+
+        ax.invert_zaxis()
+
+        return ax
+
+    def plot_xy_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
+
+        if ax is None:
+            f= plt.figure(figsize=(8, 8))
+            ax = f.add_subplot(111)
+
+        for node_i, node_row in self.iterrows():
+            if node_row.parent != -1:
+
+                if color_dict is None:
+                    curr_color = '#ff0000'
+                else:
+                    curr_color = color_dict[node_row.type]
+
+                ax.plot([self.loc[node_row.parent, 'x'], node_row.x],
+                        [self.loc[node_row.parent, 'y'], node_row.y],
+                        color=curr_color, *args, **kwargs)
+
+        ax.set_xlabel(f'x ({self.unit})')
+        ax.set_ylabel(f'y ({self.unit})')
+
+        return ax
+
+    def plot_xz_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
+
+        if ax is None:
+            f= plt.figure(figsize=(8, 8))
+            ax = f.add_subplot(111)
+
+        for node_i, node_row in self.iterrows():
+            if node_row.parent != -1:
+
+                if color_dict is None:
+                    curr_color = '#ff0000'
+                else:
+                    curr_color = color_dict[node_row.type]
+
+                ax.plot([self.loc[node_row.parent, 'x'], node_row.x],
+                        [self.loc[node_row.parent, 'z'], node_row.z],
+                        color=curr_color, *args, **kwargs)
+
+        ax.set_xlabel(f'x ({self.unit})')
+        ax.set_ylabel(f'z ({self.unit})')
+        ax.invert_yaxis()
+
+        return ax
+
+    def plot_yz_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
+
+        if ax is None:
+            f= plt.figure(figsize=(8, 8))
+            ax = f.add_subplot(111)
+
+        for node_i, node_row in self.iterrows():
+            if node_row.parent != -1:
+
+                if color_dict is None:
+                    curr_color = '#ff0000'
+                else:
+                    curr_color = color_dict[node_row.type]
+
+                ax.plot([self.loc[node_row.parent, 'y'], node_row.y],
+                        [self.loc[node_row.parent, 'z'], node_row.z],
+                        color=curr_color, *args, **kwargs)
+
+        ax.set_xlabel(f'y ({self.unit})')
+        ax.set_ylabel(f'z ({self.unit})')
+        ax.invert_yaxis()
+
+        return ax
 
