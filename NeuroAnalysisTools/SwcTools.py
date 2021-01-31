@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 COLOR_DICT = {
-    2 : '#ff0000', # axon?
-    3 : '#0000ff', # apical dendrite?
-    4 : '#ff0000', # basal dendrite?
+    2 : '#ff0000', # axon ?
+    3 : '#0000ff', # apical dendrite ?
+    4 : '#ff0000', # basal dendrite ?
+    7 : '#000000', # unknown ?
               }
 
 
@@ -233,6 +234,43 @@ class SwcFile(pd.DataFrame):
 
         self.unit = unit
 
+    def rotate_xy(self, angle, is_rad=False, rot_center=(0.0, 0.0), direction='CW'):
+        """
+        rotate the structure around z axis (in xy plane) to align orientation
+
+        note: the rotation is applied in the space with inverted y axis to
+        match the plotting functions.
+
+        :param angle: float, rotation angle
+        :param is_rad: bool, if true, the "angle" is in radians
+                             if false, the "angle" is in degrees
+                       default False
+        :param rot_center: list of two floats, [x, y] of rotation center, default is origin
+        :param direction: str, "CW" (clockwise) or "CCW" (counterclockwise)
+        :return: None
+        """
+
+        if not is_rad:
+            ang_rad = angle * np.pi / 180
+        else:
+            ang_rad = angle
+
+        xr = self.x - rot_center[0]
+        yr = self.y - rot_center[1]
+        dis_r = np.sqrt(xr ** 2 + yr ** 2)
+
+        curr_ang = np.arctan2(yr, xr)
+
+        if direction == 'CW':
+            new_ang = curr_ang + ang_rad
+        elif direction == 'CCW':
+            new_ang = curr_ang - ang_rad
+        else:
+            raise ValueError(f'input "direction" should be "CW" or "CCW". got {direction}.')
+
+        self.x = dis_r * np.cos(new_ang) + rot_center[0]
+        self.y = dis_r * np.sin(new_ang) + rot_center[1]
+
     def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT):
 
         if ax is None:
@@ -252,7 +290,9 @@ class SwcFile(pd.DataFrame):
                         [self.loc[node_row.parent, 'z'], node_row.z],
                         color=curr_color)
 
-        ax.invert_zaxis()
+        ax.invert_zaxis() # z from small to large (superficial to deep)
+        ax.invert_yaxis() # y from small to large (anterior to posterior)
+        # do not invert x axis, x from small to large (lateral to medial)
         ax.set_xlabel(f'x ({self.unit})')
         ax.set_ylabel(f'y ({self.unit})')
         ax.set_zlabel(f'z ({self.unit})')
@@ -279,6 +319,7 @@ class SwcFile(pd.DataFrame):
 
         ax.set_xlabel(f'x ({self.unit})')
         ax.set_ylabel(f'y ({self.unit})')
+        ax.invert_yaxis()
 
         return ax
 
@@ -326,6 +367,7 @@ class SwcFile(pd.DataFrame):
 
         ax.set_xlabel(f'y ({self.unit})')
         ax.set_ylabel(f'z ({self.unit})')
+        ax.invert_xaxis()
         ax.invert_yaxis()
 
         return ax
