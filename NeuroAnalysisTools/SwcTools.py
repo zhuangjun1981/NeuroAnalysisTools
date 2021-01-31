@@ -123,27 +123,6 @@ class SwcFile(pd.DataFrame):
 
         self.sort_index(inplace=True)
 
-    # def sort_node_deep(self, start_node_ind):
-    #     """
-    #     resort the node of the tree using
-    #     breadth first search, assuming no directions between nodes
-    #     :param start_node_ind: int, the index of start node
-    #     :return: a new SwcFile object with sorted node
-    #     """
-    #     #todo: finish this
-    #
-    #     # initiate first node
-    #     new_node_id = 0
-    #     new_node_lst = [list(self[start_node_ind, :])]
-    #     new_node_lst[0][0] = new_node_id
-    #     new_node_lst[0][-1] = -1
-    #
-    #     self.go_through_next_level(
-    #         df=self,
-    #         node_id=start_node_ind,
-    #         new_node_id=new_node_id,
-    #         new_node_lst=new_node_lst)
-
     def get_children(self, node_id):
         """
         return index of all children of the given node
