@@ -2046,6 +2046,7 @@ def get_axon_morphology(clu_f, nwb_f, plane_n, axon_n):
         axon_morph['bouton_dis_std'] = np.nan
         axon_morph['bouton_dis_median'] = np.nan
         axon_morph['bouton_dis_max'] = np.nan
+        axon_morph['bouton_dis_min'] = np.nan
     else:
         axon_morph['bouton_row_std'] = np.std(bout_coords[:, 0]) * pixel_size_mean * 1e6
         axon_morph['bouton_col_std'] = np.std(bout_coords[:, 1]) * pixel_size_mean * 1e6
@@ -2054,6 +2055,7 @@ def get_axon_morphology(clu_f, nwb_f, plane_n, axon_n):
         axon_morph['bouton_dis_mean'] = np.mean(bout_dis) * 1e6
         axon_morph['bouton_dis_median'] = np.median(bout_dis) * 1e6
         axon_morph['bouton_dis_max'] = np.max(bout_dis) * 1e6
+        axon_morph['bouton_dis_min'] = np.min(bout_dis) * 1e6
 
         if bout_num == 2:
             axon_morph['bouton_dis_std'] = np.nan
