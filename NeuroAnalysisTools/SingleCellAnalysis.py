@@ -557,7 +557,7 @@ class SpatialReceptiveField(ia.WeightedROI):
         threshold the current receptive field, return a new SpatialReceptiveField object after thresholding
         """
 
-        if (self.thr is not None) and (thr < self.thr):
+        if (self.thr is not None) and (self.thr != b'None') and (thr < self.thr):
             raise ValueError('Can not cut a thresholded receptive field with a lower thresold!')
         cutRF = get_peak_weighted_roi(self.get_weighted_mask(), thr)
         if cutRF is None:
@@ -643,25 +643,25 @@ class SpatialReceptiveField(ia.WeightedROI):
         altPos = h5Group['altPos'][()]
         if isinstance(altPos, bytes):
             altPos = altPos.decode('utf-8')
-        if altPos == 'None':
+        if str(altPos) == 'None':
             altPos = None
 
         aziPos = h5Group['aziPos'][()]
         if isinstance(aziPos, bytes):
             aziPos = aziPos.decode('utf-8')
-        if aziPos == 'None':
+        if str(aziPos) == 'None':
             aziPos = None
 
         sign = h5Group['sign'][()]
         if isinstance(sign, bytes):
             sign = sign.decode('utf-8')
-        if sign == 'None':
+        if str(sign) == 'None':
             sign = None
 
         temporalWindow = h5Group['temporalWindow'][()]
         if isinstance(temporalWindow, bytes):
             temporalWindow = temporalWindow.decode('utf-8')
-        if temporalWindow == 'None':
+        if str(temporalWindow) == 'None':
             temporalWindow = None
 
         dataType = h5Group['dataType'][()]

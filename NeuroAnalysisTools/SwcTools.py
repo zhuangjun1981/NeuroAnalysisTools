@@ -250,7 +250,7 @@ class SwcFile(pd.DataFrame):
         self.x = dis_r * np.cos(new_ang) + rot_center[0]
         self.y = dis_r * np.sin(new_ang) + rot_center[1]
 
-    def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT):
+    def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
 
         if ax is None:
             f = plt.figure(figsize=(8, 8))
@@ -267,7 +267,7 @@ class SwcFile(pd.DataFrame):
                 ax.plot([self.loc[node_row.parent, 'x'], node_row.x],
                         [self.loc[node_row.parent, 'y'], node_row.y],
                         [self.loc[node_row.parent, 'z'], node_row.z],
-                        color=curr_color)
+                        color=curr_color, *args, **kwargs)
 
         ax.invert_zaxis() # z from small to large (superficial to deep)
         ax.invert_yaxis() # y from small to large (anterior to posterior)
