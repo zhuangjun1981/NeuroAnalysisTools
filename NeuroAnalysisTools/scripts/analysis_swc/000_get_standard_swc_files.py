@@ -29,9 +29,9 @@ for src_fn, trg_fn in fn_dict.items():
     f = plt.figure(figsize=(10, 5))
 
     # scale structure in to microns
-    ff.scale(vox_size_x=vox_size_x,
-             vox_size_y=vox_size_y,
-             vox_size_z=vox_size_z, unit='um')
+    ff.scale(scale_x=vox_size_x,
+             scale_y=vox_size_y,
+             scale_z=vox_size_z, unit='um')
 
     # set structure type to axon
     ff.type = 2

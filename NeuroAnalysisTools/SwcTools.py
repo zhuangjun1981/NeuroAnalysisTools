@@ -17,7 +17,8 @@ COLOR_DICT = {
               }
 
 
-def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None, unit=''):
+def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None,
+             name='', comment='', unit=''):
     """
 
     :param file_path: str, path to the swc file
@@ -25,14 +26,11 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None, unit=
     :param vox_size_y: float, voxel size in y
     :param vox_size_z: float, voxel size in z
     :param unit: str, unit of voxel sizes
-    :return: SwcFile object
+    :return: AxonTree object
     """
     n_skip = 0
 
     columns = ["##n", "type", "z", "y", "x", "r", "parent"]
-    name = ''
-    comment = ''
-    unit = ''
 
     with open(file_path, "r") as f:
         for line in f.readlines():
@@ -71,15 +69,16 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None, unit=
     if vox_size_z is not None:
         swc.z = swc.z * vox_size_z
 
-    swc_f = SwcFile(data=swc.copy(deep=True), name=name, comment=comment,
-                    unit=unit)
+    swc_f = AxonTree(data=swc.copy(deep=True), name=name, comment=comment,
+                     unit=unit)
 
     return swc_f
 
 
-class SwcFile(pd.DataFrame):
+class AxonTree(pd.DataFrame):
     """
-    swc file object, subclass from pandas.Dataframe
+    a swc like dataframe storing the structure of an
+    axon tree, subclass from pandas.Dataframe
 
     column names:
         n: node index
@@ -99,7 +98,7 @@ class SwcFile(pd.DataFrame):
 
     def __init__(self, name='', comment='', unit='', *args, **kwargs):
 
-        super(SwcFile, self).__init__(*args, **kwargs)
+        super(AxonTree, self).__init__(*args, **kwargs)
 
         self.name = name
         self.comment = comment
@@ -162,7 +161,7 @@ class SwcFile(pd.DataFrame):
         segment with in vivo imaging data) to a fully reconstructed
         axon arbor (self).
 
-        :param swc: SwcFile
+        :param swc: AxonTree
         :return min_diss: 1d array
         """
 
@@ -201,15 +200,15 @@ class SwcFile(pd.DataFrame):
 
         return np.array([self.x.mean(), self.y.mean(), self.z.mean()])
 
-    def scale(self, vox_size_x, vox_size_y, vox_size_z, unit=''):
+    def scale(self, scale_x, scale_y, scale_z, unit=''):
         """
         scale self to standard unit basd on voxel size
         :return: None
         """
 
-        self.x = self.x * vox_size_x
-        self.y = self.y * vox_size_y
-        self.z = self.z * vox_size_z
+        self.x = self.x * scale_x
+        self.y = self.y * scale_y
+        self.z = self.z * scale_z
 
         self.unit = unit
 
@@ -249,6 +248,30 @@ class SwcFile(pd.DataFrame):
 
         self.x = dis_r * np.cos(new_ang) + rot_center[0]
         self.y = dis_r * np.sin(new_ang) + rot_center[1]
+
+    def get_segments(self):
+        """
+        get all segments of the tree.
+
+        :return: ndarray, shape: n x 2 x 3.
+            first dimension: segments
+            second dimension: [parent, child]
+            third dimension: [x, y, z]
+        """
+
+        segs = []
+
+        for node_i, node_row in self.iterrows():
+            if node_row['parent'] != -1: # the nodes have a parent
+                childxyz = np.array([node_row.x, node_row.y, node_row.z])
+                parent_id = node_row['parent']
+                parentxyz = np.array([self.loc[parent_id, 'x'],
+                                      self.loc[parent_id, 'y'],
+                                      self.loc[parent_id, 'z']])
+                seg = np.array([parentxyz, childxyz])
+                segs.append(seg)
+
+        return np.array(segs)
 
     def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
 
@@ -350,4 +373,90 @@ class SwcFile(pd.DataFrame):
         ax.invert_yaxis()
 
         return ax
+
+
+class AxonSegment(np.ndarray):
+    """
+    subclass of np.ndarray representing a single axon segment
+
+    shape = (2, 3)
+    [[parent.x, parent.y, parent.z],
+     [child.x,  child.y,  child.z ]]
+    """
+
+    def __new__(cls, input_array):
+
+        if input_array.shape != (2, 3):
+            raise ValueError('The shape of an AxonSegment should be (2, 3).')
+
+        obj = np.asarray(input_array).view(cls)
+
+        return obj
+
+    def __array_finalize(self, obj):
+        if obj is None:
+            return
+
+    @property
+    def length(self):
+        return np.sqrt(np.sum(np.square(self[0, :] - self[1, :]), axis=0))
+
+    def get_z_ratio(self):
+        """
+        return the ration between the z span for each segment over
+        segment length. (in this order it is more likely to avoid
+        divided by zero error)
+
+        this is for precise measurement of segment length at
+        different depth.
+
+        :return: float, ratio: length / z_span
+        """
+        return np.abs(self[0, 2] - self[1, 2]) / self.length
+
+    def get_z_length_distribution(self, z_start, z_end, z_step):
+        """
+        given a set of bins in z (depth), return the length
+        the segment in each bin
+        :param z_start: float, starting depth in z
+        :param z_end: float, ending depth in z
+        :param z_step: float, bin width in z
+                         bin_edges in depth is defined by
+                         np.arange(z_start, z_end + z_step, z_step)
+        :return bin_edges: 1d array, depth value of all bin edges
+        :return z_dist: 1d array, length of this segment in each bin.
+                        the length of z_dist should be 1 less than the
+                        length of bin_edges
+        """
+
+        bin_edges = np.arange(z_start, z_end + z_step, z_step)
+        z_dist = np.zeros(len(bin_edges) - 1)
+
+        z_ratio = self.get_z_ratio()
+
+        ztop = np.min(self[:, 2])
+        if ztop < bin_edges[0]:
+            ztop = bin_edges[0]
+        zbot = np.max(self[:, 2])
+        if zbot > z_end:
+            zbot = z_end - 1e-10 # to deal with edge cases
+
+        topi = int((ztop - z_start) // z_step)
+        boti = int((zbot - z_start) // z_step)
+
+        if topi == boti: # the whole segment is in one bin
+            z_dist[topi] = self.length
+        else:
+            # deal with the incomplete most superficial bin
+            z_dist[topi] = (bin_edges[topi + 1] - ztop) / z_ratio
+
+            # deal with the incomplete deepest bin
+            z_dist[boti] = (zbot - bin_edges[boti]) / z_ratio
+
+            # deal with all the complete bins in the middle
+            z_dist[topi + 1:boti] = z_step / z_ratio
+
+        return bin_edges, z_dist
+
+
 
