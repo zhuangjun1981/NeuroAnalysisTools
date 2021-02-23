@@ -433,16 +433,22 @@ class AxonSegment(np.ndarray):
         z_dist = np.zeros(len(bin_edges) - 1)
 
         z_ratio = self.get_z_ratio()
+        # if z_ratio == 0:
+        #     print(self)
 
         ztop = np.min(self[:, 2])
         if ztop < bin_edges[0]:
             ztop = bin_edges[0]
         zbot = np.max(self[:, 2])
         if zbot > z_end:
-            zbot = z_end - 1e-10 # to deal with edge cases
+            zbot = z_end - 1e-5 # to deal with edge cases
+
 
         topi = int((ztop - z_start) // z_step)
         boti = int((zbot - z_start) // z_step)
+
+        if topi >= len(z_dist) or boti < 0:
+            return bin_edges, z_dist
 
         if topi == boti: # the whole segment is in one bin
             z_dist[topi] = self.length
