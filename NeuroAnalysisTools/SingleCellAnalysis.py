@@ -2542,7 +2542,7 @@ class DriftingGratingResponseTable(DataFrame):
         because gOSI and gDSI calculation is independent of curve base line. so gOSI_raw and gDSI_raw represent
         gOSI and gDSI in both raw and elevated conditions.
 
-        :param dire_tuning:
+        :param dire_tuning: DataFrame
         :param response_dir:  str, 'pos' or 'neg
         :param elevation_bias: float, minimum response after elevation.
         :return OSI_raw:
