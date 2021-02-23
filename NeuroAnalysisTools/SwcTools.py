@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.spatial as sp
 from mpl_toolkits.mplot3d import Axes3D
 
 COLOR_DICT = {
@@ -273,6 +274,24 @@ class AxonTree(pd.DataFrame):
 
         return np.array(segs)
 
+    def get_convex_hull_between_depths(self, z_range):
+        """
+        return the volume of a 3d convex hull between
+        two different z depths, with points as nodes
+
+        :param z_range: array-like, two floats,
+                        starting and end depth
+        :return: scipy.spatial.ConvexHull object
+        """
+
+        points = self[(self.z >= z_range[0]) & (self.z < z_range[1])][['x', 'y', 'z']]
+        # print(points)
+
+        if len(points) <= 3:
+            return None
+        else:
+            return sp.ConvexHull(points)
+
     def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
 
         if ax is None:
@@ -441,7 +460,7 @@ class AxonSegment(np.ndarray):
             ztop = bin_edges[0]
         zbot = np.max(self[:, 2])
         if zbot > z_end:
-            zbot = z_end - 1e-5 # to deal with edge cases
+            zbot = z_end - 1e-11 # to deal with edge cases
 
 
         topi = int((ztop - z_start) // z_step)

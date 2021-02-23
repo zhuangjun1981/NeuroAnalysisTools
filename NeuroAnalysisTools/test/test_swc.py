@@ -8,14 +8,14 @@ class TestTimingAnalysis(unittest.TestCase):
         self.data_dir =os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 
     def test_read_swc(self):
-        fpath = os.path.join(self.data_dir, 'test_swc3.swc')
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         swc_f = st.read_swc(fpath)
-        assert(len(swc_f) == 4)
+        assert(len(swc_f) == 5)
 
     def test_plot(self):
 
         import matplotlib.pyplot as plt
-        fpath = os.path.join(self.data_dir, 'test_swc3.swc')
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         swc_f = st.read_swc(fpath)
         swc_f.plot_3d_mpl()
         swc_f.plot_xy_mpl()
@@ -76,6 +76,7 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(bin_edges)
         # print(z_dist)
         assert(np.allclose(bin_edges, (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8), rtol=1e-10))
+        print(z_dist)
         assert (np.allclose(z_dist, (0.1, 0.1, 0.1, 0.1, 0.1, 0.1), rtol=1e-10))
 
         seg3 = st.AxonSegment(segments[3])
@@ -83,3 +84,13 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(bin_edges)
         # print(z_dist)
         assert(np.allclose(z_dist, (0, np.sqrt(3)/2, np.sqrt(3)/2, 0), rtol=1e-10))
+
+    def test_convex_hull_between_depths(self):
+
+        fpath = os.path.join(self.data_dir, 'test_swc3.swc')
+        at = st.read_swc(fpath)
+        hull = at.get_convex_hull_between_depths(z_range=[-1, 200])
+        # print(hull)
+        assert(hull.volume == 500000)
+
+
