@@ -1,5 +1,5 @@
-import os
-import unittest
+import os, unittest
+import numpy as np
 from .. import SwcTools as st
 
 class TestTimingAnalysis(unittest.TestCase):
@@ -28,12 +28,11 @@ class TestTimingAnalysis(unittest.TestCase):
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
         segments = at.get_segments()
-        print(segments)
+        # print(segments)
         # print(segments.shape)
         assert (segments.shape == (4, 2, 3))
 
     def test_get_zratio(self):
-        import numpy as np
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
         segments = at.get_segments()
@@ -56,7 +55,6 @@ class TestTimingAnalysis(unittest.TestCase):
 
     def test_get_z_length_distribution(self):
 
-        import numpy as np
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
         segments = at.get_segments()
@@ -76,7 +74,6 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(bin_edges)
         # print(z_dist)
         assert(np.allclose(bin_edges, (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8), rtol=1e-10))
-        print(z_dist)
         assert (np.allclose(z_dist, (0.1, 0.1, 0.1, 0.1, 0.1, 0.1), rtol=1e-10))
 
         seg3 = st.AxonSegment(segments[3])
@@ -93,4 +90,52 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(hull)
         assert(hull.volume == 500000)
 
+    def test_get_chunk_in_z_range(self):
 
+        seg = st.AxonSegment(np.array([[1, 2, 3],
+                                       [0, 0, 0]], dtype=np.float64))
+
+        seg0 = seg.get_chunk_in_zrange(zrange=[-0.5, -0.1])
+        assert(seg0 is None)
+
+        seg1 = seg.get_chunk_in_zrange(zrange=[-0.5, 0])
+        assert(seg1 is None)
+
+        seg2 = seg.get_chunk_in_zrange(zrange=[-0.5, 1])
+        assert(np.allclose(seg2, [[0, 0, 0], [1/3, 2/3, 1]], rtol=1e-10))
+
+        seg3 = seg.get_chunk_in_zrange(zrange=[0, 1])
+        assert(np.allclose(seg3, [[0, 0, 0], [1/3, 2/3, 1]], rtol=1e-10))
+
+        seg4 = seg.get_chunk_in_zrange(zrange=[0.5, 1])
+        assert(np.allclose(seg4, [[1/6, 1/3, 0.5], [1/3, 2/3, 1]], rtol=1e-10))
+
+        seg5 = seg.get_chunk_in_zrange(zrange=[1, 3])
+        assert (np.allclose(seg5, [[1/3, 2/3, 1], [1, 2, 3]], rtol=1e-10))
+
+        seg6 = seg.get_chunk_in_zrange(zrange=[2, 4])
+        assert (np.allclose(seg6, [[2/3, 4/3, 2], [1, 2, 3]], rtol=1e-10))
+
+        seg7 = seg.get_chunk_in_zrange(zrange=[3, 4])
+        assert (np.allclose(seg7, [[1, 2, 3], [1, 2, 3]], rtol=1e-10))
+
+        seg8 = seg.get_chunk_in_zrange(zrange=[3.5, 4])
+        assert (seg8 is None)
+
+        seg9 = st.AxonSegment(np.array([[1, 2, 0],
+                                        [0, 0, 0]], dtype=np.float64))
+
+        seg10 = seg9.get_chunk_in_zrange(zrange=[-1, -0.5])
+        assert(seg10 is None)
+
+        seg11 = seg9.get_chunk_in_zrange(zrange=[-1, 0])
+        assert(seg11 is None)
+
+        seg12 = seg9.get_chunk_in_zrange(zrange=[-1, 1])
+        assert (np.allclose(seg12, [[1, 2, 0], [0, 0, 0]], rtol=1e-10))
+
+        seg13 = seg9.get_chunk_in_zrange(zrange=[0, 1])
+        assert (np.allclose(seg13, [[1, 2, 0], [0, 0, 0]], rtol=1e-10))
+
+        seg14 = seg9.get_chunk_in_zrange(zrange=[1, 2])
+        assert (seg14 is None)

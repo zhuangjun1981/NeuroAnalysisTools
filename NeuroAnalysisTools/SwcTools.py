@@ -420,6 +420,18 @@ class AxonSegment(np.ndarray):
     def length(self):
         return np.sqrt(np.sum(np.square(self[0, :] - self[1, :]), axis=0))
 
+    @property
+    def xrange(self):
+        return np.abs(self[0, 0] - self[1, 0])
+
+    @property
+    def yrange(self):
+        return np.abs(self[0, 1] - self[1, 1])
+
+    @property
+    def zrange(self):
+        return np.abs(self[0, 2] - self[1, 2])
+
     def get_z_ratio(self):
         """
         return the ration between the z span for each segment over
@@ -483,5 +495,73 @@ class AxonSegment(np.ndarray):
 
         return bin_edges, z_dist
 
+    def get_chunk_in_zrange(self, zrange):
+        """
+        return the chunk of self that overlaps with the z range,
+        z range: [zstart, zend],
+                 inclusive on top, exclusive on end
 
+        :param zrange: array-like, 1d, two floats, start and end of z range
+        :return: None, if self is not in zrange
+                 new AxonSegment object (the part of self that is in z range)
+                 if self has overlap with the z range
+        """
 
+        if zrange[1] <= zrange[0]:
+            raise ValueError(f"input 'zrange' should be "
+                             f"[zstart, zend] and zend should be larger"
+                             f"than zstart. getting: {zrange}")
+
+        # get ordered the segment object:
+        # the first node on the top and the second node on the bottom
+        if self[0, 2] > self[1, 2]:
+            seg_ord = AxonSegment(self[::-1, :])
+        else:
+            seg_ord = AxonSegment(np.array(self))
+
+        ztop = seg_ord[0, 2]
+        zbot = seg_ord[1, 2]
+
+        if zbot < zrange[0]:
+            return None
+        elif zbot == zrange[0]:
+            if zbot == ztop:
+                return seg_ord
+            else:
+                new_seg = AxonSegment(np.array(seg_ord))
+                new_seg[0, :] = new_seg[1, :]
+                new_seg[1, 2] = new_seg[1, 2] + 1e-11
+                return new_seg
+        elif zbot < zrange[1]:
+            if ztop < zrange[0]:
+                new_x0 = (zrange[0] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
+                new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
+                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                                             seg_ord[1, :]]))
+            elif ztop >= zrange[0]:
+                return seg_ord
+        elif zbot == zrange[1]:
+            if ztop < zrange[0]:
+                new_x0 = (zrange[0] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
+                new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
+                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                                             seg_ord[1, :]]))
+            elif zrange[0] <= ztop < zbot:
+                return seg_ord
+            else:
+                return None
+        else:
+            if ztop < zrange[0]:
+                new_x0 = (zrange[0] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
+                new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
+                new_x1 = (zrange[1] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
+                new_y1 = (zrange[1] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
+                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                                             [new_x1, new_y1, zrange[1]]]))
+            elif zrange[0] <= ztop < zrange[1]:
+                new_x1 = (zrange[1] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
+                new_y1 = (zrange[1] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
+                return AxonSegment(np.array([seg_ord[0, :],
+                                             [new_x1, new_y1, zrange[1]]]))
+            else:
+                return None
