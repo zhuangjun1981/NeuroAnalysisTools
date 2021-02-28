@@ -39,7 +39,7 @@ class TestTimingAnalysis(unittest.TestCase):
 
         lengths = []
         for segment in segments:
-            seg = st.AxonSegment(segment)
+            seg = st.Segment(segment)
             lengths.append(seg.length)
 
         # print(lengths)
@@ -47,7 +47,7 @@ class TestTimingAnalysis(unittest.TestCase):
 
         zrs = []
         for segment in segments:
-            seg = st.AxonSegment(segment)
+            seg = st.Segment(segment)
             zrs.append(seg.get_z_ratio())
 
         # print(zrs)
@@ -59,7 +59,7 @@ class TestTimingAnalysis(unittest.TestCase):
         at = st.read_swc(fpath)
         segments = at.get_segments()
 
-        seg = st.AxonSegment(segments[0])
+        seg = st.Segment(segments[0])
         # print(seg)
 
         bin_edges, z_dist = seg.get_z_length_distribution(z_start=-1.5, z_end=2.5,
@@ -69,14 +69,14 @@ class TestTimingAnalysis(unittest.TestCase):
         assert(np.allclose(bin_edges, (-1.5, -0.5, 0.5, 1.5, 2.5), rtol=1e-10))
         assert(np.allclose(z_dist, (0, 1, 0, 0), rtol=1e-10))
 
-        seg2 = st.AxonSegment(segments[2])
+        seg2 = st.Segment(segments[2])
         bin_edges, z_dist = seg2.get_z_length_distribution(z_start=0.2, z_end=0.8, z_step=0.1)
         # print(bin_edges)
         # print(z_dist)
         assert(np.allclose(bin_edges, (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8), rtol=1e-10))
         assert (np.allclose(z_dist, (0.1, 0.1, 0.1, 0.1, 0.1, 0.1), rtol=1e-10))
 
-        seg3 = st.AxonSegment(segments[3])
+        seg3 = st.Segment(segments[3])
         bin_edges, z_dist = seg3.get_z_length_distribution(z_start=-0.5, z_end=3.5, z_step=1)
         # print(bin_edges)
         # print(z_dist)
@@ -92,7 +92,7 @@ class TestTimingAnalysis(unittest.TestCase):
 
     def test_get_chunk_in_z_range(self):
 
-        seg = st.AxonSegment(np.array([[1, 2, 3],
+        seg = st.Segment(np.array([[1, 2, 3],
                                        [0, 0, 0]], dtype=np.float64))
 
         seg0 = seg.get_chunk_in_zrange(zrange=[-0.5, -0.1])
@@ -122,7 +122,7 @@ class TestTimingAnalysis(unittest.TestCase):
         seg8 = seg.get_chunk_in_zrange(zrange=[3.5, 4])
         assert (seg8 is None)
 
-        seg9 = st.AxonSegment(np.array([[1, 2, 0],
+        seg9 = st.Segment(np.array([[1, 2, 0],
                                         [0, 0, 0]], dtype=np.float64))
 
         seg10 = seg9.get_chunk_in_zrange(zrange=[-1, -0.5])
@@ -184,10 +184,24 @@ class TestTimingAnalysis(unittest.TestCase):
 
     def test_get_total_length(self):
 
-        axonss = st.AxonSegmentSet(np.array([[[0, 0, 0],
+        axonss = st.SegmentSet(np.array([[[0, 0, 0],
                                               [1, 1, 1]],
                                              [[0, 1, 2],
                                               [3, 4, 5]]]))
         assert(np.allclose(axonss.get_total_length(),
                            np.sqrt(3) + np.sqrt(27),
                            rtol=1e-10))
+
+    def test_get_xy_2d_hull(self):
+
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+
+        # print(at)
+
+        segs_dicts = at.get_segments_in_z(zsteps=[-5, -1, 3, 7])
+        segs = segs_dicts[1]['segments']
+        # print(segs)
+
+        hull = segs.get_xy_2d_hull()
+        assert(np.allclose(hull.volume, 1., rtol=1e-10))

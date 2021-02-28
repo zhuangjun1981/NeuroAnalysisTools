@@ -80,21 +80,21 @@ def get_segments_in_zrange(segments, zrange):
     """
     for a set of segments, get all the segments / segment chunks that
     are sliced within a certain z range
-    :param segments: AxonSegmentSet object
+    :param segments: SegmentSet object
     :param zrange: array-like, 1d, two float, [zstart, zend]
                    zend should be larger than zstart
-    :return: AxonSegmentSet object, each segment is a component of self
+    :return: SegmentSet object, each segment is a component of self
              that lies in the zrange
     """
     segs_new = []
 
     for seg in segments:
-        seg_new = AxonSegment(seg).get_chunk_in_zrange(zrange=zrange)
+        seg_new = Segment(seg).get_chunk_in_zrange(zrange=zrange)
         if seg_new is not None:
             segs_new.append(seg_new)
 
     if segs_new:
-        return AxonSegmentSet(np.array(segs_new))
+        return SegmentSet(np.array(segs_new))
     else:
         return None
 
@@ -277,7 +277,7 @@ class AxonTree(pd.DataFrame):
         """
         get all segments of the tree in array format
 
-        :return: AxonSegmentSet object
+        :return: SegmentSet object
                  ndarray, shape: n x 2 x 3.
                  first dimension: segments
                  second dimension: [parent, child]
@@ -296,11 +296,11 @@ class AxonTree(pd.DataFrame):
                 seg = np.array([parentxyz, childxyz])
                 segs.append(seg)
 
-        return AxonSegmentSet(np.array(segs))
+        return SegmentSet(np.array(segs))
 
     # def get_segments(self):
     #     """
-    #     :return: a list of AxonSegment objects, all segments of self
+    #     :return: a list of Segment objects, all segments of self
     #     """
     #     segs = []
     #
@@ -312,7 +312,7 @@ class AxonTree(pd.DataFrame):
     #                                   self.loc[parent_id, 'y'],
     #                                   self.loc[parent_id, 'z']])
     #             seg = np.array([parentxyz, childxyz])
-    #             segs.append(AxonSegment(seg))
+    #             segs.append(Segment(seg))
     #
     #     return segs
     #
@@ -345,7 +345,7 @@ class AxonTree(pd.DataFrame):
             each dictionay: {'zbin_name': str,
                              'zstart': float, start of zbin
                              'zend': float, end of zbin
-                             'segments': list of AxonSegment objects}
+                             'segments': list of Segment objects}
         """
         segs = self.get_segments()
         zbins = np.array([zsteps[:-1], zsteps[1:]])
@@ -465,8 +465,8 @@ class AxonTree(pd.DataFrame):
         return ax
 
 
-class AxonSegmentSet(np.ndarray):
-    """subclass of np.ndarray representing a set of axon segments
+class SegmentSet(np.ndarray):
+    """subclass of np.ndarray representing a set of segments
 
     shape = (n, 2, 3)
     n = number of axon segments
@@ -506,13 +506,25 @@ class AxonSegmentSet(np.ndarray):
                                       self[:, 1, :]), axis=1)))
 
     def get_xy_2d_hull(self):
-        #todo: finish This
-        pass
+        """
+
+        :return: xyhull, 2d scipy.spatial.Qhull object, convex hull
+            encompassed by all the nodes in this segment set
+        """
+
+        points = np.concatenate(self[:, :, 0:2], axis=0)
+
+        # print(points)
+
+        if points.shape[0] < 3:
+            return None
+        else:
+            return sp.ConvexHull(points)
 
 
-class AxonSegment(np.ndarray):
+class Segment(np.ndarray):
     """
-    subclass of np.ndarray representing a single axon segment
+    subclass of np.ndarray representing a single linear segment
 
     shape = (2, 3)
     [[parent.x, parent.y, parent.z],
@@ -522,7 +534,7 @@ class AxonSegment(np.ndarray):
     def __new__(cls, input_array):
 
         if input_array.shape != (2, 3):
-            raise ValueError('The shape of an AxonSegment should be (2, 3).')
+            raise ValueError('The shape of an Segment should be (2, 3).')
 
         obj = np.asarray(input_array.astype(np.float64)).view(cls)
 
@@ -619,7 +631,7 @@ class AxonSegment(np.ndarray):
 
         :param zrange: array-like, 1d, two floats, start and end of z range
         :return: None, if self is not in zrange
-                 new AxonSegment object (the part of self that is in z range)
+                 new Segment object (the part of self that is in z range)
                  if self has overlap with the z range
         """
 
@@ -631,9 +643,9 @@ class AxonSegment(np.ndarray):
         # get ordered the segment object:
         # the first node on the top and the second node on the bottom
         if self[0, 2] > self[1, 2]:
-            seg_ord = AxonSegment(self[::-1, :])
+            seg_ord = Segment(self[::-1, :])
         else:
-            seg_ord = AxonSegment(np.array(self))
+            seg_ord = Segment(np.array(self))
 
         ztop = seg_ord[0, 2]
         zbot = seg_ord[1, 2]
@@ -644,7 +656,7 @@ class AxonSegment(np.ndarray):
             if zbot == ztop:
                 return seg_ord
             else:
-                new_seg = AxonSegment(np.array(seg_ord))
+                new_seg = Segment(np.array(seg_ord))
                 new_seg[0, :] = new_seg[1, :]
                 new_seg[1, 2] = new_seg[1, 2] + 1e-11
                 return new_seg
@@ -652,7 +664,7 @@ class AxonSegment(np.ndarray):
             if ztop < zrange[0]:
                 new_x0 = (zrange[0] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
                 new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
-                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                return Segment(np.array([[new_x0, new_y0, zrange[0]],
                                              seg_ord[1, :]]))
             elif ztop >= zrange[0]:
                 return seg_ord
@@ -660,7 +672,7 @@ class AxonSegment(np.ndarray):
             if ztop < zrange[0]:
                 new_x0 = (zrange[0] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
                 new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
-                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                return Segment(np.array([[new_x0, new_y0, zrange[0]],
                                              seg_ord[1, :]]))
             elif zrange[0] <= ztop < zbot:
                 return seg_ord
@@ -672,12 +684,12 @@ class AxonSegment(np.ndarray):
                 new_y0 = (zrange[0] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
                 new_x1 = (zrange[1] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
                 new_y1 = (zrange[1] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
-                return AxonSegment(np.array([[new_x0, new_y0, zrange[0]],
+                return Segment(np.array([[new_x0, new_y0, zrange[0]],
                                              [new_x1, new_y1, zrange[1]]]))
             elif zrange[0] <= ztop < zrange[1]:
                 new_x1 = (zrange[1] - ztop) * seg_ord.xrange / seg_ord.zrange + seg_ord[0, 0]
                 new_y1 = (zrange[1] - ztop) * seg_ord.yrange / seg_ord.zrange + seg_ord[0, 1]
-                return AxonSegment(np.array([seg_ord[0, :],
+                return Segment(np.array([seg_ord[0, :],
                                              [new_x1, new_y1, zrange[1]]]))
             else:
                 return None
