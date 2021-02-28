@@ -27,7 +27,7 @@ class TestTimingAnalysis(unittest.TestCase):
     def test_get_segments(self):
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments_array()
+        segments = at.get_segments()
         # print(segments)
         # print(segments.shape)
         assert (segments.shape == (4, 2, 3))
@@ -35,7 +35,7 @@ class TestTimingAnalysis(unittest.TestCase):
     def test_get_zratio(self):
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments_array()
+        segments = at.get_segments()
 
         lengths = []
         for segment in segments:
@@ -57,7 +57,7 @@ class TestTimingAnalysis(unittest.TestCase):
 
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments_array()
+        segments = at.get_segments()
 
         seg = st.AxonSegment(segments[0])
         # print(seg)
@@ -82,13 +82,13 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(z_dist)
         assert(np.allclose(z_dist, (0, np.sqrt(3)/2, np.sqrt(3)/2, 0), rtol=1e-10))
 
-    def test_convex_hull_between_depths(self):
-
-        fpath = os.path.join(self.data_dir, 'test_swc3.swc')
-        at = st.read_swc(fpath)
-        hull = at.get_convex_hull_between_depths(z_range=[-1, 200])
-        # print(hull)
-        assert(hull.volume == 500000)
+    # def test_convex_hull_between_depths(self):
+    #
+    #     fpath = os.path.join(self.data_dir, 'test_swc3.swc')
+    #     at = st.read_swc(fpath)
+    #     hull = at.get_convex_hull_between_depths(z_range=[-1, 200])
+    #     # print(hull)
+    #     assert(hull.volume == 500000)
 
     def test_get_chunk_in_z_range(self):
 
