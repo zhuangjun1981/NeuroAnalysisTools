@@ -495,8 +495,15 @@ class AxonSegmentSet(np.ndarray):
             return
 
     def get_total_length(self):
-        #todo: finish This
-        pass
+        """
+        :return: float, total length of this set of segments
+        """
+
+        return np.sum(
+                    np.sqrt(
+                        np.sum(
+                            np.square(self[:, 0, :] -
+                                      self[:, 1, :]), axis=1)))
 
     def get_xy_2d_hull(self):
         #todo: finish This

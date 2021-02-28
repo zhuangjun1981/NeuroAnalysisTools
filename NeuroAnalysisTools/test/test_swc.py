@@ -181,3 +181,13 @@ class TestTimingAnalysis(unittest.TestCase):
                             np.array([[[2., 2., 2.],
                                        [2., 2., 2.]]]),
                             rtol=1e-10))
+
+    def test_get_total_length(self):
+
+        axonss = st.AxonSegmentSet(np.array([[[0, 0, 0],
+                                              [1, 1, 1]],
+                                             [[0, 1, 2],
+                                              [3, 4, 5]]]))
+        assert(np.allclose(axonss.get_total_length(),
+                           np.sqrt(3) + np.sqrt(27),
+                           rtol=1e-10))
