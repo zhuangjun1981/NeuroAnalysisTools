@@ -76,6 +76,29 @@ def read_swc(file_path, vox_size_x=None, vox_size_y=None, vox_size_z=None,
     return swc_f
 
 
+def get_segments_in_zrange(segments, zrange):
+    """
+    for a set of segments, get all the segments / segment chunks that
+    are sliced within a certain z range
+    :param segments: AxonSegmentSet object
+    :param zrange: array-like, 1d, two float, [zstart, zend]
+                   zend should be larger than zstart
+    :return: AxonSegmentSet object, each segment is a component of self
+             that lies in the zrange
+    """
+    segs_new = []
+
+    for seg in segments:
+        seg_new = AxonSegment(seg).get_chunk_in_zrange(zrange=zrange)
+        if seg_new is not None:
+            segs_new.append(seg_new)
+
+    if segs_new:
+        return AxonSegmentSet(np.array(segs_new))
+    else:
+        return None
+
+
 class AxonTree(pd.DataFrame):
     """
     a swc like dataframe storing the structure of an
@@ -252,12 +275,13 @@ class AxonTree(pd.DataFrame):
 
     def get_segments(self):
         """
-        get all segments of the tree.
+        get all segments of the tree in array format
 
-        :return: ndarray, shape: n x 2 x 3.
-            first dimension: segments
-            second dimension: [parent, child]
-            third dimension: [x, y, z]
+        :return: AxonSegmentSet object
+                 ndarray, shape: n x 2 x 3.
+                 first dimension: segments
+                 second dimension: [parent, child]
+                 third dimension: [x, y, z]
         """
 
         segs = []
@@ -272,25 +296,72 @@ class AxonTree(pd.DataFrame):
                 seg = np.array([parentxyz, childxyz])
                 segs.append(seg)
 
-        return np.array(segs)
+        return AxonSegmentSet(np.array(segs))
 
-    def get_convex_hull_between_depths(self, z_range):
+    # def get_segments(self):
+    #     """
+    #     :return: a list of AxonSegment objects, all segments of self
+    #     """
+    #     segs = []
+    #
+    #     for node_i, node_row in self.iterrows():
+    #         if node_row['parent'] != -1:  # the nodes have a parent
+    #             childxyz = np.array([node_row.x, node_row.y, node_row.z])
+    #             parent_id = node_row['parent']
+    #             parentxyz = np.array([self.loc[parent_id, 'x'],
+    #                                   self.loc[parent_id, 'y'],
+    #                                   self.loc[parent_id, 'z']])
+    #             seg = np.array([parentxyz, childxyz])
+    #             segs.append(AxonSegment(seg))
+    #
+    #     return segs
+    #
+    # def get_convex_hull_in_zrange(self, zrange):
+    #     """
+    #     this is not very precise ...
+    #
+    #     return the volume of a 3d convex hull between
+    #     two different z depths, with points as nodes
+    #
+    #     :param zrange: array-like, two floats,
+    #                     starting and end depth
+    #     :return: scipy.spatial.ConvexHull object
+    #     """
+    #
+    #     points = self[(self.z >= zrange[0]) & (self.z < zrange[1])][['x', 'y', 'z']]
+    #     # print(points)
+    #
+    #     if len(points) <= 3:
+    #         return None
+    #     else:
+    #         return sp.ConvexHull(points)
+
+    def get_segments_in_z(self, zsteps):
         """
-        return the volume of a 3d convex hull between
-        two different z depths, with points as nodes
-
-        :param z_range: array-like, two floats,
-                        starting and end depth
-        :return: scipy.spatial.ConvexHull object
+        get the segments / segment chunks that are sliced by a series
+        of z ranges. zranges are defined by zsteps
+        :param zsteps: array-like, 1d, float, bin edges in z
+        :return segs_in_z: list of dictionaries
+            each dictionay: {'zbin_name': str,
+                             'zstart': float, start of zbin
+                             'zend': float, end of zbin
+                             'segments': list of AxonSegment objects}
         """
+        segs = self.get_segments()
+        zbins = np.array([zsteps[:-1], zsteps[1:]])
 
-        points = self[(self.z >= z_range[0]) & (self.z < z_range[1])][['x', 'y', 'z']]
-        # print(points)
+        segs_in_z = []
 
-        if len(points) <= 3:
-            return None
-        else:
-            return sp.ConvexHull(points)
+        for bin_i in range(zbins.shape[1]):
+            zrange = zbins[:, bin_i]
+            curr_segs = get_segments_in_zrange(segments=segs, zrange=zrange)
+            curr_dict = {'zbin_name': f'zbin{bin_i:06d}',
+                         'zstart': zrange[0],
+                         'zend': zrange[1],
+                         'segments': curr_segs}
+            segs_in_z.append(curr_dict)
+
+        return segs_in_z
 
     def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
 
@@ -394,6 +465,44 @@ class AxonTree(pd.DataFrame):
         return ax
 
 
+class AxonSegmentSet(np.ndarray):
+    """subclass of np.ndarray representing a set of axon segments
+
+    shape = (n, 2, 3)
+    n = number of axon segments
+    each segment is represented as:
+    [[parent.x, parent.y, parent.z],
+     [child.x,  child.y,  child.z ]]
+    """
+
+    def __new__(cls, input_array):
+
+        if len(input_array.shape) != 3:
+            raise ValueError('The input_array should be 3d.')
+
+        if input_array.shape[1] != 2:
+            raise ValueError('The input_array.shape[1] should be 2.')
+
+        if input_array.shape[2] != 3:
+            raise ValueError('The input_array.shape[2] should be 3.')
+
+        obj = np.asarray(input_array.astype(np.float64)).view(cls)
+
+        return obj
+
+    def __array_finalize(self, obj):
+        if obj is None:
+            return
+
+    def get_total_length(self):
+        #todo: finish This
+        pass
+
+    def get_xy_2d_hull(self):
+        #todo: finish This
+        pass
+
+
 class AxonSegment(np.ndarray):
     """
     subclass of np.ndarray representing a single axon segment
@@ -408,7 +517,7 @@ class AxonSegment(np.ndarray):
         if input_array.shape != (2, 3):
             raise ValueError('The shape of an AxonSegment should be (2, 3).')
 
-        obj = np.asarray(input_array).view(cls)
+        obj = np.asarray(input_array.astype(np.float64)).view(cls)
 
         return obj
 

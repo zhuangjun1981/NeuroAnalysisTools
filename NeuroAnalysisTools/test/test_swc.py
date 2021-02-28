@@ -27,7 +27,7 @@ class TestTimingAnalysis(unittest.TestCase):
     def test_get_segments(self):
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments()
+        segments = at.get_segments_array()
         # print(segments)
         # print(segments.shape)
         assert (segments.shape == (4, 2, 3))
@@ -35,7 +35,7 @@ class TestTimingAnalysis(unittest.TestCase):
     def test_get_zratio(self):
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments()
+        segments = at.get_segments_array()
 
         lengths = []
         for segment in segments:
@@ -57,7 +57,7 @@ class TestTimingAnalysis(unittest.TestCase):
 
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         at = st.read_swc(fpath)
-        segments = at.get_segments()
+        segments = at.get_segments_array()
 
         seg = st.AxonSegment(segments[0])
         # print(seg)
@@ -139,3 +139,45 @@ class TestTimingAnalysis(unittest.TestCase):
 
         seg14 = seg9.get_chunk_in_zrange(zrange=[1, 2])
         assert (seg14 is None)
+
+    def test_get_segments_in_z(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+        # print(at)
+        zsteps = np.arange(-1, 3, 0.5, dtype=np.float64)
+        # print(f'zsteps: {zsteps}')
+        segs_in_z = at.get_segments_in_z(zsteps=zsteps)
+
+        # _ = [print(f'\n{segs["zbin_name"]}: '
+        #            f'[{segs["zstart"]}, {segs["zend"]}], '
+        #            f'\n\t{segs["segments"]}')
+        #      for segs in segs_in_z]
+
+        assert (segs_in_z[0]['segments'] is None)
+        assert (segs_in_z[1]['segments'] is None)
+        assert (np.allclose(segs_in_z[2]['segments'],
+                            np.array([[[0., 0., 0.],
+                                       [1., 0., 0.]],
+                                      [[1., 0., 0.],
+                                       [1., 1., 0.]],
+                                      [[1., 1., 0.],
+                                       [1., 1., 0.5]]]),
+                            rtol=1e-10))
+        assert (np.allclose(segs_in_z[3]['segments'],
+                            np.array([[[1., 1., 0.5],
+                                       [1., 1., 1. ]]]),
+                            rtol=1e-10))
+        assert (np.allclose(segs_in_z[4]['segments'],
+                            np.array([[[1., 1., 1.],
+                                       [1., 1., 1.]],
+                                      [[1., 1., 1.],
+                                       [1.5, 1.5, 1.5]]]),
+                            rtol=1e-10))
+        assert (np.allclose(segs_in_z[5]['segments'],
+                            np.array([[[1.5, 1.5, 1.5],
+                                       [2. , 2. , 2. ]]]),
+                            rtol=1e-10))
+        assert (np.allclose(segs_in_z[6]['segments'],
+                            np.array([[[2., 2., 2.],
+                                       [2., 2., 2.]]]),
+                            rtol=1e-10))
