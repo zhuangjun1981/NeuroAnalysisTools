@@ -519,7 +519,22 @@ class SegmentSet(np.ndarray):
         if points.shape[0] < 3:
             return None
         else:
-            return sp.ConvexHull(points)
+            try:
+                hull = sp.ConvexHull(points)
+                return hull
+            except sp.qhull.QhullError:
+                return None
+
+    def get_3d_hull(self):
+        points = np.concatenate(self, axis=0)
+        if points.shape[0] < 4:
+            return None
+        else:
+            try:
+                hull = sp.ConvexHull(points)
+                return hull
+            except sp.qhull.QhullError:
+                return None
 
 
 class Segment(np.ndarray):
