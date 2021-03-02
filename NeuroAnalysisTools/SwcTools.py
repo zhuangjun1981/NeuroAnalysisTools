@@ -499,11 +499,12 @@ class SegmentSet(np.ndarray):
         :return: float, total length of this set of segments
         """
 
-        return np.sum(
+        len_tot =  np.sum(
                     np.sqrt(
                         np.sum(
                             np.square(self[:, 0, :] -
                                       self[:, 1, :]), axis=1)))
+        return float(len_tot)
 
     def get_xy_2d_hull(self):
         """
