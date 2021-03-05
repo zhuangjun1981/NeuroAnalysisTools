@@ -494,17 +494,45 @@ class SegmentSet(np.ndarray):
         if obj is None:
             return
 
+    def get_centers(self):
+        """
+        :return: 2d array, n x 3, centers of each segment [x, y, z]
+        """
+        return np.mean(self, axis=1)
+
+    def get_lengths(self):
+        """
+        :return lens: 1d array, lengths of each segment
+        """
+        lens = np.sqrt(np.sum(np.square(self[:, 0, :] - self[:, 1, :]), axis=1))
+        return lens
+
+    def get_weighted_center(self):
+        """
+        :return: 1d array, [x, y, z], center of all segments weighted by length
+        """
+        lens = self.get_lengths()
+        cens = self.get_centers().transpose()
+        return np.sum(cens * lens, axis=1) / np.sum(lens)
+
     def get_total_length(self):
         """
         :return: float, total length of this set of segments
         """
 
-        len_tot =  np.sum(
-                    np.sqrt(
-                        np.sum(
-                            np.square(self[:, 0, :] -
-                                      self[:, 1, :]), axis=1)))
+        len_tot =  np.sum(self.get_lengths())
         return float(len_tot)
+
+    def get_distances_to_weighted_center_xy(self):
+        """
+        :return: 1d array, distances in xy from the center of each segment to
+                 the weighted center
+        """
+        cen = self.get_weighted_center()[0:2]
+        cens = self.get_centers()[:, 0:2]
+
+        diss = np.sqrt(np.sum(np.square(cens - cen), axis=1))
+        return diss
 
     def get_xy_2d_hull(self):
         """

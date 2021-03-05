@@ -182,6 +182,58 @@ class TestTimingAnalysis(unittest.TestCase):
                                        [2., 2., 2.]]]),
                             rtol=1e-10))
 
+    def test_get_lengths(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+        segs = at.get_segments()
+        lens = segs.get_lengths()
+        assert(np.allclose(lens, [1, 1, 1, np.sqrt(3)], rtol=1e-10))
+
+    def test_get_centers(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+        segs = at.get_segments()
+        cens = segs.get_centers()
+        assert(np.allclose(cens, [[0.5, 0, 0],
+                                  [1, 0.5, 0],
+                                  [1, 1, 0.5],
+                                  [1.5, 1.5, 1.5]], rtol=1e-10))
+
+    def test_get_weighted_center(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+        segs = at.get_segments()
+        cen = segs.get_weighted_center()
+
+        sq3 = np.sqrt(3)
+
+        x = (2.5 + 1.5 * sq3) / (3 + sq3)
+        y = (1.5 + 1.5 * sq3) / (3 + sq3)
+        z = (0.5 + 1.5 * sq3) / (3 + sq3)
+
+        assert(np.allclose(cen, [x, y, z], rtol=1e-10))
+
+    def test_get_distances_to_weighted_center(self):
+        arr = [[[0., 0., 0.],
+                [1., 0., 0.]],
+               [[1., 0., 0.],
+                [1., 1., 0.]],
+               [[1., 1., 0.],
+                [1., 1., 1.]]]
+
+        segs = st.SegmentSet(np.array(arr))
+        cens = segs.get_centers()
+        cen = segs.get_weighted_center()
+
+        dis0 = np.sqrt((0.5 - 2.5 / 3) ** 2 + (0.0 - 1.5 / 3) ** 2)
+        dis1 = np.sqrt((1.0 - 2.5 / 3) ** 2 + (0.5 - 1.5 / 3) ** 2)
+        dis2 = np.sqrt((1.0 - 2.5 / 3) ** 2 + (1.0 - 1.5 / 3) ** 2)
+
+        diss = segs.get_distances_to_weighted_center_xy()
+        # print(diss)
+        # print([dis0, dis1, dis2])
+        assert(np.allclose(diss, [dis0, dis1, dis2], rtol=1e-10))
+
     def test_get_total_length(self):
 
         axonss = st.SegmentSet(np.array([[[0, 0, 0],
