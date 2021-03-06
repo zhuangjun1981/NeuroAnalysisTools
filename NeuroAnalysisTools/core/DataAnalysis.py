@@ -207,6 +207,31 @@ def get_clustering_distances(mat_dis, cluster):
     return dis_clu, dis_non_clu
 
 
+def calculate_image_selectivity(resp_arr, levels=1000):
+    """
+    calculate response selectivity to a set of image stimuli
+    adapted from Saskia de Vries' code.
+
+    :param resp_arr: 1d array, mean responses to each image
+    :param levels: uint, number of levels to set threshold
+    :return: float, [-1, 1], small: low selectivity. large: high selectivity
+    """
+
+    if len(resp_arr.shape) != 1:
+        raise ValueError('Input "resp_arr" should be 1d array.')
+
+    img_num = float(len(resp_arr))
+
+    fmin = resp_arr.min()
+    fmax = resp_arr.max()
+    rtj = np.empty(levels)
+    for l in range(levels):
+        thr = fmin + l * ((fmax - fmin) / levels)
+        rtj[l] = np.sum(resp_arr > thr) / img_num
+    sel = 1 - (2 * rtj.mean())
+    return sel
+
+
 if __name__ == '__main__':
 
     # ============================================================================================================

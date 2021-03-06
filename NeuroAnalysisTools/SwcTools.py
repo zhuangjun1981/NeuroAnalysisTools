@@ -398,14 +398,16 @@ class AxonTree(pd.DataFrame):
         new_tree.drop(id_to_remove, axis=0, inplace=True)
         return new_tree
 
-    def get_paths_depth_first(self):
+    def get_paths_depth_first(self, start_node_id=None):
         """
         get all the paths from root to leaf in depth-first manner
 
         :return paths: list of lists, each sub-list representing a path
                        from the root to a leaf
         """
-        rid = self.get_root_id()
+
+        if start_node_id is None:
+            start_node_id = self.get_root_id()
 
         def get_paths(tree, node_id):
 
@@ -421,7 +423,7 @@ class AxonTree(pd.DataFrame):
                         paths.append(cpath)
                 return paths
 
-        paths = get_paths(tree=self, node_id=rid)
+        paths = get_paths(tree=self, node_id=start_node_id)
         paths = [p[::-1] for p in paths]
         return paths
 
