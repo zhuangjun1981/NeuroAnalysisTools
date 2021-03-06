@@ -128,6 +128,18 @@ class AxonTree(pd.DataFrame):
         self.comment = comment
         self.unit = unit
 
+        _ = self.get_root_id()
+
+    def get_root_id(self):
+        rid = list(self[self['parent'] == -1].index)
+
+        if len(rid) == 0:
+            raise ValueError('did not find root node.')
+        elif len(rid) > 1:
+            raise ValueError('found more than one root node.')
+        else:
+            return rid[0]
+
     def sort_node(self):
 
         parent = self['parent']
@@ -146,13 +158,33 @@ class AxonTree(pd.DataFrame):
 
         self.sort_index(inplace=True)
 
+    def is_root(self, node_id):
+        return self.loc[node_id, 'parent'] == -1
+
+    def is_leaf(self, node_id):
+        cids = self.get_children(node_id=node_id)
+        if len(cids) == 0:
+            return True
+        else:
+            return False
+
+    def is_branching(self, node_id):
+        cids = self.get_children(node_id=node_id)
+        if len(cids) > 1:
+            return True
+        else:
+            return False
+
     def get_children(self, node_id):
         """
         return index of all children of the given node
         :param node_id: int
         :return: list of integers (index of all children)
         """
-        return list(self[self['parent'] == node_id].index)
+
+        cids = list(self[self['parent'] == node_id].index)
+        cids.sort()
+        return cids
 
     def save_swc(self, save_path):
 
@@ -298,43 +330,72 @@ class AxonTree(pd.DataFrame):
 
         return SegmentSet(np.array(segs))
 
-    # def get_segments(self):
-    #     """
-    #     :return: a list of Segment objects, all segments of self
-    #     """
-    #     segs = []
-    #
-    #     for node_i, node_row in self.iterrows():
-    #         if node_row['parent'] != -1:  # the nodes have a parent
-    #             childxyz = np.array([node_row.x, node_row.y, node_row.z])
-    #             parent_id = node_row['parent']
-    #             parentxyz = np.array([self.loc[parent_id, 'x'],
-    #                                   self.loc[parent_id, 'y'],
-    #                                   self.loc[parent_id, 'z']])
-    #             seg = np.array([parentxyz, childxyz])
-    #             segs.append(Segment(seg))
-    #
-    #     return segs
-    #
-    # def get_convex_hull_in_zrange(self, zrange):
-    #     """
-    #     this is not very precise ...
-    #
-    #     return the volume of a 3d convex hull between
-    #     two different z depths, with points as nodes
-    #
-    #     :param zrange: array-like, two floats,
-    #                     starting and end depth
-    #     :return: scipy.spatial.ConvexHull object
-    #     """
-    #
-    #     points = self[(self.z >= zrange[0]) & (self.z < zrange[1])][['x', 'y', 'z']]
-    #     # print(points)
-    #
-    #     if len(points) <= 3:
-    #         return None
-    #     else:
-    #         return sp.ConvexHull(points)
+    def get_closest_braching_ancestor(self, node_id):
+        """
+
+        :return:
+        """
+        if node_id == self.get_root_id():
+            return None
+        else:
+            pid = self.loc[node_id, 'parent']
+            while not (self.is_branching(pid) or pid == self.get_root_id()) :
+                pid = self.loc[pid, 'parent']
+            return pid
+
+    def sparsify(self):
+        """
+        remove non-branching nodes
+        :return: AxonTree object
+        """
+
+        new_tree = AxonTree(data=self.copy(deep=True),
+                            name=self.name,
+                            comment=self.comment,
+                            unit=self.unit)
+
+        rid = self.get_root_id()
+
+        id_to_remove = []
+        for node_i, node_row in self.iterrows():
+            if node_i != rid: # always keep root
+                cids = self.get_children(node_i)
+                if len(cids) == 1: # non-branching node, no leaf node
+                    # print(f'node:{node_i}, chrildren: {cids}')
+                    cid = cids[0]
+                    id_to_remove.append(node_i)
+                    new_tree.loc[cid, 'parent'] = \
+                        self.get_closest_braching_ancestor(node_id=node_i)
+
+        new_tree.drop(id_to_remove, axis=0, inplace=True)
+        return new_tree
+
+    def get_paths_depth_first(self):
+        """
+        get all the paths from root to leaf in depth-first manner
+
+        :return paths: list of lists, each sub-list representing a path
+                       from the root to a leaf
+        """
+        rid = self.get_root_id()
+
+        def get_paths(tree, node_id):
+
+            if self.is_leaf(node_id):
+                return [[node_id]]
+            else:
+                cids = self.get_children(node_id)
+                paths=[]
+                for cid in cids:
+                    cpaths = get_paths(tree, cid)
+                    for cpath in cpaths:
+                        cpath.append(node_id)
+                        paths.append(cpath)
+                return paths
+
+        paths = get_paths(tree=self, node_id=rid)
+        paths = [p[::-1] for p in paths]
+        return paths
 
     def get_segments_in_z(self, zsteps):
         """
@@ -737,3 +798,4 @@ class Segment(np.ndarray):
                                              [new_x1, new_y1, zrange[1]]]))
             else:
                 return None
+

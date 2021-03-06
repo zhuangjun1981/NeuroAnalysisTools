@@ -17,6 +17,8 @@ class TestTimingAnalysis(unittest.TestCase):
         import matplotlib.pyplot as plt
         fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
         swc_f = st.read_swc(fpath)
+        # swc_f = swc_f.sparsify()
+        # print(swc_f)
         swc_f.plot_3d_mpl()
         swc_f.plot_xy_mpl()
         swc_f.plot_xz_mpl()
@@ -257,3 +259,32 @@ class TestTimingAnalysis(unittest.TestCase):
 
         hull = segs.get_xy_2d_hull()
         assert(np.allclose(hull.volume, 1., rtol=1e-10))
+
+    def test_get_root_id(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_branch.swc')
+        at = st.read_swc(fpath)
+
+        assert (at.get_root_id() == 0)
+
+    def test_get_paths_depth_first(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_branch.swc')
+        at = st.read_swc(fpath)
+
+        p = at.get_paths_depth_first()
+        # print(p)
+        assert (np.array_equal(p[0], [0, 1, 2, 3, 4, 5]))
+        assert (np.array_equal(p[1], [0, 1, 6, 7, 8]))
+        assert (np.array_equal(p[2], [0, 1, 6, 7, 9]))
+        assert (np.array_equal(p[3], [0, 1, 10, 11]))
+        assert (np.array_equal(p[4], [0, 1, 10, 12]))
+
+    def test_sparsify(self):
+        fpath = os.path.join(self.data_dir, 'test_swc_branch.swc')
+        at = st.read_swc(fpath)
+        at.sort_node()
+        # print(at)
+
+        ats = at.sparsify()
+        # print(ats)
+        assert(np.array_equal(ats.index, [0,1,5,7,8,9,10,11,12]))
+        assert(np.array_equal(ats.parent, [-1, 0, 1, 1, 7, 7, 1, 10, 10]))
