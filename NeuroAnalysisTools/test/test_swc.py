@@ -288,3 +288,14 @@ class TestTimingAnalysis(unittest.TestCase):
         # print(ats)
         assert(np.array_equal(ats.index, [0,1,5,7,8,9,10,11,12]))
         assert(np.array_equal(ats.parent, [-1, 0, 1, 1, 7, 7, 1, 10, 10]))
+
+    def test_get_max_branching_number(self):
+
+        fpath = os.path.join(self.data_dir, 'test_swc_simple.swc')
+        at = st.read_swc(fpath)
+        assert(at.get_max_branching_number() == 0)
+
+        fpath = os.path.join(self.data_dir, 'test_swc_branch.swc')
+        at = st.read_swc(fpath)
+        assert (at.get_max_branching_number() == 2)
+

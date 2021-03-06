@@ -130,6 +130,26 @@ class AxonTree(pd.DataFrame):
 
         _ = self.get_root_id()
 
+    def save_swc(self, save_path):
+
+        if os.path.isfile(save_path):
+            raise IOError('Cannot save swc file. File already exists.')
+
+        self.to_csv(save_path, sep=" ")
+
+        name_line = f'#name{self.name}'
+        comment_line = f'#comment{self.comment}'
+        column_line = f'##n,{",".join(self.columns)}'
+
+        with open(save_path, 'r+') as f:
+            content = f.readline()
+            content = f.read()
+            f.seek(0, 0)
+            f.write(f'{name_line}\n{comment_line}\n{column_line}\n{content}')
+
+        f.close()
+        return
+
     def get_root_id(self):
         rid = list(self[self['parent'] == -1].index)
 
@@ -186,25 +206,32 @@ class AxonTree(pd.DataFrame):
         cids.sort()
         return cids
 
-    def save_swc(self, save_path):
+    def get_segments_in_z(self, zsteps):
+        """
+        get the segments / segment chunks that are sliced by a series
+        of z ranges. zranges are defined by zsteps
+        :param zsteps: array-like, 1d, float, bin edges in z
+        :return segs_in_z: list of dictionaries
+            each dictionay: {'zbin_name': str,
+                             'zstart': float, start of zbin
+                             'zend': float, end of zbin
+                             'segments': list of Segment objects}
+        """
+        segs = self.get_segments()
+        zbins = np.array([zsteps[:-1], zsteps[1:]])
 
-        if os.path.isfile(save_path):
-            raise IOError('Cannot save swc file. File already exists.')
+        segs_in_z = []
 
-        self.to_csv(save_path, sep=" ")
+        for bin_i in range(zbins.shape[1]):
+            zrange = zbins[:, bin_i]
+            curr_segs = get_segments_in_zrange(segments=segs, zrange=zrange)
+            curr_dict = {'zbin_name': f'zbin{bin_i:06d}',
+                         'zstart': zrange[0],
+                         'zend': zrange[1],
+                         'segments': curr_segs}
+            segs_in_z.append(curr_dict)
 
-        name_line = f'#name{self.name}'
-        comment_line = f'#comment{self.comment}'
-        column_line = f'##n,{",".join(self.columns)}'
-
-        with open(save_path, 'r+') as f:
-            content = f.readline()
-            content = f.read()
-            f.seek(0, 0)
-            f.write(f'{name_line}\n{comment_line}\n{column_line}\n{content}')
-
-        f.close()
-        return
+        return segs_in_z
 
     def get_min_distances(self, swc):
         """
@@ -349,6 +376,7 @@ class AxonTree(pd.DataFrame):
         :return: AxonTree object
         """
 
+        #todo: too slow, needs optimzation
         new_tree = AxonTree(data=self.copy(deep=True),
                             name=self.name,
                             comment=self.comment,
@@ -397,32 +425,23 @@ class AxonTree(pd.DataFrame):
         paths = [p[::-1] for p in paths]
         return paths
 
-    def get_segments_in_z(self, zsteps):
+    def get_max_branching_number(self):
         """
-        get the segments / segment chunks that are sliced by a series
-        of z ranges. zranges are defined by zsteps
-        :param zsteps: array-like, 1d, float, bin edges in z
-        :return segs_in_z: list of dictionaries
-            each dictionay: {'zbin_name': str,
-                             'zstart': float, start of zbin
-                             'zend': float, end of zbin
-                             'segments': list of Segment objects}
+        :return: int, the maximum branching numbers across all paths
         """
-        segs = self.get_segments()
-        zbins = np.array([zsteps[:-1], zsteps[1:]])
 
-        segs_in_z = []
+        paths = self.get_paths_depth_first()
+        branch_nums = []
+        for p in paths:
+            branch_num = 0
+            for n in p:
+                if self.is_branching(n):
+                    branch_num += 1
+            branch_nums.append(branch_num)
 
-        for bin_i in range(zbins.shape[1]):
-            zrange = zbins[:, bin_i]
-            curr_segs = get_segments_in_zrange(segments=segs, zrange=zrange)
-            curr_dict = {'zbin_name': f'zbin{bin_i:06d}',
-                         'zstart': zrange[0],
-                         'zend': zrange[1],
-                         'segments': curr_segs}
-            segs_in_z.append(curr_dict)
+        # print(branch_nums)
 
-        return segs_in_z
+        return max(branch_nums)
 
     def plot_3d_mpl(self, ax=None, color_dict=COLOR_DICT, *args, **kwargs):
 
