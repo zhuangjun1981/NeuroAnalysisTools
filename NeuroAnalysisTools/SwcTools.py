@@ -156,7 +156,8 @@ class AxonTree(pd.DataFrame):
         if len(rid) == 0:
             raise ValueError('did not find root node.')
         elif len(rid) > 1:
-            raise ValueError('found more than one root node.')
+            print('found more than one root node.')
+            return rid
         else:
             return rid[0]
 

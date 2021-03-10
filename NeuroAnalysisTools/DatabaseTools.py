@@ -2118,16 +2118,25 @@ def get_everything_from_axon(nwb_f, clu_f, plane_n, axon_n, params=ANALYSIS_PARA
 
     date = identifier[0:6]
 
-    if clu_f['meta/date'][()] != date:
+    clu_f_date = clu_f['meta/date'][()]
+    if not isinstance(clu_f_date, str):
+        clu_f_date = clu_f_date.decode('utf-8')
+    if clu_f_date != date:
         raise ValueError('the date ({}) specified in nwb_f does not match the date ({}) specified in '
                          '"clu_f".'.format(date, clu_f['meta/date'][()]))
 
     mid = identifier[7:14]
-    if clu_f['meta/mouse_id'][()] != mid:
+    clu_f_mid = clu_f['meta/mouse_id'][()]
+    if not isinstance(clu_f_mid, str):
+        clu_f_mid = clu_f_mid.decode('utf-8')
+    if clu_f_mid != mid:
         raise ValueError('the mouse_id ({}) specified in nwb_f does not match the mouse_id ({}) '
                          'specified in clu_f.'.format(plane_n, clu_f['meta/mouse_id'][()]))
 
-    if clu_f['meta/plane_n'][()] != plane_n:
+    clu_f_plane_n = clu_f['meta/plane_n'][()]
+    if not isinstance(clu_f_plane_n, str):
+        clu_f_plane_n = clu_f_plane_n.decode('utf-8')
+    if clu_f_plane_n != plane_n:
         raise ValueError('the input "plane_n" ({}) does not match the plane_n ({}) specified in '
                          '"clu_f".'.format(plane_n, clu_f['meta/plane_n'][()]))
 

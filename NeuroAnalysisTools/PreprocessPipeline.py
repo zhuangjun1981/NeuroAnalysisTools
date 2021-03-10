@@ -831,7 +831,10 @@ class Preprocessor(object):
 
         fn_ref = ft.look_for_unique_file(source=data_folder,
                                          identifiers=[identifier, reference_channel_name],
-                                         file_type='.tif')
+                                         file_type='tif')
+
+        print(data_folder)
+        print(f'{identifier}, {reference_channel_name}')
 
         stack_ref = tf.imread(os.path.join(data_folder, fn_ref))
 
@@ -862,7 +865,7 @@ class Preprocessor(object):
 
             fn_app = ft.look_for_unique_file(source=data_folder,
                                              identifiers=[identifier, ch],
-                                             file_type='.tif',
+                                             file_type='tif',
                                              print_prefix='\t')
 
             stack_app = tf.imread(os.path.join(data_folder, fn_app))
@@ -891,7 +894,7 @@ class Preprocessor(object):
         print('\tup is anterior, left is lateral')
 
         fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
-                                    file_type='.tif')
+                                    file_type='tif')
         fns.sort()
         print('\tfiles:')
         _ = [print('\t\t{}'.format(fn)) for fn in fns]
@@ -930,7 +933,7 @@ class Preprocessor(object):
         print('\nSave {} projections as png files.'.format(projection_type))
 
         fns = ft.look_for_file_list(source=data_folder, identifiers=identifiers,
-                                    file_type='.tif')
+                                    file_type='tif')
         fns.sort()
         print('\tfiles:')
         _ = [print('\t\t{}'.format(fn)) for fn in fns]
