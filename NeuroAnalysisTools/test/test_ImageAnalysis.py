@@ -87,6 +87,16 @@ class TestImageAnalysis(unittest.TestCase):
         assert (list(roi.get_weighted_center_in_coordinate(range(3, 8), range(1, 6))) == [4.5, 3.5])
         assert (list(roi.get_weighted_center_in_coordinate(range(1, 6), range(3, 8))) == [2.5, 5.5])
 
+    def test_WeightedROI_getWeightedCenterInCoordinate2(self):
+        aa = np.zeros((3, 2))
+        aa[0, 0] = 2
+        aa[1, 0] = 1
+
+        print(aa)
+        roi = ia.WeightedROI(aa)
+
+        print(roi.get_weighted_center_in_coordinate(yCor=[2, 1, 0], xCor=[0, 1]))
+
     def test_mergeROIs(self):
 
         roi1 = ia.WeightedROI(np.arange(9).reshape((3, 3)))

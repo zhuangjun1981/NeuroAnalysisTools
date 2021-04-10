@@ -362,11 +362,17 @@ def get_local_similarity_index(mask1, mask2):
     square1 = np.sum((mask1 * mask1).flat)
     square2 = np.sum((mask2 * mask2).flat)
 
+    print(square1)
+    print(square2)
+
     if square1 == 0 or square2 == 0.:
         return np.nan
     else:
         value1 = np.sum((mask1 * mask2).flat)
         value2 = np.sqrt(square1 * square2)
+
+        print(value1)
+        print(value2)
         return value1 / value2
 
 
@@ -2362,15 +2368,13 @@ class DriftingGratingResponseTable(DataFrame):
 
         return resps, sfs, tfs
 
-    def get_dire_tuning(self, response_dir='pos', is_collapse_sf=True, is_collapse_tf=False):
+    def get_dire_tuning(self, response_dir='pos', is_collapse_sf=True, is_collapse_tf=False,):
         """
         dataframe of direction responses, other conditions are at peak in positive or negative direction, if not
         specified by is_collapse
         :param is_collapse_sf: bool,
         :param is_collapse_tf: bool,
-        :param response_dir: 'pos' or 'neg', response type to select peak condition
-        :return dire_tuning: dataframe with six columns: 'dire','resp_mean', 'resp_max', 'resp_min', 'resp_std',
-                             'resp_stdev'
+        :param response_dir: str, 'pos' or 'neg', response type to select peak condition
         """
 
         if response_dir == 'pos':

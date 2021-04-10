@@ -325,6 +325,29 @@ class TestSingleCellAnalysis(unittest.TestCase):
         assert(np.array_equal(srf_fi.get_weighted_mask(), srf2_fi.get_weighted_mask()))
         assert(abs(srf_fi.get_weighted_rf_center()[0] + srf2_fi.get_weighted_rf_center()[0]) < 1e-10)
 
+    def test_get_local_similarity_index(self):
+
+        mask1 = np.zeros((5, 5))
+        mask1[1:4, 3] = 1
+        # print(mask1)
+
+        mask2 = mask1 * 3
+        mask3 = mask1 * (-4)
+
+        mask4 = np.zeros((5, 5))
+        mask4[1, 2] = 2
+        mask4[2, 1] = 5
+
+        # print(sca.get_local_similarity_index(mask1, mask2))
+        #
+        # print(sca.get_local_similarity_index(mask1, mask3))
+        #
+        # print(sca.get_local_similarity_index(mask1, mask4))
+
+        assert (np.allclose(sca.get_local_similarity_index(mask1, mask2), 1))
+        assert (np.allclose(sca.get_local_similarity_index(mask1, mask3), -1))
+        assert (np.allclose(sca.get_local_similarity_index(mask1, mask4), 0))
+
 
 if __name__ == '__main__':
     pass
