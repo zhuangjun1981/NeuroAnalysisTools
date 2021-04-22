@@ -476,7 +476,7 @@ class SpatialReceptiveField(ia.WeightedROI):
         mask = self.get_weighted_mask()
 
         if plot_axis is None:
-            f = plt.figure();
+            f = plt.figure()
             plot_axis = f.add_subplot(111)
 
         curr_plot = plot_axis.imshow(mask, cmap=cmap, interpolation=interpolation, **kwargs)
@@ -491,6 +491,32 @@ class SpatialReceptiveField(ia.WeightedROI):
         plot_axis.set_xticks(list(range(len(self.aziPos)))[::int(interpolate_rate * tick_spacing)])
         plot_axis.set_yticklabels(['{:.1f}'.format(p) for p in self.altPos[::int(interpolate_rate * tick_spacing)]])
         plot_axis.set_xticklabels(['{:.1f}'.format(p) for p in self.aziPos[::int(interpolate_rate * tick_spacing)]])
+
+        if is_colorbar:
+            plot_axis.get_figure().colorbar(curr_plot)
+
+        return plot_axis.get_figure()
+
+    def plot_rf2(self, plot_axis=None, is_flip_alt=False, is_colorbar=False,
+                 cmap='Reds', interpolation='nearest', **kwargs):
+        '''
+        return display image (RGBA uint8 format) which can be plotted by plt.imshow
+        '''
+        mask = self.get_weighted_mask()
+        if is_flip_alt:
+            mask = mask[::-1]
+
+        if plot_axis is None:
+            f = plt.figure()
+            plot_axis = f.add_subplot(111)
+
+        curr_plot = plot_axis.imshow(mask, cmap=cmap, interpolation=interpolation,
+                                     extent=[self.aziPos[0],
+                                             self.aziPos[-1],
+                                             self.altPos[-1],
+                                             self.altPos[0]],
+                                     **kwargs)
+        plot_axis.set_title(self.get_name())
 
         if is_colorbar:
             plot_axis.get_figure().colorbar(curr_plot)
