@@ -1,6 +1,7 @@
 """
 these are the functions that deal with the .nwb database of GCaMP labelled LGN boutons.
 """
+import itertools
 import os
 import numpy as np
 import h5py
@@ -4990,6 +4991,55 @@ class BoutonClassifier(object):
                               frame_end=frame_end)
                 # curr_grating_grp.create_dataset('sta_' + trace_n, data=sta, compression='lzf')
                 curr_grating_grp.create_dataset('sta_' + trace_n, data=sta)
+
+    @staticmethod
+    def get_mean_corr_coef(clu_f):
+        """
+        given a clustering hdf5 file, calculate the mean pair-wise
+        correlation coefficient for every axons with more than one
+        bouton. the coefficients will be those saved in the "matrix_corr_coef"
+        in the clustering hdf5 file, so it is the correlation of event
+        traces, not the correlation of the whole traces
+        :param clu_f:
+        :return: dataframe, columns: ['axon_n', 'mean_corr_coef']
+                 the value of axons with only one bouton will be nan
+        """
+
+        # get dictionary. roi_n: index in the matrix_corr_coef
+        roi_ns = clu_f['responsive_roi_ns'][()]
+        # print(roi_ns)
+        roi_dict = {}
+        for i, roi_n in enumerate(roi_ns):
+            roi_dict[roi_n] = i
+
+        # get matrix_corr_coef
+        mat = clu_f['matrix_corr_coef']
+
+        # calculate mean_corr_coef
+        axon_ns = []
+        mean_corr_coefs = []
+
+        for axon_n, axon_dset in clu_f['axons'].items():
+            axon_ns.append(axon_n)
+            curr_roi_ns = list(axon_dset[()])
+            # print(curr_roi_ns)
+
+            if len(curr_roi_ns) == 1:
+                mean_corr_coefs.append(np.nan)
+            else:
+                all_combs = itertools.combinations(curr_roi_ns, 2)
+                curr_corr_coefs = []
+                for comb in all_combs:
+                    ind0 = roi_dict[comb[0]]
+                    ind1 = roi_dict[comb[1]]
+                    curr_corr_coefs.append(mat[ind0, ind1])
+                mean_corr_coefs.append(np.mean(curr_corr_coefs))
+
+        df = pd.DataFrame()
+        df['axon_n'] = axon_ns
+        df['mean_corr_coef'] = mean_corr_coefs
+
+        return df
 
 
 class BulkPaperFunctions(object):
