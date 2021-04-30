@@ -180,6 +180,31 @@ class TestSingleCellAnalysis(unittest.TestCase):
         STRF.shrink(None, [0, 20])
         assert (np.array_equal(np.array(STRF.data.azimuth.unique()), np.array([0., 5., 10., 15., 20.])))
 
+    def test_SpatialTemporalReceptiveField_plot_traces(self):
+        locations = [
+            [2., 0.], [2., 1.],
+            [0., 0.], [0., 1.],
+            [2., 0.], [2., 1.],
+            [0., 0.], [0., 1.],
+                     ]
+        signs = [1, 1, 1, 1, -1, -1, -1, -1]
+        traces = [
+            np.array([[0., 1., 2.]]), np.array([[2., 1., 0.]]),
+            np.array([[1., 0., 2.]]), np.array([[2., 0., 1.]]),
+            np.array([[0., 0., 2.]]), np.array([[0., 0., 1.]]),
+            np.array([[2., 0., 0.]]), np.array([[1., 0., 0.]]),
+                  ]
+        time = [-1., 0., 1.]
+
+        strf = sca.SpatialTemporalReceptiveField(locations=locations,
+                                                 signs=signs,
+                                                 traces=traces,
+                                                 time=time)
+
+        strf.plot_traces(figSize=(5, 5), yRange=[-1, 3])
+        import matplotlib.pyplot as plt
+        plt.show()
+
     def test_SpatialReceptiveField(self):
         SRF = sca.SpatialReceptiveField(np.arange(9).reshape((3, 3)), np.arange(3), np.arange(3))
         assert (np.array_equal(SRF.weights, np.arange(1, 9)))

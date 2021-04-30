@@ -5519,6 +5519,11 @@ class BulkPaperFunctions(object):
         return plane_dfs
 
     @staticmethod
+    def get_plane_num(df):
+        planes = df[['date', 'mouse_id', 'plane_n']].drop_duplicates().reset_index()
+        return len(planes)
+
+    @staticmethod
     def break_into_volumes(df, is_reset_index=False):
         vol_dfs = []
 
