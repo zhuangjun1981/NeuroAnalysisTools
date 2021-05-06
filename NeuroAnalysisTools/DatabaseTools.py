@@ -1896,6 +1896,10 @@ def get_everything_from_roi(nwb_f, plane_n, roi_n, params=ANALYSIS_PARAMS, verbo
            dgcrm_z, dgcrt_df, dgcrt_dff, dgcrt_z, dgc_block_dur
 
 
+def get_roi_ns_from_axon(clu_f, axon_n):
+    return list(clu_f[f'axons/{axon_n}'][()])
+
+
 def get_axon_ind_from_clu_f(clu_f, axon_n):
     """
     based on the axon name return the index of that axon in the clustering result file for extracting

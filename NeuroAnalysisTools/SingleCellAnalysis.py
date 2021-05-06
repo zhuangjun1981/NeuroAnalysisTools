@@ -1336,16 +1336,27 @@ class SpatialTemporalReceptiveField(object):
         else:
             self.data = self.data[ind]
 
-    def get_local_dff_strf(self, is_collaps_before_normalize=True, add_to_trace=0.):
+    def get_local_dff_strf(self, is_collaps_before_normalize=True, add_to_trace=0.,
+                           window_baseline=None):
         """
 
         :param is_collaps_before_normalize: if True, for each location, the traces across multiple trials will be
                                             averaged before calculating df/f
+        :param add_to_trace: float, this value will be added to the traces before calculation
+        :param window_baseline: list of two floats, time window that defines the period to calculate
+                                baseline fluorescence
         :return:
         """
 
-        bl_inds = self.time <= 0
-        # print(bl_inds)
+        if window_baseline is None:
+            bl_inds = self.time <= 0
+            # print(bl_inds)
+        else:
+            bl_inds = np.logical_and((self.time >= window_baseline[0]), (self.time <= window_baseline[1]))
+            # print(bl_inds)
+
+        if not bl_inds.any():
+            raise ValueError('Cannot find time points within the baseline time window.')
 
         dff_traces = []
         for probe_i, probe in self.data.iterrows():
@@ -1384,16 +1395,26 @@ class SpatialTemporalReceptiveField(object):
                                                      trace_data_type=self.trace_data_type + '_local_dff')
         return strf_dff
 
-    def get_local_df_strf(self, is_collaps_before_normalize=True, add_to_trace=0.):
+    def get_local_df_strf(self, is_collaps_before_normalize=True, add_to_trace=0.,
+                          window_baseline=None):
         """
 
         :param is_collaps_before_normalize: if True, for each location, the traces across multiple trials will be
                                             averaged before calculating df/f
+        :param add_to_trace: float, this value will be added to the traces before calculation
+        :param window_baseline: list of two floats, time window that defines the period to calculate
+                                baseline fluorescence
         :return:
         """
 
-        bl_inds = self.time <= 0
-        # print(bl_inds)
+        if window_baseline is None:
+            bl_inds = self.time <= 0
+            # print(bl_inds)
+        else:
+            bl_inds = np.logical_and((self.time>=window_baseline[0]), (self.time<=window_baseline[1]))
+
+        if not bl_inds.any():
+            raise ValueError('Cannot find time points within the baseline time window.')
 
         df_traces = []
         for probe_i, probe in self.data.iterrows():
