@@ -5,6 +5,7 @@ import itertools
 import os
 import numpy as np
 import h5py
+import seaborn as sns
 import matplotlib.pyplot as plt
 from numbers import Number
 import pandas as pd
@@ -5542,6 +5543,97 @@ class BulkPaperFunctions(object):
                 vol_dfs.append(vol_df)
 
         return vol_dfs
+
+
+class ReceptiveFieldPaperFunctions(object):
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_all_rf_groups(df, rf_z_thr_abs=1.6, is_exclude_onoff=True,
+                          is_reset_index=False):
+
+        df = df.dropna(axis=0, how='all', subset=['rf_on_peak_z', 'rf_off_peak_z'])
+
+        df_on = df[(df['rf_on_peak_z'] >= rf_z_thr_abs) &
+                   (df['rf_off_peak_z'] < rf_z_thr_abs)]
+        df_off = df[(df['rf_off_peak_z'] >= rf_z_thr_abs) &
+                    (df['rf_on_peak_z'] < rf_z_thr_abs)]
+        df_oo = df[(df['rf_on_peak_z'] >= rf_z_thr_abs) &
+                   (df['rf_off_peak_z'] >= rf_z_thr_abs)]
+
+        if is_exclude_onoff:
+            if is_reset_index:
+                df_on = df_on.reset_index(drop=True)
+                df_off = df_off.reset_index(drop=True)
+                df_oo = df_oo.reset_index(drop=True)
+            # print(f'is_exclude_onoff: {is_exclude_onoff}')
+            # print(f'on:{len(df_on)}; off: {len(df_off)}')
+            return df_on.copy(), df_off.copy(), df_oo.copy()
+        else:
+            df_oo_on = df_oo.query('rf_on_peak_z >= rf_off_peak_z')
+            # print(len(df_oo_on))
+            df_on = pd.concat([df_on, df_oo_on], axis=0)
+
+            df_oo_off = df_oo.query('rf_on_peak_z < rf_off_peak_z')
+            df_off = pd.concat([df_off, df_oo_off], axis=0)
+
+            if is_reset_index:
+                df_on = df_on.reset_index(drop=True)
+                df_off = df_off.reset_index(drop=True)
+
+            # print(f'on:{len(df_on)}; off: {len(df_off)}')
+            return df_on.copy(), df_off.copy(), None
+
+    def violine_plot_one_column(self, df, col_key, is_exclude_onoff=True,
+                                is_reset_index=True,
+                                rf_z_thr_abs=1.6, ax=None, c_on='r',
+                                c_off='b', **kwargs):
+
+        cols = list(df.columns)
+
+        key_on = [k for k in cols if ('_on_' in k) and (col_key in k)]
+        if len(key_on) == 1:
+            key_on = key_on[0]
+        elif len(key_on) == 0:
+            key_on = col_key
+        else:
+            raise ValueError
+
+        key_off = [k for k in cols if ('_off_' in k) and (col_key in k)]
+        if len(key_off) == 1:
+            key_off = key_off[0]
+        elif len(key_off) == 0:
+            key_off = col_key
+        else:
+            raise ValueError
+
+        df_on, df_off, df_oo = self.get_all_rf_groups(df=df, rf_z_thr_abs=rf_z_thr_abs,
+                                                      is_exclude_onoff=is_exclude_onoff,
+                                                      is_reset_index=is_reset_index)
+
+        df_on = df_on[[key_on]].copy()
+        df_on = df_on.rename({key_on: col_key}, axis=1)
+        df_on['rf_type'] = 'on'
+
+        df_off = df_off[[key_off]].copy()
+        df_off = df_off.rename({key_off: col_key}, axis=1)
+        df_off['rf_type'] = 'off'
+
+
+        df_plot = pd.concat([df_on, df_off], axis=0)
+
+        # print(df_plot)
+
+        if ax is None:
+            f = plt.figure(figsize=(5, 5))
+            ax = f.add_subplot(111)
+
+        sns.violinplot(data=df_plot, x='rf_type', y=col_key, palette={'on': c_on, 'off':c_off},
+                       ax=ax, **kwargs)
+
+        return ax
 
 
 if __name__ == '__main__':
