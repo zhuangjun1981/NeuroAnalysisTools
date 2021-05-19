@@ -13,6 +13,7 @@ import matplotlib.gridspec as gridspec
 import colorsys
 import matplotlib.colors as col
 import scipy.ndimage as ni
+import scipy.stats as stats
 from . import ImageAnalysis as ia
 
 try:
@@ -1016,6 +1017,53 @@ def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_dens
         plot_ax.step(bine, hist, where='pre', color=color, label=label, **kwargs)
 
     return plot_ax
+
+
+def density_scatter_plot(x, y, ax=None, is_log_x=False, is_log_y=False,
+                         xmin=1e-10, ymin=1e-10, **kwargs):
+    """
+    :param x: 1d array, same size as y
+    :param y: 1d array, same size as x
+    :param ax: plt.axes object
+    :param is_log_x: bool, if True, x will be plotted on log scale
+    :param is_log_y: bool, if True, y will be plotted on log scale
+    :param xmin: float, >0, minimum value used for x, this will be applied
+                 only if is_log_x == True, to avoid log(0) error
+    :param ymin: float, >0, minimum value used for y, this will be applied
+                 only if is_log_y == True, to avoid log(0) error
+    :param kwargs: input to plt.scatter function
+    :return: ax
+    """
+
+    if len(x.shape) != 1 or len(y.shape) != 1:
+        raise ValueError("input x and y should be 1d array.")
+
+    if x.shape != y.shape:
+        raise ValueError("input x and y should have same shape.")
+
+    if ax is None:
+        f = plt.figure()
+        ax = f.add_subplot(111)
+
+    if is_log_x:
+        y = y[x >= xmin]
+        x = x[x >= xmin]
+        x = np.log10(x)
+
+    if is_log_y:
+        x = x[y >= ymin]
+        y = y[y >= ymin]
+        y = np.log10(y)
+
+    xy = np.vstack([x, y])
+    z = stats.gaussian_kde(xy)(xy)
+
+    ax.scatter(x, y, c=z, **kwargs)
+
+    return ax
+
+
+
 
 
 if __name__ == '__main__':
