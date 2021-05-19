@@ -1034,6 +1034,8 @@ def density_scatter_plot(x, y, ax=None, is_log_x=False, is_log_y=False,
     :param kwargs: input to plt.scatter function
     :return: ax
     """
+    x = np.array(x)
+    y = np.array(y)
 
     if len(x.shape) != 1 or len(y.shape) != 1:
         raise ValueError("input x and y should be 1d array.")
