@@ -5588,8 +5588,8 @@ class ReceptiveFieldPaperFunctions(object):
 
     def violine_plot_one_column(self, df, col_key, is_exclude_onoff=True,
                                 is_reset_index=True,
-                                rf_z_thr_abs=1.6, ax=None, c_on='r',
-                                c_off='b', **kwargs):
+                                rf_z_thr_abs=1.6, ax=None, c_on='#e74c3c',
+                                c_off='#3498db', **kwargs):
 
         cols = list(df.columns)
 
