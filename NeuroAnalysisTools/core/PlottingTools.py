@@ -14,6 +14,7 @@ import colorsys
 import matplotlib.colors as col
 import scipy.ndimage as ni
 import scipy.stats as stats
+import sklearn.neighbors as neighbors
 from . import ImageAnalysis as ia
 
 try:
@@ -530,8 +531,12 @@ def save_figure_without_borders(f,
     """
     remove borders of a figure
     """
-    f.gca().get_xaxis().set_visible(False)
-    f.gca().get_yaxis().set_visible(False)
+    # f.gca().get_xaxis().set_visible(False)
+    # f.gca().get_yaxis().set_visible(False)
+
+    f.gca().set_xticklabels([])
+    f.gca().set_yticklabels([])
+
     if is_axis_off:
         f.gca().set_axis_off()
     f.gca().set_title('')
@@ -1020,7 +1025,7 @@ def plot_distribution(data, bin_centers, plot_ax=None, plot_type='line', is_dens
 
 
 def density_scatter_plot(x, y, ax=None, is_log_x=False, is_log_y=False,
-                         xmin=1e-10, ymin=1e-10, **kwargs):
+                         xmin=1e-10, ymin=1e-10, bw_method=None, **kwargs):
     """
     :param x: 1d array, same size as y
     :param y: 1d array, same size as x
@@ -1031,6 +1036,7 @@ def density_scatter_plot(x, y, ax=None, is_log_x=False, is_log_y=False,
                  only if is_log_x == True, to avoid log(0) error
     :param ymin: float, >0, minimum value used for y, this will be applied
                  only if is_log_y == True, to avoid log(0) error
+    :param bw_method: scipy.gaussian_kde() input
     :param kwargs: input to plt.scatter function
     :return: ax
     """
@@ -1058,14 +1064,111 @@ def density_scatter_plot(x, y, ax=None, is_log_x=False, is_log_y=False,
         y = np.log10(y)
 
     xy = np.vstack([x, y])
-    z = stats.gaussian_kde(xy)(xy)
 
-    ax.scatter(x, y, c=z, **kwargs)
+    kde = stats.gaussian_kde(xy, bw_method=bw_method)
+
+    ax.scatter(x, y, c=kde(xy), **kwargs)
 
     return ax
 
 
+def density_scatter_plot2(x, y, ax=None, is_log_x=False, is_log_y=False,
+                          xmin=1e-10, ymin=1e-10, std_lim=5,
+                          pixel_res=101, diffusion_constant=5, **kwargs):
+    """
+    plot density map of a bunch of dots
+    :param x: 1d array, x coordinates of the dots
+    :param y: 1d array, y coordinates of the dots, same length as x
+    :param ax: matplotlib.axes object
+    :param is_log_x: if yes, plot x on log scale, base 10
+    :param is_log_y: if yes, plot y on log scale, base 10
+    :param xmin: minimum value of x to plot, only works if is_log_x is Ture
+    :param ymin: minimum value of y to plot, only works if is_log_y is Ture
+    :param std_lim: float, this value defines the value of plotting. Both x and y
+                    are normalized (subtract mean and divided by standard
+                    deviation) before plotting. this is the value of how
+                    many standard deviation around mean to plot.
+    :param pixel_res: int, number of pixel in each dimension of the final plot
+    :param diffusion_constant: float, how big the diffusion is to calculate density
+    :param kwargs: other inputs to plt.imshow function
+    :return: ax
+    """
 
+    x = np.array(x)
+    y = np.array(y)
+
+    if len(x.shape) != 1 or len(y.shape) != 1:
+        raise ValueError("input x and y should be 1d array.")
+
+    if x.shape != y.shape:
+        raise ValueError("input x and y should have same shape.")
+
+    if is_log_x:
+        y = y[x >= xmin]
+        x = x[x >= xmin]
+        x = np.log10(x)
+
+    if is_log_y:
+        x = x[y >= ymin]
+        y = y[y >= ymin]
+        y = np.log10(y)
+
+    if ax is None:
+        f = plt.figure()
+        ax = f.add_subplot(111)
+
+    xmean = np.mean(x)
+    xstd = np.std(x)
+    xn = (x - xmean) / xstd
+
+    ymean = np.mean(y)
+    ystd = np.std(y)
+    yn = (y - ymean) / ystd
+
+    xp = np.linspace(-std_lim, std_lim, num=pixel_res, endpoint=True)
+    yp = np.linspace(-std_lim, std_lim, num=pixel_res, endpoint=True)
+
+    # print(xp)
+
+    X, Y = np.meshgrid(xp, yp[::-1])
+
+    den = np.zeros((pixel_res, pixel_res))
+
+    for i in range(pixel_res):
+        for j in range(pixel_res):
+            dis = np.sqrt((xn - X[i, j]) ** 2 + (yn - Y[i, j]) ** 2)
+            den[i, j] = np.sum(np.exp(-dis / diffusion_constant))
+
+    den = den / len(x)
+
+    ax.imshow(den,
+              extent=[-std_lim - std_lim / pixel_res,
+                      std_lim + std_lim / pixel_res,
+                      -std_lim - std_lim / pixel_res,
+                      std_lim + std_lim / pixel_res,],
+              **kwargs)
+
+    xlim = ax.get_xlim()
+    xticks = ax.get_xticks(minor=False)
+    if is_log_x:
+        xticklabels = [f'10^{x:.1f}' for x in xticks * xstd + xmean]
+    else:
+        xticklabels = [f'{x:.1f}' for x in xticks * xstd + xmean]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_xlim(xlim)
+
+    ylim = ax.get_ylim()
+    yticks = ax.get_yticks(minor=False)
+    if is_log_y:
+        yticklabels = [f'10^{y:.1f}' for y in yticks * ystd + ymean]
+    else:
+        yticklabels =  [f'{y:.1f}' for y in yticks * ystd + ymean]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
+    ax.set_ylim(ylim)
+
+    return ax
 
 
 if __name__ == '__main__':
