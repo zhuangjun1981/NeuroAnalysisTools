@@ -2635,120 +2635,42 @@ class DriftingGratingResponseTable(DataFrame):
         :return vs_dire_rec: vactor sum of rectified direction responses
         """
 
-        dire_tuning_2 = dire_tuning.copy()
+        dt = DirectionTuning(data=dire_tuning, trace_type=dire_tuning.trace_type)
 
         if response_dir == 'pos':
             pass
         elif response_dir == 'neg':
-            dire_tuning_2['resp_mean'] = -dire_tuning_2['resp_mean']
+            dt['resp_mean'] = -dt['resp_mean']
         else:
             raise LookupError('Do not understand response_dir ({}). Should be "pos" or "neg"'.format(response_dir))
 
-        if np.max(dire_tuning_2['resp_mean']) <= 0.: # no positive response
+        if np.max(dt['resp_mean']) <= 0.: # no positive response
                 return tuple([np.nan] * 16)
 
         else:
+            dte = dt.elevate(bias=elevation_bias)
+            dtr = dt.rectify(thr=0)
 
-            # force direction to be 0-360 degrees
-            dire_tuning_2['dire'] = dire_tuning_2['dire'] % 360
-
-            # calculate corresponding arcs
-            arcs = np.array(list(dire_tuning_2['dire'] * np.pi / 180))
-
-            # calculate responses after elevation
-            if np.min(dire_tuning_2['resp_mean']) < elevation_bias:
-                dire_tuning_2['resp_mean_ele'] = dire_tuning_2['resp_mean'] - np.min(dire_tuning_2['resp_mean']) + \
-                                               elevation_bias
-            else:
-                dire_tuning_2['resp_mean_ele'] = dire_tuning_2['resp_mean']
-
-            # calculate responses after rectification
-            dire_tuning_2['resp_mean_rec'] = dire_tuning_2['resp_mean']
-            dire_tuning_2.loc[dire_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0
-
-            # get orientation indices
             if peak_dire is None:
-                peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
+                peak_dire_raw = dt.peak_dire
             else:
-                peak_dire = peak_dire % 360
-                dire_tuning_2['dire_diff'] = np.abs(dire_tuning_2['dire'] -
-                                                    peak_dire).astype(np.float32)
-                peak_dire_raw_ind = dire_tuning_2['dire_diff'].idxmin()
+                peak_dire_raw = dt.get_dire_by_dire(dire=peak_dire)
 
-            peak_dire_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'dire']
+            OSI_raw = dt.get_osi(peak_dire=peak_dire)
+            OSI_ele = dte.get_osi(peak_dire=peak_dire)
+            OSI_rec = dtr.get_osi(peak_dire=peak_dire)
 
-            # find index for opposite direction and two orthogonal directions
-            dire_tuning_2['oppo_dire_diff'] = np.abs(dire_tuning_2['dire'] -
-                                                    ((peak_dire_raw + 180) % 360)).astype(np.float32)
-            oppo_dire_ind = dire_tuning_2['oppo_dire_diff'].idxmin()
-            dire_tuning_2['othr_dire_diff_1'] = np.abs(dire_tuning_2['dire'] -
-                                                      ((peak_dire_raw + 90) % 360)).astype(np.float32)
-            othr_dire_ind_1 = dire_tuning_2['othr_dire_diff_1'].idxmin()
-            dire_tuning_2['othr_dire_diff_2'] = np.abs(dire_tuning_2['dire'] -
-                                                      ((peak_dire_raw - 90) % 360)).astype(np.float32)
-            othr_dire_ind_2 = dire_tuning_2['othr_dire_diff_2'].idxmin()
+            DSI_raw = dt.get_dsi(peak_dire=peak_dire)
+            DSI_ele = dte.get_dsi(peak_dire=peak_dire)
+            DSI_rec = dtr.get_dsi(peak_dire=peak_dire)
 
+            gOSI_raw = dt.get_gosi()
+            gOSI_ele = dte.get_gosi()
+            gOSI_rec = dtr.get_gosi()
 
-            # get raw os tuning properties
-            peak_resp_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'resp_mean']
-            oppo_resp_raw = dire_tuning_2.loc[oppo_dire_ind, 'resp_mean']
-            othr_resp_raw_1 = dire_tuning_2.loc[othr_dire_ind_1, 'resp_mean']
-            othr_resp_raw_2 = dire_tuning_2.loc[othr_dire_ind_2, 'resp_mean']
-
-            # print('aaa, {}, {}, {}, {}'.format(peak_resp_raw, oppo_resp_raw, othr_resp_raw_1, othr_resp_raw_2))
-
-            othr_resp_raw = (othr_resp_raw_1 + othr_resp_raw_2) / 2.
-
-            # print('othr_resp_raw, {}'.format(othr_resp_raw))
-            # print('bbb, {}'.format(peak_resp_raw - othr_resp_raw))
-            # print('ccc, {}'.format(peak_resp_raw + othr_resp_raw))
-
-            OSI_raw = (peak_resp_raw - othr_resp_raw) / (peak_resp_raw + othr_resp_raw)
-            DSI_raw = (peak_resp_raw - oppo_resp_raw) / (peak_resp_raw + oppo_resp_raw)
-
-            resp_raw = np.array(list(dire_tuning_2['resp_mean']))
-            vs_raw = np.sum(resp_raw * np.exp(1j * arcs)) / np.sum(resp_raw)
-            vs_dire_raw = (np.angle(vs_raw) * 180 / np.pi) % 360
-            gDSI_raw = np.abs(vs_raw)
-
-            vs2_raw = np.sum(resp_raw * np.exp(1j * 2 * arcs)) / np.sum(resp_raw)
-            gOSI_raw = np.abs(vs2_raw)
-
-            # get elevated os properties
-            peak_resp_ele = dire_tuning_2.loc[peak_dire_raw_ind, 'resp_mean_ele']
-            oppo_resp_ele = dire_tuning_2.loc[oppo_dire_ind, 'resp_mean_ele']
-            othr_resp_ele_1 = dire_tuning_2.loc[othr_dire_ind_1, 'resp_mean_ele']
-            othr_resp_ele_2 = dire_tuning_2.loc[othr_dire_ind_2, 'resp_mean_ele']
-
-            othr_resp_ele = (othr_resp_ele_1 + othr_resp_ele_2) / 2.
-            OSI_ele = (peak_resp_ele - othr_resp_ele) / (peak_resp_ele + othr_resp_ele)
-            DSI_ele = (peak_resp_ele - oppo_resp_ele) / (peak_resp_ele + oppo_resp_ele)
-
-            resp_ele = np.array(list(dire_tuning_2['resp_mean_ele']))
-            vs_ele = np.sum(resp_ele * np.exp(1j * arcs)) / np.sum(resp_ele)
-            vs_dire_ele = (np.angle(vs_ele) * 180 / np.pi) % 360
-            gDSI_ele = np.abs(vs_ele)
-
-            vs2_ele = np.sum(resp_ele * np.exp(1j * 2 * arcs)) / np.sum(resp_ele)
-            gOSI_ele = np.abs(vs2_ele)
-
-            # get rectified os tuning properties
-            peak_resp_rec = dire_tuning_2.loc[peak_dire_raw_ind, 'resp_mean_rec']
-            oppo_resp_rec = dire_tuning_2.loc[oppo_dire_ind, 'resp_mean_rec']
-            othr_resp_rec_1 = dire_tuning_2.loc[othr_dire_ind_1, 'resp_mean_rec']
-            othr_resp_rec_2 = dire_tuning_2.loc[othr_dire_ind_2, 'resp_mean_rec']
-
-            othr_resp_rec = (othr_resp_rec_1 + othr_resp_rec_2) / 2.
-            OSI_rec = (peak_resp_rec - othr_resp_rec) / (peak_resp_rec + othr_resp_rec)
-            DSI_rec = (peak_resp_rec - oppo_resp_rec) / (peak_resp_rec + oppo_resp_rec)
-
-            resp_rec = np.array(list(dire_tuning_2['resp_mean_rec']))
-            vs_rec = np.sum(resp_rec * np.exp(1j * arcs)) / np.sum(resp_rec)
-            vs_dire_rec = (np.angle(vs_rec) * 180 / np.pi) % 360
-            gDSI_rec = np.abs(vs_rec)
-
-            vs2_rec = np.sum(resp_rec * np.exp(1j * 2 * arcs)) / np.sum(resp_rec)
-            gOSI_rec = np.abs(vs2_rec)
+            vs_dire_raw, gDSI_raw = dt.get_gdsi()
+            vs_dire_ele, gDSI_ele = dte.get_gdsi()
+            vs_dire_rec, gDSI_rec = dtr.get_gdsi()
 
             return OSI_raw, DSI_raw, gOSI_raw, gDSI_raw, OSI_ele, DSI_ele, gOSI_ele, gDSI_ele, OSI_rec, DSI_rec, \
                    gOSI_rec, gDSI_rec, peak_dire_raw, vs_dire_raw, vs_dire_ele, vs_dire_rec
@@ -3241,6 +3163,147 @@ class DriftingGratingResponseTableTrial(DataFrame):
         dgcrt.index = self.index
 
         return DriftingGratingResponseTable(data=dgcrt, trace_type=self.trace_type)
+
+
+class DirectionTuning(DataFrame):
+
+    _metadata = ['trace_type']
+
+    def __init__(self, trace_type='', dire_unit='deg', *args, **kwargs):
+
+        super(DirectionTuning, self).__init__(*args, **kwargs)
+
+        self.trace_type = trace_type
+        self.check_integrity()
+        if dire_unit == 'arc':
+            self['dire'] = self['dire'] * 180. / np.pi
+        self['dire'] = self['dire'] % 360
+
+    def check_integrity(self):
+        if 'dire' not in self.columns:
+            raise ValueError
+
+        if 'resp_mean' not in self.columns:
+            raise ValueError
+
+    @property
+    def peak_ind(self):
+        return self['resp_mean'].idxmax()
+
+    @property
+    def peak_dire(self):
+        return self.loc[self.peak_ind, 'dire']
+
+    @property
+    def peak_resp(self):
+        return self.loc[self.peak_ind, 'resp_mean']
+
+    @property
+    def arcs(self):
+        return self['dire'] * np.pi / 180.
+
+    def elevate(self, bias):
+        dfe = self.copy()
+        dfe['resp_mean'] = dfe['resp_mean'] + bias
+        return DirectionTuning(data=dfe, trace_type=self.trace_type)
+
+    def rectify(self, thr=0):
+        dfr = self.copy()
+        dfr.loc[dfr['resp_mean'] < thr, 'resp_mean'] = 0
+        return DirectionTuning(data=dfr, trace_type=self.trace_type)
+
+    def get_ind_by_dire(self, dire):
+        dire_diff = np.abs(self['dire'] - dire)
+        return dire_diff.idxmin()
+
+    def get_dire_by_dire(self, dire):
+        ind = self.get_ind_by_dire(dire=dire)
+        return self.loc[ind, 'dire']
+
+    def get_resp_by_dire(self, dire):
+        ind = self.get_ind_by_dire(dire=dire)
+        return self.loc[ind, 'resp_mean']
+
+    def get_opposite_ind(self, dire=None):
+
+        if dire is None:
+            dire = self.peak_dire
+
+        oppo_dire = (dire + 180.) % 360.
+        oppo_dire_diff = np.abs(self['dire'] - oppo_dire)
+        # print(oppo_dire_diff)
+
+        return oppo_dire_diff.idxmin()
+
+    def get_opposite_dire(self, dire=None):
+        ind = self.get_opposite_ind(dire=dire)
+        return self.loc[ind, 'dire']
+
+    def get_opposite_resp(self, dire=None):
+        ind = self.get_opposite_ind(dire=dire)
+        return self.loc[ind, 'resp_mean']
+
+    def get_orthogonal_inds(self, dire=None):
+        if dire is None:
+            dire = self.peak_dire
+
+        orth_dire1 = (dire + 90.) % 360.
+        orth_dire1_diff = np.abs(self['dire'] - orth_dire1)
+        orth_ind1 = orth_dire1_diff.idxmin()
+
+        orth_dire2 = (dire - 90.) % 360.
+        orth_dire2_diff = np.abs(self['dire'] - orth_dire2)
+        orth_ind2 = orth_dire2_diff.idxmin()
+
+        return orth_ind1, orth_ind2
+
+    def get_orthogonal_dires(self, dire=None):
+        orth_ind1, orth_ind2 = self.get_orthogonal_inds(dire=dire)
+        return self.loc[orth_ind1, 'dire'], self.loc[orth_ind2, 'dire']
+
+    def get_orthogonal_resps(self, dire=None):
+        orth_ind1, orth_ind2 = self.get_orthogonal_inds(dire=dire)
+        return self.loc[orth_ind1, 'resp_mean'], self.loc[orth_ind2, 'resp_mean']
+
+    def get_osi(self, peak_dire=None):
+
+        if peak_dire is None:
+            resp_opti = self.peak_resp
+        else:
+            resp_opti = self.get_resp_by_dire(dire=peak_dire)
+
+        resp_orth1, resp_orth2 = self.get_orthogonal_resps(dire=peak_dire)
+        resp_orth = np.mean([resp_orth1, resp_orth2])
+
+        return (resp_opti - resp_orth) / (resp_opti + resp_orth)
+
+    def get_gosi(self):
+
+        vs2 = np.sum(self['resp_mean'] * np.exp(1j * 2 * self.arcs)) / np.sum(self['resp_mean'])
+        gosi = np.abs(vs2)
+        return gosi
+
+    def get_dsi(self, peak_dire=None):
+
+        if peak_dire is None:
+            resp_opti = self.peak_resp
+        else:
+            resp_opti = self.get_resp_by_dire(dire=peak_dire)
+
+        resp_oppo = self.get_opposite_resp(dire=peak_dire)
+
+        return (resp_opti - resp_oppo) / (resp_opti + resp_oppo)
+
+    def get_vector_sum(self):
+
+        vs = np.sum(self['resp_mean'] * np.exp(1j * self.arcs)) / np.sum(self['resp_mean'])
+        vs_dire = (np.angle(vs) * 180 / np.pi) % 360
+        gdsi = np.abs(vs)
+        return vs_dire, gdsi
+
+
+
+
 
 
 if __name__ == '__main__':

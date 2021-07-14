@@ -9,6 +9,7 @@ import numpy as np
 # from .. import SingleCellAnalysis as sca
 # from ..core import FileTools as ft
 # from ..core import ImageAnalysis as ia
+import pandas as pd
 
 import NeuroAnalysisTools.core.ImageAnalysis as ia
 import NeuroAnalysisTools.core.FileTools as ft
@@ -372,6 +373,26 @@ class TestSingleCellAnalysis(unittest.TestCase):
         assert (np.allclose(sca.get_local_similarity_index(mask1, mask2), 1))
         assert (np.allclose(sca.get_local_similarity_index(mask1, mask3), -1))
         assert (np.allclose(sca.get_local_similarity_index(mask1, mask4), 0))
+
+    def test_DirectionTuning_get_opposite_ind(self):
+        dire = np.linspace(0, 360, 12, endpoint=False)
+        resp = np.array(list(range(8)) + list(range(4)), dtype=np.float)
+
+        dt = pd.DataFrame(dire, columns=['dire'])
+        dt['resp_mean'] = resp
+        # print(dt)
+        # print(dt.columns)
+        # print('dire' in dt.columns)
+        dt = sca.DirectionTuning(data=dt)
+
+        print(dt)
+
+        assert(dt.get_opposite_ind() == 1)
+        assert(dt.get_opposite_ind(dire=30) == 7)
+        assert(dt.get_opposite_ind(dire=225) == 1)
+
+        dfe = dt.elevate(bias=5)
+        print(dfe.trace_type)
 
 
 if __name__ == '__main__':
