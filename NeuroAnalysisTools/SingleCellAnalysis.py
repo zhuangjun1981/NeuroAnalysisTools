@@ -2503,7 +2503,8 @@ class DriftingGratingResponseTable(DataFrame):
         df_sub = self.loc[(alt_arr == alt_p) & (azi_arr == azi_p) & (sf_arr == sf_p) &
                           (tf_arr == tf_p) &(con_arr == con_p) & (rad_arr == rad_p)].reset_index()
 
-        return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
+        dt = df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
+        return DirectionTuning(data=dt, trace_type='deg')
 
     def get_sf_tuning(self, response_dir='pos', is_collapse_tf=False, is_collapse_dire=False):
         """
@@ -3206,7 +3207,7 @@ class DirectionTuning(DataFrame):
 
     @property
     def arcs(self):
-        return self['dire'] * np.pi / 180.
+        return (self['dire'] * np.pi / 180.).astype(np.float)
 
     def elevate(self, bias):
         dfe = self.copy()
@@ -3317,7 +3318,8 @@ class DirectionTuning(DataFrame):
             ax = f.add_axes([0, 0, 1, 1], projection='polar')
 
         dtp = self.sort_dire()
-        dire_tuning = dtp.append(dtp.iloc[0, :])
+        dtp = DirectionTuning(data=dtp.append(dtp.iloc[0, :]),
+                              trace_type=self.trace_type)
 
         arcs = dtp.arcs
         resp = dtp['resp_mean']
@@ -3329,11 +3331,12 @@ class DirectionTuning(DataFrame):
                 resp = resp / np.max(resp)
 
         if is_plot_errbar and 'resp_stdev' in dtp.columns:
-            y1 = np.array(resp - dire_tuning['resp_stdev'])
+            y1 = (resp - dtp['resp_stdev']).astype(np.float)
             y1[y1 < 0.] = 0.
-            y2 = np.array(resp + dire_tuning['resp_stdev'])
+            y2 = (resp + dtp['resp_stdev']).astype(np.float)
             y2[y2 < 0.] = 0.
-            ax.fill_between(x=arcs, y1=y1, y2=y2, ec='none', fc='#cccccc')
+            ax.fill_between(x=arcs, y1=y1,
+                            y2=y2, ec='none', fc='#cccccc')
 
         ax.plot(arcs, resp, '-', **kwargs)
 
