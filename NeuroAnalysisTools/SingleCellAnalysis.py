@@ -2473,7 +2473,8 @@ class DriftingGratingResponseTable(DataFrame):
 
         # print(df_sub)
 
-        return df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
+        dt = df_sub[['dire', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
+        return DirectionTuning(data=dt, dire_unit='deg')
 
     def get_dire_tuning_by_given_condition(self, cond_ind):
         """
@@ -3186,6 +3187,11 @@ class DirectionTuning(DataFrame):
         if 'resp_mean' not in self.columns:
             raise ValueError
 
+    def sort_dire(self):
+        dt = self.copy()
+        dt = dt.sort_values(by='dire').reset_index(drop=True)
+        return DirectionTuning(data=dt, trace_type=self.trace_type)
+
     @property
     def peak_ind(self):
         return self['resp_mean'].idxmax()
@@ -3213,7 +3219,7 @@ class DirectionTuning(DataFrame):
         return DirectionTuning(data=dfr, trace_type=self.trace_type)
 
     def get_ind_by_dire(self, dire):
-        dire_diff = np.abs(self['dire'] - dire)
+        dire_diff = np.abs(self['dire'] - dire).astype(np.float)
         return dire_diff.idxmin()
 
     def get_dire_by_dire(self, dire):
@@ -3230,7 +3236,7 @@ class DirectionTuning(DataFrame):
             dire = self.peak_dire
 
         oppo_dire = (dire + 180.) % 360.
-        oppo_dire_diff = np.abs(self['dire'] - oppo_dire)
+        oppo_dire_diff = np.abs(self['dire'] - oppo_dire).astype(np.float)
         # print(oppo_dire_diff)
 
         return oppo_dire_diff.idxmin()
@@ -3248,11 +3254,11 @@ class DirectionTuning(DataFrame):
             dire = self.peak_dire
 
         orth_dire1 = (dire + 90.) % 360.
-        orth_dire1_diff = np.abs(self['dire'] - orth_dire1)
+        orth_dire1_diff = np.abs(self['dire'] - orth_dire1).astype(np.float)
         orth_ind1 = orth_dire1_diff.idxmin()
 
         orth_dire2 = (dire - 90.) % 360.
-        orth_dire2_diff = np.abs(self['dire'] - orth_dire2)
+        orth_dire2_diff = np.abs(self['dire'] - orth_dire2).astype(np.float)
         orth_ind2 = orth_dire2_diff.idxmin()
 
         return orth_ind1, orth_ind2
@@ -3301,9 +3307,43 @@ class DirectionTuning(DataFrame):
         gdsi = np.abs(vs)
         return vs_dire, gdsi
 
+    def plot_linear(self, ax=None, **kwargs):
+        pass
 
+    def plot_polar(self, ax=None, is_normalize=False, is_plot_errbar=True, **kwargs):
 
+        if ax is None:
+            f = plt.figure()
+            ax = f.add_axes([0, 0, 1, 1], projection='polar')
 
+        dtp = self.sort_dire()
+        dire_tuning = dtp.append(dtp.iloc[0, :])
+
+        arcs = dtp.arcs
+        resp = dtp['resp_mean']
+
+        if is_normalize:
+            if is_plot_errbar:
+                raise ValueError('Cannot plot normalized tuning curve with error bar.')
+            else:
+                resp = resp / np.max(resp)
+
+        if is_plot_errbar and 'resp_stdev' in dtp.columns:
+            y1 = np.array(resp - dire_tuning['resp_stdev'])
+            y1[y1 < 0.] = 0.
+            y2 = np.array(resp + dire_tuning['resp_stdev'])
+            y2[y2 < 0.] = 0.
+            ax.fill_between(x=arcs, y1=y1, y2=y2, ec='none', fc='#cccccc')
+
+        ax.plot(arcs, resp, '-', **kwargs)
+
+        ax.set_xticklabels([])
+        ylim = ax.get_ylim()
+        ymax = np.ceil(ylim[1] * 100) / 100
+        ax.set_ylim([0, ymax])
+        ax.set_yticks([ymax])
+
+        return ax, ymax
 
 
 if __name__ == '__main__':
