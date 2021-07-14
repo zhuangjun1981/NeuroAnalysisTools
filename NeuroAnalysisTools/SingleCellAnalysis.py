@@ -2271,6 +2271,25 @@ class DriftingGratingResponseTable(DataFrame):
 
         self.trace_type = trace_type
 
+    def get_blank_ind(self):
+        blank_rows = self[(self['sf'] == 0) &
+                          (self['tf'] == 0) &
+                          (self['dire'] == 0)]
+
+        return blank_rows.index
+
+    def remove_blank_cond(self, is_reset_index=True):
+        blank_ind = self.get_blank_ind()
+        new_dgcrt = self[np.logical_not(self.index.isin(blank_ind))]
+        if is_reset_index:
+            new_dgcrt = new_dgcrt.reset_index(drop=True)
+
+        new_dgcrt = DriftingGratingResponseTable(data=new_dgcrt,
+                                                 baseline_window_sec=self.baseline_window_sec,
+                                                 response_window_sec=self.response_window_sec,
+                                                 trace_type=self.trace_type)
+        return new_dgcrt
+
     def get_peak_condi_params_pos(self):
         ind = self.peak_condi_ind_pos
         return self.loc[ind, ['sf', 'tf', 'dire', 'con', 'rad']]
@@ -2574,7 +2593,8 @@ class DriftingGratingResponseTable(DataFrame):
         return df_sub[['tf', 'resp_mean', 'resp_max', 'resp_min', 'resp_std', 'resp_stdev']].copy()
 
     @staticmethod
-    def get_dire_tuning_properties(dire_tuning, response_dir='pos', elevation_bias=0.):
+    def get_dire_tuning_properties(dire_tuning, response_dir='pos', elevation_bias=0.,
+                                   peak_dire=None):
         """
 
         input dire_tuning has two columns: directions in degrees and mean responses to each direction.
@@ -2588,9 +2608,15 @@ class DriftingGratingResponseTable(DataFrame):
         because gOSI and gDSI calculation is independent of curve base line. so gOSI_raw and gDSI_raw represent
         gOSI and gDSI in both raw and elevated conditions.
 
-        :param dire_tuning: DataFrame
+        :param dire_tuning: DataFrame, should have at least two columns.
+                            'dire': direction, in degrees.
+                            'resp_mean': mean response to at the given direction
         :param response_dir:  str, 'pos' or 'neg
         :param elevation_bias: float, minimum response after elevation.
+        :param peak_dire: float, if not None, force the peak direction to this direction.
+                          this is very specific, added to accommodate cross validation,
+                          in which case the peak condition is defined by other half of
+                          trials but not the current response table.
         :return OSI_raw:
         :return DSI_raw:
         :return gOSI_raw:
@@ -2623,24 +2649,45 @@ class DriftingGratingResponseTable(DataFrame):
 
         else:
 
+            # force direction to be 0-360 degrees
             dire_tuning_2['dire'] = dire_tuning_2['dire'] % 360
+
+            # calculate corresponding arcs
             arcs = np.array(list(dire_tuning_2['dire'] * np.pi / 180))
 
+            # calculate responses after elevation
             if np.min(dire_tuning_2['resp_mean']) < elevation_bias:
                 dire_tuning_2['resp_mean_ele'] = dire_tuning_2['resp_mean'] - np.min(dire_tuning_2['resp_mean']) + \
                                                elevation_bias
             else:
                 dire_tuning_2['resp_mean_ele'] = dire_tuning_2['resp_mean']
 
+            # calculate responses after rectification
             dire_tuning_2['resp_mean_rec'] = dire_tuning_2['resp_mean']
             dire_tuning_2.loc[dire_tuning_2['resp_mean'] < 0, 'resp_mean_rec'] = 0
 
             # get orientation indices
-            peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
+            if peak_dire is None:
+                peak_dire_raw_ind = dire_tuning_2['resp_mean'].idxmax()
+            else:
+                peak_dire = peak_dire % 360
+                dire_tuning_2['dire_diff'] = np.abs(dire_tuning_2['dire'] -
+                                                    peak_dire).astype(np.float32)
+                peak_dire_raw_ind = dire_tuning_2['dire_diff'].idxmin()
+
             peak_dire_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'dire']
-            oppo_dire_ind = (dire_tuning_2['dire'] == ((peak_dire_raw + 180) % 360)).idxmax()
-            othr_dire_ind_1 = (dire_tuning_2['dire'] == ((peak_dire_raw + 90) % 360)).idxmax()
-            othr_dire_ind_2 = (dire_tuning_2['dire'] == ((peak_dire_raw - 90) % 360)).idxmax()
+
+            # find index for opposite direction and two orthogonal directions
+            dire_tuning_2['oppo_dire_diff'] = np.abs(dire_tuning_2['dire'] -
+                                                    ((peak_dire_raw + 180) % 360)).astype(np.float32)
+            oppo_dire_ind = dire_tuning_2['oppo_dire_diff'].idxmin()
+            dire_tuning_2['othr_dire_diff_1'] = np.abs(dire_tuning_2['dire'] -
+                                                      ((peak_dire_raw + 90) % 360)).astype(np.float32)
+            othr_dire_ind_1 = dire_tuning_2['othr_dire_diff_1'].idxmin()
+            dire_tuning_2['othr_dire_diff_2'] = np.abs(dire_tuning_2['dire'] -
+                                                      ((peak_dire_raw - 90) % 360)).astype(np.float32)
+            othr_dire_ind_2 = dire_tuning_2['othr_dire_diff_2'].idxmin()
+
 
             # get raw os tuning properties
             peak_resp_raw = dire_tuning_2.loc[peak_dire_raw_ind, 'resp_mean']
@@ -3191,6 +3238,7 @@ class DriftingGratingResponseTableTrial(DataFrame):
         dgcrt['resp_min'] = [np.min(r) for r in self['resp_trial']]
         dgcrt['resp_std'] = [np.std(r) for r in self['resp_trial']]
         dgcrt['resp_stdev'] = [np.std(r) / np.sqrt(len(r)) for r in self['resp_trial']]
+        dgcrt.index = self.index
 
         return DriftingGratingResponseTable(data=dgcrt, trace_type=self.trace_type)
 
