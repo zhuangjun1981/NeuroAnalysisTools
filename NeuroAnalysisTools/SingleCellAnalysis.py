@@ -2873,7 +2873,7 @@ class DriftingGratingResponseTable(DataFrame):
                          trace_color='#ff0000', postprocess='raw', is_plot_errbar=False,
                          is_normalize=False, is_arc=False, **kwargs):
         """
-
+        obsolete, please use DirectionTuning.plot_linear() or DirectionTuning.plot_polar()
         :param axis:
         :param response_dir:
         :param is_collapse_sf:
@@ -2988,6 +2988,18 @@ class DriftingGratingResponseTableTrial(DataFrame):
                                                   trace_type=self.trace_type,
                                                   baseline_window_sec=self.baseline_window_sec,
                                                   response_window_sec=self.response_window_sec)
+
+    def sort_values(self, *args, **kwargs):
+
+        if 'in_place' in kwargs and kwargs['in_place']:
+            raise NotImplementedError("sort_values() function of DriftingGratingResponseTableTrial "
+                                      "object cannot be in_place.")
+
+        df = super(DriftingGratingResponseTableTrial, self).sort_values(*args, **kwargs)
+        return DriftingGratingResponseTableTrial(data=df.copy(deep=True),
+                                                 trace_type=self.trace_type,
+                                                 baseline_window_sec=self.baseline_window_sec,
+                                                 response_window_sec=self.response_window_sec)
 
     def get_blank_ind(self):
         blank_rows = self[(self['sf'] == 0) &
