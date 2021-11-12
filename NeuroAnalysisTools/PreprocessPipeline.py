@@ -246,6 +246,8 @@ def transform_images_to_standard_orientation(img, scope):
             img_r = ia.rigid_transform_cv2(img, rotation=140)[:, :, ::-1].astype(np.float32)
         else:
             raise ValueError('input image should be 2d or 3d array.')
+    elif scope == 'bessel_soumya':
+        img_r = img
     else:
         raise LookupError("Do not understand scope type. Should be 'sutter', 'sutter_wf', "
                           "'deepscope', 'deepscope_wf', or 'scientifica'.")
@@ -1188,8 +1190,108 @@ class Preprocessor(object):
                 shutil.copyfile(os.path.join(data_folder, ntif_f), os.path.join(ntif_save_folder, ntif_f))
 
             print('\tDone!')
+
+        elif scope == 'bessel_soumya':
+
+            print('\nReorganize raw two-photon data. Scope: {}.'.format(scope))
+            print('\tNumber of planes: {}'.format(plane_num))
+
+            file_list = [f for f in os.listdir(data_folder) if identifier in f and f[-4:] == '.tif']
+            file_list.sort()
+            [print('\t{}'.format(f)) for f in file_list]
+
+            save_folders = {}
+            buff = {}
+            save_file_id = {}
+            for plane_i in range(plane_num):
+                plane_folder = os.path.join(os.path.split(save_folder)[0], identifier + '_reorged',
+                                            'plane{}'.format(plane_i))
+                if not os.path.isdir(plane_folder):
+                    os.makedirs(plane_folder)
+                save_folders[plane_i] = {}
+                buff[plane_i] = {}
+                save_file_id[plane_i] = {}
+
+                for ch_i, ch in enumerate(channels):
+                    ch_folder = os.path.join(plane_folder, ch)
+                    if not os.path.isdir(ch_folder):
+                        os.makedirs(ch_folder)
+                    save_folders[plane_i][ch] = ch_folder
+                    buff[plane_i][ch] = None
+                    save_file_id[plane_i][ch] = 0
+
+            for fn in file_list:
+                curr_mov = tf.imread(os.path.join(data_folder, fn))
+                curr_mov[curr_mov < low_thr] = low_thr
+
+                if len(curr_mov.shape) != 3:
+                    raise ValueError(f'The input .tif file is not 3 dimensional. '
+                                     f'shape = {curr_mov.shape}')
+
+                if curr_mov.shape[0] % (plane_num * len(channels)) != 0:
+                    raise ValueError(f'The frame number of the .tif file is not '
+                                     f'divisive to (plane_num * (len(channels).')
+
+                for plane_i in range(plane_num):
+                    curr_movp = curr_mov[plane_i::plane_num]
+                    for ch_i, ch in enumerate(channels):
+                        curr_movpc = curr_movp[ch_i::len(channels)]
+                        if buff[plane_i][ch] is None:
+                            buff[plane_i][ch] = curr_movpc
+                        else:
+                            buff[plane_i][ch] = np.concatenate((buff[plane_i][ch], curr_movpc),
+                                                                axis=0)
+
+                        curr_buff = buff[plane_i][ch]
+                        if (curr_buff is not None) and \
+                            (curr_buff.shape[0] >= frames_per_file * temporal_downsample_rate):
+
+                            num_file_to_save = int(curr_buff.shape[0] // (frames_per_file * temporal_downsample_rate))
+
+                            for save_file_i in range(num_file_to_save):
+                                save_chunk = curr_buff[
+                                             save_file_i * (frames_per_file * temporal_downsample_rate):
+                                             (save_file_i + 1) * (frames_per_file * temporal_downsample_rate),:,:]
+                                save_path = os.path.join(save_folders[plane_i][ch],
+                                                         '{}_{:05d}_reorged.tif'.format(identifier,
+                                                                                        save_file_id[plane_i][ch]))
+                                if temporal_downsample_rate != 1:
+                                    print('\t\tdown sampling for {} ...'.format(os.path.split(save_path)[1]))
+                                    save_chunk = ia.z_downsample(save_chunk,
+                                                                 downSampleRate=temporal_downsample_rate,
+                                                                 is_verbose=False)
+
+                                print('\t\tsaving {} ...'.format(os.path.split(save_path)[1]))
+                                tf.imsave(save_path, save_chunk)
+                                save_file_id[plane_i][ch] = save_file_id[plane_i][ch] + 1
+
+                            if buff[plane_i][ch].shape[0] % (frames_per_file * temporal_downsample_rate) == 0:
+                                buff[plane_i][ch] = None
+                            else:
+                                frame_num_left = buff[plane_i][ch].shape[0] % (
+                                            frames_per_file * temporal_downsample_rate)
+                                buff[plane_i][ch] = buff[plane_i][ch][-frame_num_left:]
+
+            for plane_i in range(plane_num):
+                for ch_i, ch in enumerate(channels):
+                    curr_mov = buff[plane_i][ch]
+
+                    if curr_mov is not None:
+                        save_path = os.path.join(save_folders[plane_i][ch],
+                                                 '{}_{:05d}_reorged.tif'.format(identifier,
+                                                                                save_file_id[plane_i][ch]))
+
+                        if temporal_downsample_rate != 1:
+                            # print('\t\tdown sampling for {} ...'.format(os.path.split(save_path)[1]))
+                            curr_mov = ia.z_downsample(curr_mov,
+                                                       downSampleRate=temporal_downsample_rate,
+                                                       is_verbose=False)
+
+                        print('\t\tsaving {} ...'.format(save_path))
+                        tf.imsave(save_path, curr_mov)
         else:
-            raise LookupError('Do not understand scope: "{}". Should be "sutter" or "deepscope".'.format(scope))
+            raise LookupError('Do not understand scope: "{}". Should be "sutter", '
+                              '"deepscope" or "bessel_soumya".'.format(scope))
 
     @staticmethod
     def motion_correction(data_folder, reference_channel_name, apply_channel_names,
