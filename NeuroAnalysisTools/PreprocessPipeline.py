@@ -1229,8 +1229,18 @@ class Preprocessor(object):
                                      f'shape = {curr_mov.shape}')
 
                 if curr_mov.shape[0] % (plane_num * len(channels)) != 0:
-                    raise ValueError(f'The frame number of the .tif file is not '
-                                     f'divisive to (plane_num * (len(channels).')
+
+                    if fn != file_list[-1]:
+                        raise ValueError(f'The frame number of the .tif file is not '
+                                         f'divisible to (plane_num * (len(channels).')
+                    else:
+                        print(f'the frame number of {fn} is not divisible to '
+                              f'(plane_num * (len(channels). Taking the divisible chunk.')
+                        useful_chunk = int(curr_mov.shape[0] // (plane_num * len(channels)))
+                        if useful_chunk == 0:
+                            continue
+                        else:
+                            curr_mov = curr_mov[0:useful_chunk*plane_num*len(channels), :, :]
 
                 for plane_i in range(plane_num):
                     curr_movp = curr_mov[plane_i::plane_num]
