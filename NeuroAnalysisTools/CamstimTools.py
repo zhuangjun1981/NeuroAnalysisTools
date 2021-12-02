@@ -32,16 +32,21 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
     if not len(ts_display_rise.shape) == 1:
         raise ValueError('input "ts_display_rise" should be a 1d array.')
 
-    if not pkl_dict['items']['sync_square']['colorSequence'][0] == -1:
+    if not pkl_dict[b'items'][b'sync_square'][b'colorSequence'][0] == -1:
         raise ValueError('The visual display did not start with black sync_square!')
 
-    frame_period = pkl_dict['items']['sync_square']['frequency'] * \
-                   len(pkl_dict['items']['sync_square']['colorSequence'])
+    frame_period = pkl_dict[b'items'][b'sync_square'][b'frequency'] * \
+                   len(pkl_dict[b'items'][b'sync_square'][b'colorSequence'])
 
     ts_onset_frame_ttl = ts_display_rise[::frame_period]
 
     if verbose:
         print('Number of onset frame TTLs of black sync square: {}'.format(len(ts_onset_frame_ttl)))
+
+    # import matplotlib.pyplot as plt
+    # plt.plot(ts_pd_fall, np.ones(len(ts_pd_fall)), '.')
+    # plt.plot(ts_onset_frame_ttl, np.ones(len(ts_onset_frame_ttl))+0.1, '.')
+    # plt.show()
 
     # detect display start in photodiode signal
     refresh_rate = float(refresh_rate)
@@ -51,7 +56,7 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
         pre_interval_2 = ts_pd_fall[i - 1] - ts_pd_fall[i - 2]
         pre_interval_3 = ts_pd_fall[i - 2] - ts_pd_fall[i - 3]
 
-        # print pre_interval_3, pre_interval_2, pre_interval_1, post_interval
+        # print(pre_interval_3, pre_interval_2, pre_interval_1, post_interval)
 
         if abs(post_interval - frame_period / refresh_rate) <= allowed_jitter and \
             abs(pre_interval_1 - 20. / refresh_rate <= allowed_jitter) and \
@@ -59,8 +64,8 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
             abs(pre_interval_3 - 20. / refresh_rate <= allowed_jitter):
                 pd_start_ind = i
                 break
-    else:
-        raise ValueError('Did not find photodiode signal marking the start of display.')
+        else:
+            raise ValueError('Did not find photodiode signal marking the start of display.')
 
     for j in range(0, len(ts_pd_fall) - 1)[::-1]:
         pre_interval_1 = ts_pd_fall[j] - ts_pd_fall[j - 1]
@@ -83,13 +88,28 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
         raise ValueError('Number of onset frame TTLs ({}) and Number of onset frame photodiode signals ({}),'
                          'do not match!'.format(len(ts_onset_frame_ttl), len(ts_onset_frame_pd)))
 
+    # if len(ts_onset_frame_ttl) == len(ts_onset_frame_pd):
+    #     pass
+    # elif len(ts_onset_frame_ttl) > len(ts_onset_frame_pd):
+    #     ts_onset_frame_ttl = ts_onset_frame_ttl[0:len(ts_onset_frame_pd)]
+    # else:
+    #     ts_onset_frame_pd = ts_onset_frame_pd[0:len(ts_onset_frame_ttl)]
+
     display_lag = ts_onset_frame_pd - ts_onset_frame_ttl
+
+    # print(ts_onset_frame_ttl[0:50])
+    # print(ts_onset_frame_pd[0:50])
+    #
+    # import matplotlib.pyplot as plt
+    # plt.plot(display_lag)
+    # plt.show()
 
     display_lag_max = np.max(np.abs(display_lag))
     display_lag_max_ind = np.argmax(np.abs(display_lag))
+
     if display_lag_max > max_mismatch:
         raise ValueError('Display lag number {} : {}(sec) is greater than allow max_mismatch {} sec.'
-                         .foramt(display_lag_max_ind, display_lag_max, max_mismatch))
+                         .format(display_lag_max_ind, display_lag_max, max_mismatch))
 
     display_lag_mean = np.mean(display_lag)
     if verbose:
@@ -99,9 +119,9 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
 
 def get_stim_dict_drifting_grating(input_dict, stim_name):
 
-    sweep_table = input_dict['sweep_table']
-    sweep_order = input_dict['sweep_order']
-    sweep_frames = input_dict['sweep_frames']
+    sweep_table = input_dict[b'sweep_table']
+    sweep_order = input_dict[b'sweep_order']
+    sweep_frames = input_dict[b'sweep_frames']
 
     # get sweep table
     sweeps = []
@@ -123,23 +143,23 @@ def get_stim_dict_drifting_grating(input_dict, stim_name):
     stim_dict['sweeps'] = sweeps
     stim_dict['sweep_onset_frames'] = sweep_onset_frames
     stim_dict['data_formatting'] = ['contrast', 'temporal_frequency', 'spatial_frequency', 'direction', 'is_blank']
-    stim_dict['iterations'] = input_dict['runs']
-    stim_dict['temporal_frequency_list'] = input_dict['sweep_params']['TF'][0]
-    stim_dict['spatial_frequency_list'] = input_dict['sweep_params']['SF'][0]
-    stim_dict['contrast_list'] = input_dict['sweep_params']['Contrast'][0]
-    stim_dict['direction_list'] = input_dict['sweep_params']['Ori'][0]
-    stim_dict['sweep_dur_sec'] = input_dict['sweep_length']
-    stim_dict['midgap_dur_sec'] = input_dict['blank_length']
-    stim_dict['num_of_blank_sweeps'] = input_dict['blank_sweeps']
-    stim_dict['stim_text'] = input_dict['stim_text']
-    stim_dict['frame_rate_hz'] = input_dict['fps']
+    stim_dict['iterations'] = input_dict[b'runs']
+    stim_dict['temporal_frequency_list'] = input_dict[b'sweep_params'][b'TF'][0]
+    stim_dict['spatial_frequency_list'] = input_dict[b'sweep_params'][b'SF'][0]
+    stim_dict['contrast_list'] = input_dict[b'sweep_params'][b'Contrast'][0]
+    stim_dict['direction_list'] = input_dict[b'sweep_params'][b'Ori'][0]
+    stim_dict['sweep_dur_sec'] = input_dict[b'sweep_length']
+    stim_dict['midgap_dur_sec'] = input_dict[b'blank_length']
+    stim_dict['num_of_blank_sweeps'] = input_dict[b'blank_sweeps']
+    stim_dict['stim_text'] = input_dict[b'stim_text']
+    stim_dict['frame_rate_hz'] = input_dict[b'fps']
 
     stim_dict['source'] = 'camstim'
     stim_dict['comments'] = 'The timestamps of this stimulus is the display frame index, not the actual time in seconds. ' \
                             'To get the real timestamps in seconds, please use these indices to find the timestamps ' \
                             'of displayed frames in "/processing/visual_display/frame_timestamps".'
     stim_dict['description'] = 'This stimulus is extracted from the pkl file saved by camstim software.'
-    stim_dict['total_frame_num'] = input_dict['total_frames']
+    stim_dict['total_frame_num'] = input_dict[b'total_frames']
 
     return stim_dict
 
@@ -268,14 +288,14 @@ def get_stim_dict_locally_sparse_noise(input_dict, stim_name, npy_path=None):
 
 def get_stim_dict_list(pkl_path, lsn_npy_path=None):
     pkl_dict = ft.loadFile(pkl_path)
-    stimuli = pkl_dict['stimuli']
-    pre_blank_sec = pkl_dict['pre_blank_sec']
-    post_blank_sec = pkl_dict['post_blank_sec']
-    total_fps = pkl_dict['fps']
+    stimuli = pkl_dict[b'stimuli']
+    pre_blank_sec = pkl_dict[b'pre_blank_sec']
+    post_blank_sec = pkl_dict[b'post_blank_sec']
+    total_fps = pkl_dict[b'fps']
 
     start_frame_num = int(total_fps * pre_blank_sec)
 
-    assert(pkl_dict['vsynccount'] == pkl_dict['total_frames'] + (pre_blank_sec + post_blank_sec) * total_fps)
+    assert(pkl_dict[b'vsynccount'] == pkl_dict[b'total_frames'] + (pre_blank_sec + post_blank_sec) * total_fps)
 
     # print('\n'.join(pkl_dict.keys()))
 
@@ -286,42 +306,41 @@ def get_stim_dict_list(pkl_path, lsn_npy_path=None):
         # print stim['stim_path']
 
         # get stim_type
-        stim_str = stim['stim']
-        if '(' in stim_str:
+        stim_str = stim[b'stim']
+        if b'(' in stim_str:
 
-            if stim_str[0:stim_str.index('(')] == 'GratingStim':
+            if stim_str[0:stim_str.index(b'(')] == b'GratingStim':
 
-                if 'Phase' in stim['sweep_params'].keys():
+                if b'Phase' in stim[b'sweep_params'].keys():
                     stim_type = 'static_grating_camstim'
-                elif 'TF' in stim['sweep_params'].keys():
+                elif b'TF' in stim[b'sweep_params'].keys():
                     stim_type = 'drifting_grating_camstim'
                 else:
                     print('\n\nunknow stimulus type:')
-                    print(stim['stim_path'])
-                    print(stim['stim_text'])
+                    print(stim[b'stim_path'])
+                    print(stim[b'stim_text'])
                     stim_type = None
 
+            elif stim_str[0:stim_str.index(b'(')] == b'ImageStimNumpyuByte':
 
-            elif stim_str[0:stim_str.index('(')] == 'ImageStimNumpyuByte':
-
-                if 'locally_sparse_noise' in stim['stim_path']:
+                if b'locally_sparse_noise' in stim[b'stim_path']:
                     stim_type = 'locally_sparse_noise'
                 else:
                     print('\n\nunknow stimulus type:')
-                    print(stim['stim_path'])
-                    print(stim['stim_text'])
+                    print(stim[b'stim_path'])
+                    print(stim[b'stim_text'])
                     stim_type = None
 
             else:
                 print('\n\nunknow stimulus type:')
-                print(stim['stim_path'])
-                print(stim['stim_text'])
+                print(stim[b'stim_path'])
+                print(stim[b'stim_text'])
                 stim_type = None
 
         else:
             print('\n\nunknow stimulus type:')
-            print(stim['stim_path'])
-            print(stim['stim_text'])
+            print(stim[b'stim_path'])
+            print(stim[b'stim_text'])
             stim_type = None
 
         if stim_type == 'drifting_grating_camstim':
@@ -344,18 +363,18 @@ def get_stim_dict_list(pkl_path, lsn_npy_path=None):
             # needs to fill in
             stim_dict = {'stim_name': '{:03d}_StaticGratingCamStim'.format(stim_ind),
                          'stim_type': 'static_grating_camstim',
-                         'total_frame_num': stim['total_frames']}
+                         'total_frame_num': stim[b'total_frames']}
 
 
-            start_frame_num = stim['total_frame_num']
+            start_frame_num = stim[b'total_frame_num']
         else:
             print('\nskip unknow stimstimulus. stim index: {}.'.format(stim_ind))
 
             # place holder
             stim_dict = {'stim_name': '{:03d}_UnknownCamStim'.format(stim_ind),
                          'stim_type': 'unknow_camstim',
-                         'total_frame_num': stim['total_frames']}
-            start_frame_num = stim['total_frame_num']
+                         'total_frame_num': stim[b'total_frames']}
+            start_frame_num = stim[b'total_frame_num']
 
         stim_dict_lst.append(stim_dict)
 

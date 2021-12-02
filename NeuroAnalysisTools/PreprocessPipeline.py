@@ -25,6 +25,7 @@ import NeuroAnalysisTools.MotionCorrection as mc
 import NeuroAnalysisTools.DisplayLogTools as dlt
 import NeuroAnalysisTools.DatabaseTools as dt
 import NeuroAnalysisTools.SingleCellAnalysis as sca
+import NeuroAnalysisTools.CamstimTools as ct
 
 
 def get_traces(params):
@@ -1909,9 +1910,7 @@ class Preprocessor(object):
             return os.path.realpath(os.path.join(nwb_folder, nwb_fns[0]))
 
     @staticmethod
-    def get_display_log(display_log_folder,
-                        # visual_stim_software='WarpedVisualStim'
-                        ):
+    def get_display_log(display_log_folder):
 
         stim_pkl_fns = [f for f in os.listdir(display_log_folder) if f[-4:] == '.pkl']
         if len(stim_pkl_fns) == 0:
@@ -2006,15 +2005,27 @@ class Preprocessor(object):
         nwb_path = self.get_nwb_path(nwb_folder)
 
         nwb_f = nt.RecordedFile(nwb_path)
-        pd, pd_t = nwb_f.get_analog_data(ch_n='analog_photodiode')
-        fs = 1. / np.mean(np.diff(pd_t))
-        # print fs
 
-        pd_onsets = hl.segmentPhotodiodeSignal(pd, digitizeThr=digitize_thr, filterSize=filter_size,
-                                               segmentThr=segment_thr, Fs=fs, smallestInterval=smallest_interval)
+        if 'digital_photodiode_rise' in nwb_f.file_pointer['acquisition/timeseries']:
+            pd_onsets = nwb_f.file_pointer['acquisition/timeseries' \
+                                           '/digital_photodiode_rise' \
+                                           '/timestamps'][()]
 
-        if is_interact:
-            input('press enter to continue ...')
+            if is_interact:
+                plt.plot(pd_onsets, np.ones(pd_onsets.shape), '.')
+                plt.show()
+
+        else:
+            pd, pd_t = nwb_f.get_analog_data(ch_n='analog_photodiode')
+
+            fs = 1. / np.mean(np.diff(pd_t))
+            # print fs
+
+            pd_onsets = hl.segmentPhotodiodeSignal(pd, digitizeThr=digitize_thr, filterSize=filter_size,
+                                                   segmentThr=segment_thr, Fs=fs, smallestInterval=smallest_interval)
+
+            if is_interact:
+                input('press enter to continue ...')
 
         pdo_ts = nwb_f.create_timeseries('TimeSeries', 'digital_photodiode_rise', modality='other')
         pdo_ts.set_time(pd_onsets)
@@ -2062,6 +2073,8 @@ class Preprocessor(object):
             pixel_size = 0.0000009765 / zoom  # meter
         elif scope == 'sutter':
             pixel_size = 0.0000014 / zoom  # meter
+        elif scope == 'bessel_soumya':
+            pixel_size = np.nan
         else:
             raise LookupError('do not understand scope type')
 
@@ -2173,7 +2186,7 @@ class Preprocessor(object):
         nwb_f.close()
         print('\tDone.')
 
-    def add_visual_stimuli_to_nwb(self, nwb_folder):
+    def add_visual_stimuli_to_nwb(self, nwb_folder, stim_software='WarpedVisualStim'):
         """
 
         :param visual_stim_software: str, 'retinotopic_mapping' (python 2.7) or 'WrapedVisualStim' (python 3)
@@ -2183,13 +2196,43 @@ class Preprocessor(object):
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
 
-        display_log = self.get_display_log(display_log_folder=nwb_folder)
-        if display_log is not None:
+        if stim_software == 'WarpedVisualStim':
+            display_log = self.get_display_log(display_log_folder=nwb_folder)
+            if display_log is not None:
+                nwb_f = nt.RecordedFile(nwb_path)
+                nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
+                nwb_f.close()
+        elif stim_software == 'CamStim':
             nwb_f = nt.RecordedFile(nwb_path)
-            nwb_f.add_visual_display_log_retinotopic_mapping(stim_log=display_log)
+            pkl_path = ft.look_for_unique_file(source=nwb_folder,
+                                               identifiers=[],
+                                               file_type='pkl',
+                                               is_full_path=True)
+            stim_dict_lst = ct.get_stim_dict_list(pkl_path)
+            nwb_f.add_visual_stimuli_camstim(stim_dict_lst)
             nwb_f.close()
+        else:
+            raise ValueError(f'Do not understand "stim_software", '
+                             f'should be "WarpedVisualStim" or "CamStim". '
+                             f'got "{stim_software}"')
 
         print('\tDone.')
+
+    def add_display_frame_ts_camstim(self, nwb_folder, max_mismatch=0.1, refresh_rate=60.,
+                                     allowed_jitter=0.01, verbose=True):
+
+        nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
+        pkl_path = ft.look_for_unique_file(source=nwb_folder,
+                                           identifiers=[],
+                                           file_type='pkl',
+                                           is_full_path=True)
+        pkl_dict = ft.loadFile(pkl_path)
+        nwb_f = nt.RecordedFile(nwb_path)
+        nwb_f.add_display_frame_ts_camstim(pkl_dict=pkl_dict, max_mismatch=max_mismatch,
+                                           refresh_rate=refresh_rate,
+                                           allowed_jitter=allowed_jitter,
+                                           verbose=verbose)
+        nwb_f.close()
 
     def analyze_visual_display_in_nwb(self, nwb_folder, vsync_frame_path,
                                       photodiode_ts_path='analysis/digital_photodiode_rise',
