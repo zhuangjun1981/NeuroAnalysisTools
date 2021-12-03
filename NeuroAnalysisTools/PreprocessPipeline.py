@@ -1013,8 +1013,6 @@ class Preprocessor(object):
                 print('\tprocessing {} ...'.format(os.path.split(file_path)[1]))
 
                 curr_mov = tf.imread(file_path)
-                if len(curr_mov.shape) == 4:
-                    curr_mov = np.concatenate(curr_mov, axis=0)
                 curr_mov[curr_mov < low_thr] = low_thr
 
                 if curr_mov.shape[0] % len(channels) != 0:
@@ -1227,9 +1225,14 @@ class Preprocessor(object):
                 curr_mov = tf.imread(os.path.join(data_folder, fn))
                 curr_mov[curr_mov < low_thr] = low_thr
 
-                if len(curr_mov.shape) != 3:
-                    raise ValueError(f'The input .tif file is not 3 dimensional. '
-                                     f'shape = {curr_mov.shape}')
+                if len(curr_mov.shape) == 3:
+                    pass
+                elif len(curr_mov.shape) == 4:
+                    curr_mov = np.concatenate(curr_mov, axis=0)
+
+                else:
+                    raise ValueError(f'The input .tif file should be 3 or 4 dimensional. '
+                                     f'Get shape: {curr_mov.shape}')
 
                 if curr_mov.shape[0] % (plane_num * len(channels)) != 0:
 
