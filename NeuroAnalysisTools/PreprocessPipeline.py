@@ -1013,6 +1013,8 @@ class Preprocessor(object):
                 print('\tprocessing {} ...'.format(os.path.split(file_path)[1]))
 
                 curr_mov = tf.imread(file_path)
+                if len(curr_mov.shape) == 4:
+                    curr_mov = np.concatenate(curr_mov, axis=0)
                 curr_mov[curr_mov < low_thr] = low_thr
 
                 if curr_mov.shape[0] % len(channels) != 0:
