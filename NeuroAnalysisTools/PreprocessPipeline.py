@@ -1223,6 +1223,7 @@ class Preprocessor(object):
 
             for fn in file_list:
                 curr_mov = tf.imread(os.path.join(data_folder, fn))
+                # print(curr_mov.shape)
                 curr_mov[curr_mov < low_thr] = low_thr
 
                 if len(curr_mov.shape) == 3:
@@ -1248,10 +1249,10 @@ class Preprocessor(object):
                         else:
                             curr_mov = curr_mov[0:useful_chunk*plane_num*len(channels), :, :]
 
-                for plane_i in range(plane_num):
-                    curr_movp = curr_mov[plane_i::plane_num]
-                    for ch_i, ch in enumerate(channels):
-                        curr_movpc = curr_movp[ch_i::len(channels)]
+                for ch_i, ch in enumerate(channels):
+                    curr_movc = curr_mov[ch_i::len(channels)]
+                    for plane_i in range(plane_num):
+                        curr_movpc = curr_movc[plane_i::plane_num]
                         if buff[plane_i][ch] is None:
                             buff[plane_i][ch] = curr_movpc
                         else:
