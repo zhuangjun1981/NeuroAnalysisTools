@@ -12,21 +12,19 @@ import scipy.sparse as sparse
 import scipy.interpolate as ip
 import matplotlib.pyplot as plt
 import tifffile as tf
-# from toolbox.misc import BinarySlicer
-# import allensdk_internal.brain_observatory.mask_set as mask_set
 from .core import ImageAnalysis as ia
 from .core import TimingAnalysis as ta
 from .core import PlottingTools as pt
 from .core import FileTools as ft
 from . import SingleCellAnalysis as sca
-# import corticalmapping.RetinotopicMapping as rm
+from .external.r_neuropil import NeuropilSubtract as NS
 
-try:
-    # from r_neuropil import NeuropilSubtract as NS
-    from allensdk.brain_observatory.r_neuropil import NeuropilSubtract as NS
-except Exception as e:
-    print('fail to import neural pil subtraction module ...')
-    print(e)
+# try:
+#     # from r_neuropil import NeuropilSubtract as NS
+#     from allensdk.brain_observatory.r_neuropil import NeuropilSubtract as NS
+# except Exception as e:
+#     print('fail to import neural pil subtraction module ...')
+#     print(e)
 
 
 def translateMovieByVasculature(mov, parameterPath, matchingDecimation=2, referenceDecimation=2, verbose=True):

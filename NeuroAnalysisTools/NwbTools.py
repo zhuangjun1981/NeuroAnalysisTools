@@ -10,7 +10,7 @@ from .core import TimingAnalysis as ta
 from .core import PlottingTools as pt
 from . import HighLevel as hl
 from . import CamstimTools as ct
-from .nwb.nwb import NWB as NWB
+from .external.nwb import NWB as NWB
 
 DEFAULT_GENERAL = {
     'session_id': '',
