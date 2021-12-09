@@ -1312,7 +1312,7 @@ class Preprocessor(object):
 
     @staticmethod
     def motion_correction(data_folder, reference_channel_name, apply_channel_names,
-                          process_num, reference_plane_name=None):
+                          process_num, max_offset=(50., 50.), reference_plane_name=None):
         """
 
         :param data_folder: str, path to the reorganized folder
@@ -1322,7 +1322,7 @@ class Preprocessor(object):
 
         print('\nMotion correction ...')
 
-        def correct(data_folder, ref_ch_n, apply_ch_ns, process_num):
+        def correct(data_folder, ref_ch_n, apply_ch_ns, process_num, max_offset=max_offset):
             # ref_ch_n = 'green'
             # apply_ch_ns = ['green', 'red']
 
@@ -1339,8 +1339,8 @@ class Preprocessor(object):
                                  anchor_frame_ind_projection=0,
                                  iteration_chunk=10,
                                  iteration_projection=10,
-                                 max_offset_chunk=(50., 50.),
-                                 max_offset_projection=(50., 50.),
+                                 max_offset_chunk=max_offset,
+                                 max_offset_projection=max_offset,
                                  align_func=mc.phase_correlation,
                                  preprocessing_type=6,
                                  fill_value=0.)
