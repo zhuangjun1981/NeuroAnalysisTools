@@ -1437,7 +1437,8 @@ class Preprocessor(object):
 
     @staticmethod
     def get_mean_projection_after_motion_correction(data_folder, save_folder, scope,
-                                                    save_prefix='', saturation_level=10.):
+                                                    save_prefix='', saturation_level=10.,
+                                                    ch_ns=None):
 
         print('Saving rotated max projection of imaging plane as png')
 
@@ -1447,7 +1448,9 @@ class Preprocessor(object):
 
         for plane_n in plane_ns:
             plane_folder = os.path.join(data_folder, plane_n)
-            ch_ns = [c for c in os.listdir(plane_folder) if os.path.isdir(os.path.join(plane_folder, c))]
+
+            if ch_ns is None:
+                ch_ns = [c for c in os.listdir(plane_folder) if os.path.isdir(os.path.join(plane_folder, c))]
             ch_ns.sort()
 
             for ch_n in ch_ns:
