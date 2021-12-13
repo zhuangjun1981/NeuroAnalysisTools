@@ -1974,7 +1974,10 @@ class Preprocessor(object):
         nwb_f.close()
         print('\tDone.')
 
-    def add_sync_data_to_nwb(self, nwb_folder, sync_identifier):
+    def add_sync_data_to_nwb(self, nwb_folder, sync_identifier,
+                             analog_downsample_rate=None,
+                             by_label=True, digital_labels=None,
+                             analog_labels=None):
 
         print('\nAdding sync data to .nwb file.')
         nwb_path = self.get_nwb_path(nwb_folder)
@@ -1988,7 +1991,9 @@ class Preprocessor(object):
             sync_fn = sync_fn[0]
 
         nwb_f = nt.RecordedFile(nwb_path)
-        nwb_f.add_sync_data(sync_fn)
+        nwb_f.add_sync_data(sync_fn, analog_downsample_rate=analog_downsample_rate,
+                            by_label=by_label, digital_labels=digital_labels,
+                            analog_labels=analog_labels)
         nwb_f.close()
 
         print('\tDone.')
