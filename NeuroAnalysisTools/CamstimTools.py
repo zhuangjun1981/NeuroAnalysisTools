@@ -142,7 +142,7 @@ def get_stim_dict_drifting_grating(input_dict, stim_name):
     stim_dict['stim_name'] = stim_name
     stim_dict['sweeps'] = sweeps
     stim_dict['sweep_onset_frames'] = sweep_onset_frames
-    stim_dict['data_formatting'] = ['contrast', 'temporal_frequency', 'spatial_frequency', 'direction', 'is_blank']
+    stim_dict['data_formatting'] = [b'contrast', b'temporal_frequency', b'spatial_frequency', b'direction', b'is_blank']
     stim_dict['iterations'] = input_dict[b'runs']
     stim_dict['temporal_frequency_list'] = input_dict[b'sweep_params'][b'TF'][0]
     stim_dict['spatial_frequency_list'] = input_dict[b'sweep_params'][b'SF'][0]
