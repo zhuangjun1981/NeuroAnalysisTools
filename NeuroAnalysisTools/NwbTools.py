@@ -135,6 +135,19 @@ def plot_waveforms(waveforms, ch_locations=None, stds=None, waveforms_filtered=N
     return f
 
 
+def get_sta(arr, arr_ts, trigger_ts, frame_start, frame_end):
+
+        sta_arr = []
+
+        for trig in trigger_ts:
+            trig_ind = ta.find_nearest(arr_ts, trig)
+            curr_sta = arr[:, (trig_ind + frame_start) : (trig_ind + frame_end)]
+            sta_arr.append(curr_sta.reshape((curr_sta.shape[0], 1, curr_sta.shape[1])))
+
+        sta_arr = np.concatenate(sta_arr, axis=1)
+        return sta_arr
+
+
 class RecordedFile(NWB):
     """
     Jun's wrapper of nwb file. Designed for LGN-ephys/V1-ophys dual recording experiments. Should be able to save
@@ -1119,7 +1132,7 @@ class RecordedFile(NWB):
                                                                     allowed_jitter=allowed_jitter)
 
         frame_ts = self.create_timeseries('TimeSeries', 'FrameTimestamps', modality='other')
-        frame_ts.set_time(ts_display_rise)
+        frame_ts.set_time(ts_display_real)
         frame_ts.set_data([], unit='', conversion=np.nan, resolution=np.nan)
         frame_ts.set_description('onset timestamps of each display frames after correction for display lag. '
                                  'Used NeuroAnalysisTools.HighLevel.align_visual_display_time() function to '
@@ -1326,29 +1339,66 @@ class RecordedFile(NWB):
                             pd_onset_ts_sec.append(vsync_stim_ts[gfi])
                     pd_onset_grp['pd_onset_ts_sec'] = pd_onset_ts_sec
 
+    def add_photodiode_onsets_grating_camstim(self, stim_name):
+        """
+        CAUTION: this is only for camstim sessions
+        CAUTION: this assumes the nwb file has only one stimulus type
+        """
 
-    def get_drifting_grating_response_table_retinotopic_mapping(self, stim_name, time_window=(-1, 2.5)):
+        def get_grating_name(arr):
+            """
+            :param arr: array of grating condition
+                        contrast, TF, SF, direction, is_blank
+            :return: str, standard grating name
+            """
+            if arr[-1] == 1:
+                return 'alt9999.9_azi9999.9_sf0.00_tf00.0_dire000_con0.00_rad000'
+            else:
+                return f'alt9999.9_azi9999.9_sf{arr[2]:4.2f}_tf{arr[1]:04.1f}_' \
+                       f'dire{int(arr[3]):03d}_con{arr[0]:4.2f}_rad000'
 
-        def get_sta(arr, arr_ts, trigger_ts, frame_start, frame_end):
+        frame_ts = self.file_pointer['processing/visual_display/' \
+                                     'FrameTimestamps/timestamps'][()]
 
-            sta_arr = []
+        stim_grp = self.file_pointer[f'stimulus/presentation/{stim_name}']
+        grating_frame_ind = stim_grp['timestamps'][()].astype(np.uint64)
+        stim_ns = [get_grating_name(a) for a in stim_grp['data']]
+        stim_ns_u = list(set(stim_ns))
+        stim_ns_u.sort()
+        # print('\n'.join(stim_ns_u))
+        stim_ns = np.array(stim_ns)
 
-            for trig in trigger_ts:
-                trig_ind = ta.find_nearest(arr_ts, trig)
+        onset_grp = self.file_pointer.create_group('analysis/stim_onsets')
+        onset_grp = onset_grp.create_group(stim_name)
 
-                if trig_ind + frame_end < arr.shape[1]:
-                    curr_sta = arr[:, (trig_ind + frame_start): (trig_ind + frame_end)]
-                    # print(curr_sta.shape)
-                    sta_arr.append(curr_sta.reshape((curr_sta.shape[0], 1, curr_sta.shape[1])))
+        for stim_n in stim_ns_u:
+            grating_ind = np.where(stim_ns==stim_n)[0]
+            frame_ind = grating_frame_ind[grating_ind]
+            ts = frame_ts[frame_ind]
 
-            sta_arr = np.concatenate(sta_arr, axis=1)
-            return sta_arr
+            grating_grp = onset_grp.create_group(stim_n)
+            grating_grp.create_dataset('global_frame_ind', data=frame_ind)
+            grating_grp.create_dataset('condition_ind', data=grating_ind)
+            grating_grp.create_dataset('condition_onset_ts_sec', data=ts)
+
+    def get_drifting_grating_response_table_retinotopic_mapping(self, stim_name, time_window=(-1, 2.5),
+                                                                plane_ns=None):
 
         if time_window[0] >= time_window[1]:
             raise ValueError('time window should be from early time to late time.')
 
-        grating_onsets_path = 'analysis/photodiode_onsets/{}'.format(stim_name)
-        grating_ns = list(self.file_pointer[grating_onsets_path].keys())
+        if plane_ns is None:
+            probe_onsets_path = 'processing/motion_correction/MotionCorrection'
+            probe_ns = list(self.file_pointer[probe_onsets_path].keys())
+            probe_ns.sort()
+            # print('\n'.join(probe_ns))
+
+        try:
+            grating_onsets_path = 'analysis/photodiode_onsets/{}'.format(stim_name)
+            grating_ns = list(self.file_pointer[grating_onsets_path].keys())
+        except Exception:
+            grating_onsets_path = 'analysis/stim_onsets/{}'.format(stim_name)
+            grating_ns = list(self.file_pointer[grating_onsets_path].keys())
         grating_ns.sort()
         # print('\n'.join(grating_ns))
 
@@ -1399,7 +1449,10 @@ class RecordedFile(NWB):
 
                 curr_grating_grp = res_grp_plane.create_group(grating_n)
 
-                grating_onsets = onsets_grating_grp['pd_onset_ts_sec'][()]
+                try:
+                    grating_onsets = onsets_grating_grp['pd_onset_ts_sec'][()]
+                except Exception:
+                    grating_onsets = onsets_grating_grp['condition_onset_ts_sec'][()]
 
                 curr_grating_grp.attrs['global_trigger_timestamps'] = grating_onsets
                 curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
@@ -1410,30 +1463,16 @@ class RecordedFile(NWB):
                     curr_grating_grp.create_dataset('sta_' + trace_n, data=sta, compression='lzf')
 
     def get_spatial_temporal_receptive_field_retinotopic_mapping(self, stim_name, time_window=(-0.5, 2.),
-                                                                 verbose=True):
-
-        def get_sta(arr, arr_ts, trigger_ts, frame_start, frame_end):
-
-            sta_arr = []
-
-            for trig in trigger_ts:
-                trig_ind = ta.find_nearest(arr_ts, trig)
-
-                if trig_ind + frame_end < arr.shape[1]:
-                    curr_sta = arr[:, (trig_ind + frame_start): (trig_ind + frame_end)]
-                    # print(curr_sta.shape)
-                    sta_arr.append(curr_sta.reshape((curr_sta.shape[0], 1, curr_sta.shape[1])))
-
-            sta_arr = np.concatenate(sta_arr, axis=1)
-            return sta_arr
+                                                                 verbose=True, plane_ns=None):
 
         if time_window[0] >= time_window[1]:
             raise ValueError('time window should be from early time to late time.')
 
-        probe_onsets_path = 'analysis/photodiode_onsets/{}'.format(stim_name)
-        probe_ns = list(self.file_pointer[probe_onsets_path].keys())
-        probe_ns.sort()
-        # print('\n'.join(probe_ns))
+        if plane_ns is None:
+            probe_onsets_path = 'processing/motion_correction/MotionCorrection'
+            probe_ns = list(self.file_pointer[probe_onsets_path].keys())
+            probe_ns.sort()
+            # print('\n'.join(probe_ns))
 
         rois_and_traces_names = self.file_pointer['processing'].keys()
         rois_and_traces_names = [n for n in rois_and_traces_names if n[0:15] == 'rois_and_traces']

@@ -26,6 +26,7 @@ import NeuroAnalysisTools.DisplayLogTools as dlt
 import NeuroAnalysisTools.DatabaseTools as dt
 import NeuroAnalysisTools.SingleCellAnalysis as sca
 import NeuroAnalysisTools.CamstimTools as ct
+import NeuroAnalysisTools.Suite2pTools as st
 
 
 def get_traces(params):
@@ -2601,17 +2602,22 @@ class Preprocessor(object):
         print('\tDone.')
 
     def add_response_tables(self, nwb_folder, strf_response_window, dgc_response_window,
-                            lsn_stim_name, dgc_stim_name):
+                            lsn_stim_name, dgc_stim_name, plane_ns=None):
 
         print('\nAdding response tables.')
 
         nwb_path = self.get_nwb_path(nwb_folder=nwb_folder)
         nwb_f = nt.RecordedFile(nwb_path)
 
-        nwb_f.get_drifting_grating_response_table_retinotopic_mapping(stim_name=dgc_stim_name,
-                                                                      time_window=dgc_response_window)
-        nwb_f.get_spatial_temporal_receptive_field_retinotopic_mapping(stim_name=lsn_stim_name,
-                                                                       time_window=strf_response_window)
+        if (dgc_response_window is not None) and (dgc_stim_name is not None):
+            nwb_f.get_drifting_grating_response_table_retinotopic_mapping(stim_name=dgc_stim_name,
+                                                                          time_window=dgc_response_window,
+                                                                          plane_ns=plane_ns)
+
+        if (strf_response_window is not None) and (lsn_stim_name is not None):
+            nwb_f.get_spatial_temporal_receptive_field_retinotopic_mapping(stim_name=lsn_stim_name,
+                                                                           time_window=strf_response_window,
+                                                                           plane_ns=plane_ns)
         nwb_f.close()
 
         print('\tDone.')
@@ -3387,6 +3393,13 @@ class Preprocessor(object):
         nwb_f.close()
         print('\nNone')
 
+    def get_grating_onsets_camstim(self, nwb_folder, stim_name='000_DriftingGratingCamStim'):
+
+        nwb_fn = self.get_nwb_path(nwb_folder)
+        nwb_f = nt.RecordedFile(nwb_fn)
+        nwb_f.add_photodiode_onsets_grating_camstim(stim_name=stim_name)
+        nwb_f.close()
+
 
 class PlaneProcessor(object):
     """
@@ -3502,6 +3515,51 @@ class PlaneProcessor(object):
             i += 1
 
         cell_file.close()
+
+    @staticmethod
+    def get_rois_and_traces_from_suite2p(data_folder, save_folder, lam):
+
+        traces, traces_neu, iscell, ops, spks, stat = st.load_data(data_folder)
+
+        masks_center = []
+        traces_center = []
+        masks_surround = []
+        traces_surround = []
+        rs = []
+        errs = []
+        traces_center_subtracted = []
+
+        for roi_ind, roi_dict in enumerate(stat):
+
+            if iscell[roi_ind][0]:
+
+                # calculate neuropil subtraction
+                trace_c = traces[roi_ind, :]
+                trace_s = traces_neu[roi_ind, :]
+                traces_center.append(trace_c)
+                traces_surround.append(trace_s)
+
+
+                r, err, trace_sub = hl.neural_pil_subtraction(trace_c, trace_s, lam=lam)
+                rs.append(r)
+                errs.append(err)
+                traces_center_subtracted.append(trace_sub)
+
+                mask, mask_neu = st.get_masks_from_dict(roi_dict, ops['Ly'], ops['Lx'])
+                masks_center.append(mask)
+                masks_surround.append(mask_neu)
+
+        ff = h5py.File(os.path.join(save_folder, 'rois_and_traces.hdf5'), 'a')
+        ff.create_dataset('masks_center', data=np.array(masks_center))
+        ff.create_dataset('masks_surround', data=np.array(masks_surround))
+        ff.create_dataset('neuropil_err', data=np.array(errs))
+        ff.create_dataset('neuropil_r', data=np.array(rs))
+        ff.create_dataset('traces_center_raw', data=np.array(traces_center))
+        ff.create_dataset('traces_center_subtracted', data=np.array(traces_center_subtracted))
+        ff.create_dataset('traces_surround_raw', data=np.array(traces_surround))
+
+        ff.close()
+
 
     @staticmethod
     def filter_rois(plane_folder, margin_pix_num, area_range, overlap_thr,
@@ -3946,16 +4004,13 @@ class PlaneProcessor(object):
         print('\nGenerating labeled movie ...')
 
         print('\tgetting total mask ...')
-        roi_f = h5py.File(os.path.join(plane_folder, 'rois_refined.hdf5'), 'r')
-        h, w = roi_f['roi0000']['roi'].attrs['dimension']
-        total_mask = np.zeros((h, w), dtype=np.uint8)
-        for roi_n, roi_grp in roi_f.items():
-            curr_roi = ia.WeightedROI.from_h5_group(roi_grp['roi'])
-            curr_mask = curr_roi.get_binary_mask()
-            total_mask = np.logical_or(total_mask, curr_mask)
+        roi_f = h5py.File(os.path.join(plane_folder, 'rois_and_traces.hdf5'), 'r')
+        h = roi_f['masks_center'].shape[1]
+        w = roi_f['masks_center'].shape[2]
+        total_mask = np.sum(roi_f['masks_center'], axis=0)
+        total_mask = total_mask > 0
         roi_f.close()
         total_mask = ni.binary_dilation(total_mask, iterations=1)
-
 
         nwb_path = self.get_nwb_path(plane_folder=plane_folder)
 

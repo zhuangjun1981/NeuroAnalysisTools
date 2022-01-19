@@ -1296,78 +1296,79 @@ def generate_strf_from_continuous(continuous, continuous_ts, squares_ts_grp, roi
     return sca.SpatialTemporalReceptiveField(locations, signs, traces, t, name=roi_n, trace_data_type='df/f')
 
 
-def get_drifting_grating_response_nwb(nwb_path, plane_ns, grating_onsets_path, time_window):
-    """
-    extract and response table for drifting_gratings from a nwb file. The response table will be saved in the /analysis
-    group.
-
-    :param nwb_path: str, path to the nwb file
-    :param plane_ns: list of strings, plane names for multi-plane imaging
-    :param grating_onsets_path: str, hdf5 group path to the grating_onset timestamps
-    :param time_window: tuple/list of two floats, start and end time relative to grating onset
-    :return: None
-    """
-
-    def get_sta(arr, arr_ts, trigger_ts, frame_start, frame_end):
-
-        sta_arr = []
-
-        for trig in trigger_ts:
-            trig_ind = ta.find_nearest(arr_ts, trig)
-            curr_sta = arr[:, (trig_ind + frame_start) : (trig_ind + frame_end)]
-            sta_arr.append(curr_sta.reshape((curr_sta.shape[0], 1, curr_sta.shape[1])))
-
-        sta_arr = np.concatenate(sta_arr, axis=1)
-        return sta_arr
-
-
-    if time_window[0] >= time_window[1]:
-        raise ValueError('time window should be from early time to late time.')
-
-    nwb_f = h5py.File(nwb_path)
-
-    res_grp = nwb_f['analysis'].create_group('response_table_drifting_grating')
-
-
-    grating_ns = nwb_f[grating_onsets_path].keys()
-    grating_ns.sort()
-
-    for plane_n in plane_ns:
-        print(plane_n)
-
-        res_grp_plane = res_grp.create_group(plane_n)
-
-        trace_ts = nwb_f['processing/motion_correction/MotionCorrection/' + plane_n + '/corrected/timestamps']
-
-        traces = {}
-        traces['global_dff_center'] = nwb_f['processing/rois_and_traces_' + plane_n + '/DfOverF/dff_center/data'].value
-        traces['f_center_demixed'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_demixed/data'].value
-        traces['f_center_raw'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_raw/data'].value
-        traces['f_center_subtracted'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_subtracted/data'].value
-        traces['f_surround_raw'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_surround_raw/data'].value
-
-        frame_dur = np.mean(np.diff(trace_ts))
-        frame_start = int(time_window[0] // frame_dur)
-        frame_end = int(time_window[1] // frame_dur)
-        t_axis = np.arange(frame_end - frame_start) * frame_dur + time_window[0]
-
-        res_grp_plane.attrs['sta_timestamps'] = t_axis
-
-        for grating_n in grating_ns:
-
-            onsets_grating_grp = nwb_f[grating_onsets_path + '/' + grating_n]
-
-            curr_grating_grp = res_grp_plane.create_group(grating_n)
-            for key, value in onsets_grating_grp.items():
-                if key not in ['data', 'num_samples', 'timestamps']:
-                    curr_grating_grp.attrs[key] = value.value
-            curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
-
-            grating_onsets = onsets_grating_grp['timestamps'].value
-            for trace_n, trace in traces.items():
-                sta = get_sta(arr=trace, arr_ts=trace_ts, trigger_ts=grating_onsets, frame_start=frame_start,
-                              frame_end=frame_end)
-                curr_grating_grp.create_dataset('sta_' + trace_n, data=sta)
+# obsolete
+# def get_drifting_grating_response_nwb(nwb_path, plane_ns, grating_onsets_path, time_window):
+#     """
+#     extract and response table for drifting_gratings from a nwb file. The response table will be saved in the /analysis
+#     group.
+#
+#     :param nwb_path: str, path to the nwb file
+#     :param plane_ns: list of strings, plane names for multi-plane imaging
+#     :param grating_onsets_path: str, hdf5 group path to the grating_onset timestamps
+#     :param time_window: tuple/list of two floats, start and end time relative to grating onset
+#     :return: None
+#     """
+#
+#     def get_sta(arr, arr_ts, trigger_ts, frame_start, frame_end):
+#
+#         sta_arr = []
+#
+#         for trig in trigger_ts:
+#             trig_ind = ta.find_nearest(arr_ts, trig)
+#             curr_sta = arr[:, (trig_ind + frame_start) : (trig_ind + frame_end)]
+#             sta_arr.append(curr_sta.reshape((curr_sta.shape[0], 1, curr_sta.shape[1])))
+#
+#         sta_arr = np.concatenate(sta_arr, axis=1)
+#         return sta_arr
+#
+#
+#     if time_window[0] >= time_window[1]:
+#         raise ValueError('time window should be from early time to late time.')
+#
+#     nwb_f = h5py.File(nwb_path)
+#
+#     res_grp = nwb_f['analysis'].create_group('response_table_drifting_grating')
+#
+#
+#     grating_ns = nwb_f[grating_onsets_path].keys()
+#     grating_ns.sort()
+#
+#     for plane_n in plane_ns:
+#         print(plane_n)
+#
+#         res_grp_plane = res_grp.create_group(plane_n)
+#
+#         trace_ts = nwb_f['processing/motion_correction/MotionCorrection/' + plane_n + '/corrected/timestamps']
+#
+#         traces = {}
+#         traces['global_dff_center'] = nwb_f['processing/rois_and_traces_' + plane_n + '/DfOverF/dff_center/data'].value
+#         traces['f_center_demixed'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_demixed/data'].value
+#         traces['f_center_raw'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_raw/data'].value
+#         traces['f_center_subtracted'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_center_subtracted/data'].value
+#         traces['f_surround_raw'] = nwb_f['processing/rois_and_traces_' + plane_n + '/Fluorescence/f_surround_raw/data'].value
+#
+#         frame_dur = np.mean(np.diff(trace_ts))
+#         frame_start = int(time_window[0] // frame_dur)
+#         frame_end = int(time_window[1] // frame_dur)
+#         t_axis = np.arange(frame_end - frame_start) * frame_dur + time_window[0]
+#
+#         res_grp_plane.attrs['sta_timestamps'] = t_axis
+#
+#         for grating_n in grating_ns:
+#
+#             onsets_grating_grp = nwb_f[grating_onsets_path + '/' + grating_n]
+#
+#             curr_grating_grp = res_grp_plane.create_group(grating_n)
+#             for key, value in onsets_grating_grp.items():
+#                 if key not in ['data', 'num_samples', 'timestamps']:
+#                     curr_grating_grp.attrs[key] = value.value
+#             curr_grating_grp.attrs['sta_traces_dimenstion'] = 'roi x trial x timepoint'
+#
+#             grating_onsets = onsets_grating_grp['timestamps'].value
+#             for trace_n, trace in traces.items():
+#                 sta = get_sta(arr=trace, arr_ts=trace_ts, trigger_ts=grating_onsets, frame_start=frame_start,
+#                               frame_end=frame_end)
+#                 curr_grating_grp.create_dataset('sta_' + trace_n, data=sta)
 
 
 def plot_roi_traces_three_planes(nwb_f, roi0=None, roi1=None, roi2=None, trace_type='f_center_raw'):
