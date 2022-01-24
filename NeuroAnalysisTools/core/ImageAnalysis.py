@@ -7,6 +7,7 @@ import numpy as np
 from scipy import interpolate
 import scipy.ndimage as ni
 import scipy.stats as stats
+import scipy.spatial as spatial
 import skimage.morphology as sm
 import skimage.measure as measure
 import time
@@ -1536,6 +1537,60 @@ def fit_ellipse(mask):
     return ell
 
 
+def get_voronoi_entropy(voronoi):
+    """
+    for a voronoi tessellation, calculate the voronoi
+    defined by:
+    Bormashenko, et al. (2018). Characterization of Self-Assembled
+    2D Patterns with Voronoi Entropy. Entropy 20, 956.
+
+    entropy = -sum((Pn)*ln(Pn))
+    wher Pn is the fraction of polygons with n sides or edges
+    (also called the coordination number of the polygon).
+
+    perfectly regular tessellation will have entropy = 0.
+    larger entropy means more irregular tessellation.
+
+    :param voronoi: scipy.spatial.Voronoi object
+    :return entropy: float.
+    """
+
+    regions = voronoi.regions
+
+    # only take finite regions
+    regions = [r for r in regions if -1 not in r]
+    regions = [r for r in regions if len(r) >= 3]
+
+    # get ridge vertices that connect to far-side vertices
+    ver_far = []
+    for rid_ver in voronoi.ridge_vertices.copy():
+        if -1 in rid_ver:
+            rid_ver.sort()
+            ver_far.append(rid_ver[1])
+
+    ver_far = set(ver_far)
+    # print(ver_far)
+
+    # remove regions that have vertices that connect to far-side vertices
+    regions2 = []
+    for region in regions:
+        if len(ver_far & set(region)) == 0:
+            regions2.append(region)
+
+    # print(regions2)
+
+    sides = np.array([len(r) for r in regions2])
+
+    unique_sides = list(set(sides))
+
+    entropy = 0
+    for side in unique_sides:
+        pn = np.sum(sides == side) / len(sides)
+        entropy = entropy - pn * np.log(pn)
+
+    return entropy
+
+
 class ROI(object):
     '''
     class of binary ROI
@@ -2157,19 +2212,18 @@ if __name__ == '__main__':
     # ============================================================
 
     # ============================================================
-    mov = np.arange(27).reshape((3,3,3)).astype(np.float)
-    print(mov)
-    mask1 = np.array([[0.,0.,0.],[0.,3.,0.],[0.,0.,0.]])
-    roi1 = WeightedROI(mask1)
-    mask2 = np.array([[1,1,1],[1,0,1],[1,1,0]])
-    roi2 = ROI(mask2)
-    trace1 = roi1.get_weighted_trace(mov)
-    trace2 = roi2.get_binary_trace(mov)
-
-
-
-    print(trace1)
-    print(trace2)
+    # mov = np.arange(27).reshape((3,3,3)).astype(np.float)
+    # print(mov)
+    # mask1 = np.array([[0.,0.,0.],[0.,3.,0.],[0.,0.,0.]])
+    # roi1 = WeightedROI(mask1)
+    # mask2 = np.array([[1,1,1],[1,0,1],[1,1,0]])
+    # roi2 = ROI(mask2)
+    # trace1 = roi1.get_weighted_trace(mov)
+    # trace2 = roi2.get_binary_trace(mov)
+    #
+    # print(trace1)
+    # print(trace2)
+    # ============================================================
 
 
     print('for debug')

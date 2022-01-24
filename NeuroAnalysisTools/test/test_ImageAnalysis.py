@@ -136,3 +136,68 @@ class TestImageAnalysis(unittest.TestCase):
         # ax.imshow(mask, interpolation='nearest')
         # plt.show()
 
+    def test_get_voronoi_entropy(self):
+
+        # square grid
+        points = np.array([[[a, b] for a in range(10)] for b in range(10)])
+        points = np.concatenate(points, axis=0)
+
+        # import matplotlib.pyplot as plt
+        # plt.scatter(points[:, 0], points[:, 1])
+        # plt.show()
+
+        import scipy.spatial as spatial
+        vor = spatial.Voronoi(points=points)
+
+        ent = ia.get_voronoi_entropy(voronoi=vor)
+        assert( ent == 0)
+
+
+        # hex grid
+        def get_hex_grid(grid_size=8,
+                         canvas_size=100,
+                         margin=5):
+
+            ys = np.arange(0, canvas_size, grid_size * np.sqrt(3) / 2)
+
+            ps = []
+            for yi, y in enumerate(ys):
+                if yi % 2 == 0:  # even lines
+                    xs = np.arange(0, canvas_size + grid_size, grid_size)
+                    for x in xs:
+                        ps.append((x, y))
+                else:  # odd lines
+                    xs = np.arange(grid_size / 2, canvas_size + grid_size, grid_size)
+                    for x in xs:
+                        ps.append((x, y))
+
+            # print(ps)
+
+            # remove points on the edge
+            pss = []
+            for p in ps:
+                if margin <= p[0] <= canvas_size - margin and \
+                        margin <= p[1] <= canvas_size - margin:
+                    pss.append(p)
+
+            pss = np.array(pss)
+
+            return pss
+        pss = get_hex_grid(canvas_size=100)
+
+
+
+        vor2 = spatial.Voronoi(points=pss)
+
+        # import matplotlib.pyplot as plt
+        # f, ax = plt.subplots()
+        # ax.plot(pss[:, 0], pss[:, 1], 'o')
+        # ax.plot(vor2.vertices[:, 0], vor2.vertices[:, 1], '*')
+        # ax.set_aspect('equal')
+        # plt.show()
+
+        ent2 = ia.get_voronoi_entropy(voronoi=vor2)
+        assert (ent2 == 0)
+
+
+
