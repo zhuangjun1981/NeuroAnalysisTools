@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import scipy.ndimage as ni
 
 def load_data(plane_folder):
     traces = np.load(os.path.join(plane_folder, 'F.npy'))
@@ -19,10 +20,17 @@ def get_masks_from_dict(roi_dict, ly, lx):
     mask = np.zeros((ly, lx))
     mask[ypix, xpix] = weight
 
-    mask_neuropil = np.zeros((ly, lx))
-    ypix_neuropil = roi_dict['neuropil_mask'] // ly
-    xpix_neuropil = roi_dict['neuropil_mask'] % ly
-    mask_neuropil[ypix_neuropil, xpix_neuropil] = 1
+
+    if 'neuropil_mask' in roi_dict.keys():
+        mask_neuropil = np.zeros((ly, lx))
+        ypix_neuropil = roi_dict['neuropil_mask'] // ly
+        xpix_neuropil = roi_dict['neuropil_mask'] % ly
+        mask_neuropil[ypix_neuropil, xpix_neuropil] = 1
+    else:
+        mask_binary = np.zeros((ly, lx))
+        mask_binary[ypix, xpix] = 1
+        mask_neuropil = np.logical_xor(ni.binary_dilation(mask_binary, iterations=1),
+                                       ni.binary_dilation(mask_binary, iterations=8))
 
     return mask, mask_neuropil
 
