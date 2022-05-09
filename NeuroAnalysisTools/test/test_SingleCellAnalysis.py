@@ -153,8 +153,9 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
         # print(STRF.get_zscore_roi_centers(timeWindow=[0, 0.5], zscoreThr=2)[0][0])
         # print(STRF.get_zscore_roi_centers(timeWindow=[0, 0.5], zscoreThr=2)[0][1])
-        assert (STRF.get_zscore_roi_centers()[1][1] == 45.)
-        assert (STRF.get_zscore_roi_centers()[1][0] == -30.)
+
+        assert (np.isclose(STRF.get_zscore_roi_centers()[1][1], -2.177604795014662))
+        assert (np.isclose(STRF.get_zscore_roi_centers()[1][0], 24.12301689611867))
 
     def test_SpatialTemporalReceptiveField_getAmplitudeReceptiveField(self):
         f = h5py.File(self.STRFDataPath, 'r')
@@ -229,6 +230,7 @@ class TestSingleCellAnalysis(unittest.TestCase):
         dire_tuning['dire'] = dires
         dire_tuning['resp_mean'] = resps
         # print(dire_tuning)
+        dire_tuning = sca.DirectionTuning(data=dire_tuning)
 
         OSI_raw, DSI_raw, gOSI_raw, gDSI_raw, OSI_ele, DSI_ele, gOSI_ele, \
         gDSI_ele, OSI_rec, DSI_rec, gOSI_rec, gDSI_rec, peak_dire_raw, vs_dire_raw, \
@@ -270,9 +272,8 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
         OSI_raw, DSI_raw, gOSI_raw, gDSI_raw, OSI_ele, DSI_ele, gOSI_ele, \
         gDSI_ele, OSI_rec, DSI_rec, gOSI_rec, gDSI_rec, peak_dire_raw, vs_dire_raw, \
-        vs_dire_ele, vs_dire_rec = sca.DriftingGratingResponseTable.get_dire_tuning_properties(dire_tuning=dire_tuning,
-                                                                                               response_dir='pos',
-                                                                                               elevation_bias=0.)
+        vs_dire_ele, vs_dire_rec = sca.DriftingGratingResponseTable.get_dire_tuning_properties(
+            dire_tuning=dire_tuning, response_dir='pos', elevation_bias=None)
 
         # print('\nOSI_raw: {}'.format(OSI_raw))
         # print('DSI_raw: {}'.format(DSI_raw))
@@ -291,17 +292,19 @@ class TestSingleCellAnalysis(unittest.TestCase):
         # print('\nvs_dire_ele: {}'.format(vs_dire_ele))
         # print('\nvs_dire_rec: {}'.format(vs_dire_rec))
 
-        assert (OSI_raw == OSI_rec)
-        assert(abs(OSI_raw - 1. / 3.) < 1e-10)
-        assert (DSI_raw == 3.0)
-        assert (DSI_ele == DSI_rec == 1.0)
-        assert (OSI_ele == 0.2)
-        assert (abs(gOSI_raw - 1. / 7.) < 1e-10)
-        assert (abs(gDSI_raw - 3. / 7.) < 1e-10)
-        assert (abs(gOSI_ele - 1. / 15.) < 1e-10)
-        assert (abs(gDSI_ele - 3. / 15.) < 1e-10)
-        assert (gOSI_rec == 0.)
-        assert (abs(gDSI_rec -2. / 8.) < 1e-10)
+        assert (np.isclose(OSI_raw, OSI_rec, 1e-10))
+        assert (np.isclose(OSI_raw, 1. / 3.,  1e-10))
+        assert (np.isclose(DSI_raw, 3.0, 1e-10))
+        assert (np.isclose(DSI_ele, DSI_rec, 1e-10))
+        assert (np.isclose(DSI_ele, 1., 1e-10))
+        assert (np.isclose(DSI_rec, 1., 1e-10))
+        assert (np.isclose(OSI_ele, 0.2, 1e-10))
+        assert (np.isclose(gOSI_raw, 1. / 7., 1e-10))
+        assert (np.isclose(gDSI_raw, 3. / 7., 1e-10))
+        assert (np.isclose(gOSI_ele, 1. / 15., 1e-10))
+        assert (np.isclose(gDSI_ele, 3. / 15., 1e-10))
+        assert (np.isclose(gOSI_rec, 0., 1e-10))
+        assert (np.isclose(gDSI_rec, 2. / 8., 1e-10))
 
         assert (peak_dire_raw == int(vs_dire_raw) == int(vs_dire_ele) == int(vs_dire_rec) == 90)
 
@@ -393,6 +396,17 @@ class TestSingleCellAnalysis(unittest.TestCase):
 
         dfe = dt.elevate(bias=5)
         print(dfe.trace_type)
+
+    def test_DirectionTuning_curve_fitting(self):
+
+        r0  = 5.
+        a1 = 10.
+        a2 = 20.
+        k = 2.
+        peak = 90. * np.pi / 180.
+
+        print(np.arccos(np.log(0.5) / k + 1))
+
 
 
 if __name__ == '__main__':

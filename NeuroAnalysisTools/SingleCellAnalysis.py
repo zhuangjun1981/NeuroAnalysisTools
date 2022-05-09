@@ -2670,9 +2670,9 @@ class DriftingGratingResponseTable(DataFrame):
             gOSI_ele = dte.get_gosi()
             gOSI_rec = dtr.get_gosi()
 
-            vs_dire_raw, gDSI_raw = dt.get_gdsi()
-            vs_dire_ele, gDSI_ele = dte.get_gdsi()
-            vs_dire_rec, gDSI_rec = dtr.get_gdsi()
+            vs_dire_raw, gDSI_raw = dt.get_vector_sum()
+            vs_dire_ele, gDSI_ele = dte.get_vector_sum()
+            vs_dire_rec, gDSI_rec = dtr.get_vector_sum()
 
             return OSI_raw, DSI_raw, gOSI_raw, gDSI_raw, OSI_ele, DSI_ele, gOSI_ele, gDSI_ele, OSI_rec, DSI_rec, \
                    gOSI_rec, gDSI_rec, peak_dire_raw, vs_dire_raw, vs_dire_ele, vs_dire_rec
@@ -3223,6 +3223,14 @@ class DirectionTuning(DataFrame):
 
     def elevate(self, bias):
         dfe = self.copy()
+
+        if bias is None:
+            if np.min(dfe['resp_mean']) < 0.:
+                bias = -np.min(dfe['resp_mean'])
+            else:
+                bias = 0.
+        else:
+            bias = 0.
         dfe['resp_mean'] = dfe['resp_mean'] + bias
         return DirectionTuning(data=dfe, trace_type=self.trace_type)
 
