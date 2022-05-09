@@ -204,8 +204,8 @@ class TestSingleCellAnalysis(unittest.TestCase):
                                                  time=time)
 
         strf.plot_traces(figSize=(5, 5), yRange=[-1, 3])
-        import matplotlib.pyplot as plt
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.show()
 
     def test_SpatialReceptiveField(self):
         SRF = sca.SpatialReceptiveField(np.arange(9).reshape((3, 3)), np.arange(3), np.arange(3))
@@ -388,25 +388,74 @@ class TestSingleCellAnalysis(unittest.TestCase):
         # print('dire' in dt.columns)
         dt = sca.DirectionTuning(data=dt)
 
-        print(dt)
+        # print(dt)
 
         assert(dt.get_opposite_ind() == 1)
         assert(dt.get_opposite_ind(dire=30) == 7)
         assert(dt.get_opposite_ind(dire=225) == 1)
 
         dfe = dt.elevate(bias=5)
-        print(dfe.trace_type)
+        # print(dfe.trace_type)
 
     def test_DirectionTuning_curve_fitting(self):
 
+        # setup parameters
         r0  = 5.
-        a1 = 10.
-        a2 = 20.
+        a1 = 20.
+        a2 = 0
         k = 2.
-        peak = 90. * np.pi / 180.
+        peak_dire = 90.
 
-        print(np.arccos(np.log(0.5) / k + 1))
+        # get the curve
+        degs = np.arange(0, 361, 1)
+        curve = sca.two_peak_von_mises(
+            x=degs, r0=r0, a1=a1, a2=a2, k=k, peak_dire=peak_dire
+        )
 
+        # sparse sampling of the curve
+        degs_d = degs[::30][:-1]
+        curve_d = curve[::30][:-1]
+        # # adding some noise
+        # curve_d = curve_d + np.random.normal(loc=0., scale=0.5, size=curve_d.shape)
+
+        # generate tuning curve object
+        dt = pd.DataFrame()
+        dt['dire'] = degs_d
+        dt['resp_mean'] = curve_d
+        dt = sca.DirectionTuning(data=dt)
+
+        # curve fitting
+        r0_f, a1_f, a2_f, k_f, peak_dire_f, R2, fwhh_f = dt.fit_two_peak_von_mises()
+        curve_f = sca.two_peak_von_mises(
+            x=degs, r0=r0_f, a1=a1_f, a2=a2_f, k=k_f, peak_dire=peak_dire_f
+        )
+
+        # print(f'fitting R-squared: {R2}')
+        # print(f'fitting r0: {r0_f} vs. {r0}')
+        # print(f'fitting a1: {a1_f} vs. {a1}')
+        # print(f'fitting a2: {a2_f} vs. {a2}')
+        # print(f'fitting k: {k_f} vs. {k}')
+        # print(f'fitting peak_dire: {peak_dire_f} vs. {peak_dire}')
+        # fwhh = 2 * np.arccos(np.log(0.5) / k + 1) * 180 / np.pi
+        # print(f'fitting fwhh: {fwhh_f} vs. {fwhh}')
+        #
+        # #plotting
+        # import matplotlib.pyplot as plt
+        # f, ax = plt.subplots()
+        # ax.set_title(f'fitting R-squared: {R2:7.5f}, fwhh: {fwhh_f:5.2f} vs {fwhh:5.2f} deg')
+        # ax.plot(degs, curve, label='truth')
+        # # ax.axhline(y=r0 + a1 / 2, ls='--', c='k')
+        # ax.scatter(degs_d, curve_d, label='data')
+        # ax.plot(degs, curve_f, label='fit')
+        # ax.set_ylim([0, 30])
+        # ax.legend()
+        # plt.show()
+
+        assert (np.isclose(r0, r0_f, 1))
+        assert (np.isclose(a1, a1_f, 1))
+        assert (np.isclose(a2, a2_f, 1))
+        assert (np.isclose(k, k_f, 0.1))
+        assert (np.isclose(peak_dire, peak_dire_f, 1))
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ni
 import scipy.interpolate as ip
 import scipy.stats as stats
+import scipy.optimize as opt
 import math
 import h5py
 from pandas import DataFrame
@@ -378,6 +379,28 @@ def dire2ori(dire):
     orientation: horizontal 0 degree, increase counterclockwise
     """
     return (dire + 90) % 180
+
+
+def two_peak_von_mises(x, r0, a1, a2, k, peak_dire):
+    """
+    two peak von_mises function
+    for curve fitting
+
+    :param x: float or 1d array, input angle in degrees
+    :param r0: float, baseline
+    :param a1: float, amplitude of the first peak
+    :param a2: float, amplitude of the second peak
+    :param k: float, width factor
+    :param peak_dire: first peak angle in degree, the second peak is peak + 180
+                      note the first peak is not necessarily larger than the
+                      second peak
+    :return: float or 1d array, same shape as x
+    """
+
+    arc = x * np.pi / 180.
+
+    return r0 + a1 * np.exp(k * (np.cos(arc - (peak_dire * np.pi / 180)) - 1)) + \
+            a2 * np.exp(k * (np.cos(arc - (peak_dire * np.pi / 180 + 180)) - 1))
 
 
 class SpatialReceptiveField(ia.WeightedROI):
@@ -3367,6 +3390,63 @@ class DirectionTuning(DataFrame):
         ax.set_yticks([ymax])
 
         return ax, ymax
+
+    def fit_two_peak_von_mises(self):
+
+        # rectify direction tuning curve
+        dt = self.rectify(thr=0)
+
+        # set initial guesses
+        if np.min(dt['resp_mean']) < 0.:
+            r0i = 0
+        else:
+            r0i = np.min(dt['resp_mean'])
+
+        if dt.peak_dire < 180:
+            a1i = dt.peak_resp
+            peak_dire_i = dt.peak_dire
+            a2i = dt.get_opposite_resp()
+        else:
+            peak_dire_i = dt.peak_dire + 180
+            a1i = dt.get_opposite_resp()
+            a2i = dt.peak_resp
+
+        p0 = (r0i, a1i, a2i, 1, peak_dire_i)
+
+
+        params_f, pcov = opt.curve_fit(
+            f=two_peak_von_mises,
+            xdata=dt['dire'],
+            ydata=dt['resp_mean'],
+            bounds=((0, 0, 0, 0, 0),
+                    (np.inf, np.inf, np.inf, np.inf, 180.)),
+            p0=p0,
+        )
+
+        r0, a1, a2, k, peak_dire = params_f
+
+        if a1 >= a2:
+            peak_dire = peak_dire
+        else:
+            peak_dire = peak_dire + 180
+            a1, a2 = a2, a1
+
+        curve_f = two_peak_von_mises(
+            x=dt['dire'], r0=r0, a1=a1, a2=a2, k=k, peak_dire=peak_dire
+        )
+
+        # calculate variance
+        def var(x):
+            return np.sum(np.square(x - np.mean(x)))
+
+        var_all = var(dt['resp_mean'])
+        var_fit = var(curve_f)
+        # var_res = var(self['resp_mean'] - curve_f)
+        R2 = var_fit / var_all
+
+        fwhh = 2 * np.arccos(np.log(0.5) / k + 1) * 180 / np.pi
+
+        return r0, a1, a2, k, peak_dire, R2, fwhh
 
 
 if __name__ == '__main__':
