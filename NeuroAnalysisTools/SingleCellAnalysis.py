@@ -3402,34 +3402,22 @@ class DirectionTuning(DataFrame):
         else:
             r0i = np.min(dt['resp_mean'])
 
-        if dt.peak_dire < 180:
-            a1i = dt.peak_resp
-            peak_dire_i = dt.peak_dire
-            a2i = dt.get_opposite_resp()
-        else:
-            peak_dire_i = dt.peak_dire + 180
-            a1i = dt.get_opposite_resp()
-            a2i = dt.peak_resp
+        a1i = dt.peak_resp
+        peak_dire_i = dt.peak_dire
+        a2i = dt.get_opposite_resp()
 
         p0 = (r0i, a1i, a2i, 1, peak_dire_i)
-
 
         params_f, pcov = opt.curve_fit(
             f=two_peak_von_mises,
             xdata=dt['dire'],
             ydata=dt['resp_mean'],
             bounds=((0, 0, 0, 0, 0),
-                    (np.inf, np.inf, np.inf, np.inf, 180.)),
+                    (np.inf, np.inf, np.inf, np.inf, 360.)),
             p0=p0,
         )
 
         r0, a1, a2, k, peak_dire = params_f
-
-        if a1 >= a2:
-            peak_dire = peak_dire
-        else:
-            peak_dire = peak_dire + 180
-            a1, a2 = a2, a1
 
         curve_f = two_peak_von_mises(
             x=dt['dire'], r0=r0, a1=a1, a2=a2, k=k, peak_dire=peak_dire
@@ -3443,6 +3431,12 @@ class DirectionTuning(DataFrame):
         var_fit = var(curve_f)
         # var_res = var(self['resp_mean'] - curve_f)
         R2 = var_fit / var_all
+
+        if a1 >= a2:
+            peak_dire = peak_dire
+        else:
+            peak_dire = (peak_dire + 180) % 360
+            a1, a2 = a2, a1
 
         fwhh = 2 * np.arccos(np.log(0.5) / k + 1) * 180 / np.pi
 
