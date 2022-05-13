@@ -3423,7 +3423,7 @@ class DirectionTuning(DataFrame):
 
         except RuntimeError:
             print('Direction tuning curve fitting does not converge.')
-            r0, a1, a2, k, peak_dire = np.nan
+            r0 = a1 = a2 = k = peak_dire = np.nan
 
         curve_f = two_peak_von_mises(
             x=dt['dire'], r0=r0, a1=a1, a2=a2, k=k, peak_dire=peak_dire
