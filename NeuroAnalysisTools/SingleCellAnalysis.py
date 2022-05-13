@@ -3391,7 +3391,7 @@ class DirectionTuning(DataFrame):
 
         return ax, ymax
 
-    def fit_two_peak_von_mises(self):
+    def fit_two_peak_von_mises(self, maxfev=5000):
 
         # rectify direction tuning curve
         dt = self.rectify(thr=0)
@@ -3408,16 +3408,22 @@ class DirectionTuning(DataFrame):
 
         p0 = (r0i, a1i, a2i, 1, peak_dire_i)
 
-        params_f, pcov = opt.curve_fit(
-            f=two_peak_von_mises,
-            xdata=dt['dire'],
-            ydata=dt['resp_mean'],
-            bounds=((0, 0, 0, 0, 0),
-                    (np.inf, np.inf, np.inf, np.inf, 360.)),
-            p0=p0,
-        )
+        try:
+            params_f, pcov = opt.curve_fit(
+                f=two_peak_von_mises,
+                xdata=dt['dire'],
+                ydata=dt['resp_mean'],
+                bounds=((0, 0, 0, 0, 0),
+                        (np.inf, np.inf, np.inf, np.inf, 360.)),
+                p0=p0,
+                maxfev=maxfev,
+            )
 
-        r0, a1, a2, k, peak_dire = params_f
+            r0, a1, a2, k, peak_dire = params_f
+
+        except RuntimeError:
+            print()
+            r0, a1, a2, k, peak_dire = np.nan
 
         curve_f = two_peak_von_mises(
             x=dt['dire'], r0=r0, a1=a1, a2=a2, k=k, peak_dire=peak_dire
