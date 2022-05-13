@@ -3413,7 +3413,7 @@ class DirectionTuning(DataFrame):
                 f=two_peak_von_mises,
                 xdata=dt['dire'],
                 ydata=dt['resp_mean'],
-                bounds=((0, 0, 0, 0, 0),
+                bounds=((0, 0, 0, np.log(0.5) / (-2), 0),
                         (np.inf, np.inf, np.inf, np.inf, 360.)),
                 p0=p0,
                 maxfev=maxfev,
@@ -3443,6 +3443,8 @@ class DirectionTuning(DataFrame):
         else:
             peak_dire = (peak_dire + 180) % 360
             a1, a2 = a2, a1
+
+        print(np.log(0.5) / k + 1)
 
         fwhh = 2 * np.arccos(np.log(0.5) / k + 1) * 180 / np.pi
 
