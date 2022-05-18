@@ -78,7 +78,6 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
 
         raise ValueError('Did not find photodiode signal marking the end of display.')
 
-
     ts_onset_frame_pd = ts_pd_fall[pd_start_ind : pd_end_ind]
 
     if verbose:

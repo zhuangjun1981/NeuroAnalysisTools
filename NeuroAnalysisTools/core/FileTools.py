@@ -738,6 +738,10 @@ def read_sync(f_path, analog_downsample_rate=None, by_label=True, digital_labels
                           selected labels for extracting analog channels. Overwrites
                           'by_label' for analog channel. Use this only if you know what
                           you are doing.
+    :param is_overwrite_by_photodiode: bool, flag to use photodiode signal to reconstruct
+                                       visual frame timestamps. Written by Soumya to fix
+                                       the sync file problems in his experiments. Do not
+                                       set to be true, if not in this situation.
     :return: sync_dict: {'digital_channels': {'rise': rise_ts (in seconds),
                                               'fall': fall_ts (in seconds)},
                          'analog_channels': analog_traces,
