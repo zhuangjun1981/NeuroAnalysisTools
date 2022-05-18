@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tkinter
+import warnings
 from .core import FileTools as ft
 
 def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatch=0.1, verbose=True,
@@ -44,8 +45,9 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
         print('Number of onset frame TTLs of black sync square: {}'.format(len(ts_onset_frame_ttl)))
 
     # import matplotlib.pyplot as plt
-    # plt.plot(ts_pd_fall, np.ones(len(ts_pd_fall)), '.')
-    # plt.plot(ts_onset_frame_ttl, np.ones(len(ts_onset_frame_ttl))+0.1, '.')
+    # plt.plot(ts_pd_fall, np.ones(len(ts_pd_fall)), '.', label='square fall')
+    # plt.plot(ts_onset_frame_ttl, np.ones(len(ts_onset_frame_ttl))+0.1, '.', label='vsync fall')
+    # plt.legend()
     # plt.show()
 
     # detect display start in photodiode signal
@@ -83,16 +85,29 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
     if verbose:
         print('Number of onset frame photodiode falls of black sync square: {}'.format(len(ts_onset_frame_pd)))
 
-    if not len(ts_onset_frame_ttl) == len(ts_onset_frame_pd):
-        raise ValueError('Number of onset frame TTLs ({}) and Number of onset frame photodiode signals ({}),'
-                         'do not match!'.format(len(ts_onset_frame_ttl), len(ts_onset_frame_pd)))
+    # import matplotlib.pyplot as plt
+    # plt.plot(ts_onset_frame_pd, np.ones(len(ts_onset_frame_pd)), '.', label='square fall')
+    # plt.plot(ts_onset_frame_ttl, np.ones(len(ts_onset_frame_ttl)) + 0.1, '.', label='vsync fall')
+    # plt.legend()
+    # plt.show()
 
-    # if len(ts_onset_frame_ttl) == len(ts_onset_frame_pd):
-    #     pass
-    # elif len(ts_onset_frame_ttl) > len(ts_onset_frame_pd):
-    #     ts_onset_frame_ttl = ts_onset_frame_ttl[0:len(ts_onset_frame_pd)]
-    # else:
-    #     ts_onset_frame_pd = ts_onset_frame_pd[0:len(ts_onset_frame_ttl)]
+    # import matplotlib.pyplot as plt
+    # min_len = min([len(ts_onset_frame_pd), len(ts_onset_frame_ttl)])
+    # pd_temp = ts_onset_frame_pd[:min_len]
+    # vsync_temp = ts_onset_frame_ttl[:min_len]
+    # f, axs = plt.subplots(nrows=2, ncols=1, figsize=(8, 8))
+    # axs[0].plot(pd_temp - vsync_temp, label='diff')
+    # axs[1].hist(pd_temp - vsync_temp)
+    # axs[0].legend()
+    # plt.show()
+
+    if not len(ts_onset_frame_ttl) == len(ts_onset_frame_pd):
+        warnings.warn('Number of onset frame TTLs ({}) and Number of onset frame photodiode signals ({}) '
+                         'do not match. Truncate!'.format(len(ts_onset_frame_ttl), len(ts_onset_frame_pd)))
+
+        min_len = min([len(ts_onset_frame_ttl), len(ts_onset_frame_pd)])
+        ts_onset_frame_ttl = ts_onset_frame_ttl[:min_len]
+        ts_onset_frame_pd = ts_onset_frame_pd[:min_len]
 
     display_lag = ts_onset_frame_pd - ts_onset_frame_ttl
 
@@ -103,18 +118,38 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
     # plt.plot(display_lag)
     # plt.show()
 
-    display_lag_max = np.max(np.abs(display_lag))
-    display_lag_max_ind = np.argmax(np.abs(display_lag))
-
-    if display_lag_max > max_mismatch:
-        raise ValueError('Display lag number {} : {}(sec) is greater than allow max_mismatch {} sec.'
-                         .format(display_lag_max_ind, display_lag_max, max_mismatch))
-
     display_lag_mean = np.mean(display_lag)
     if verbose:
         print('Average display lag: {} sec.'.format(display_lag_mean))
 
-    return ts_display_rise + display_lag_mean, np.array([ts_onset_frame_pd, display_lag]).transpose()
+    ts_display_real = ts_display_rise + display_lag_mean
+
+    # check max display lag
+    display_lag_max = np.max(np.abs(display_lag))
+    display_lag_max_ind = np.argmax(np.abs(display_lag))
+
+    if display_lag_max > max_mismatch:
+        warnings.warn('Display lag number {} : {}(sec) is greater than allow max_mismatch {} sec. '
+                      'Overwrite visual frame timestamps by interpolating photodiode signal.'
+                         .format(display_lag_max_ind, display_lag_max, max_mismatch))
+
+        x_ttl = np.arange(len(ts_onset_frame_pd) * frame_period)
+        x_pd = x_ttl[::frame_period]
+        ts_display_real = np.interp(x=x_ttl, xp=x_pd, fp=ts_onset_frame_pd)
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(ts_onset_frame_pd,
+        #          ts_onset_frame_pd - ts_display_real[::frame_period])
+        # plt.show()
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(ts_onset_frame_pd, np.ones(len(ts_onset_frame_pd)), '.', label='square fall')
+        # plt.plot(ts_display_real[::frame_period], np.ones(len(ts_display_real[::frame_period])) + 0.1,
+        #          '.', label='vsync fall')
+        # plt.legend()
+        # plt.show()
+
+    return ts_display_real, np.array([ts_onset_frame_pd, display_lag]).transpose()
 
 def get_stim_dict_drifting_grating(input_dict, stim_name):
 
