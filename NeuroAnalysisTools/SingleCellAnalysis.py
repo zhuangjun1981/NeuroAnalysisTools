@@ -3391,7 +3391,7 @@ class DirectionTuning(DataFrame):
 
         return ax, ymax
 
-    def fit_two_peak_von_mises(self, maxfev=5000):
+    def fit_two_peak_von_mises(self, max_resp=np.inf, maxfev=5000):
 
         # rectify direction tuning curve
         dt = self.rectify(thr=0)
@@ -3414,7 +3414,7 @@ class DirectionTuning(DataFrame):
                 xdata=dt['dire'],
                 ydata=dt['resp_mean'],
                 bounds=((0, 0, 0, np.log(0.5) / (-2), 0),
-                        (np.inf, np.inf, np.inf, np.inf, 360.)),
+                        (np.inf, max_resp, max_resp, np.inf, 360.)),
                 p0=p0,
                 maxfev=maxfev,
             )
