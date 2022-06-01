@@ -1,7 +1,7 @@
-# NeuroAnalysisTools
-Data analysis tools for systems neuroscience
-
-# Install
+# NeuroAnalysisTools  
+Data analysis tools for systems neuroscience  
+  
+# Install  
 ```
 > conda create -n nat python=3
 > conda activate nat ("source activate nat" for mac or linux)
