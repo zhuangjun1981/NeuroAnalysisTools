@@ -8,7 +8,9 @@ opencv-python
 pytest
 pillow
 scikit-image
+scikit-learn
 cython
+seaborn
 
 # configobj >= 5.0.6
 # PyDAQmx >= 1.3.2
