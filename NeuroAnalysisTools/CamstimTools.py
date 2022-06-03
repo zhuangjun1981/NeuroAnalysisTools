@@ -60,12 +60,12 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
 
         # print(pre_interval_3, pre_interval_2, pre_interval_1, post_interval)
 
-        if abs(post_interval - frame_period / refresh_rate) <= allowed_jitter and \
-            abs(pre_interval_1 - 20. / refresh_rate <= allowed_jitter) and \
-            abs(pre_interval_2 - 20. / refresh_rate <= allowed_jitter) and \
-            abs(pre_interval_3 - 20. / refresh_rate <= allowed_jitter):
-                pd_start_ind = i
-                break
+        if (abs(post_interval - frame_period / refresh_rate) <= allowed_jitter) and \
+            (abs(pre_interval_1 - 20. / refresh_rate) <= allowed_jitter) and \
+            (abs(pre_interval_2 - 20. / refresh_rate) <= allowed_jitter) and \
+            (abs(pre_interval_3 - 20. / refresh_rate) <= allowed_jitter):
+            pd_start_ind = i
+            break
         else:
             raise ValueError('Did not find photodiode signal marking the start of display.')
 
@@ -73,10 +73,10 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
         pre_interval_1 = ts_pd_fall[j] - ts_pd_fall[j - 1]
         pre_interval_2 = ts_pd_fall[j - 1] - ts_pd_fall[j - 2]
 
-        if abs(pre_interval_1 - 20. / refresh_rate <= allowed_jitter) and \
-            abs(pre_interval_2 - 20. / refresh_rate <= allowed_jitter):
-                pd_end_ind = j - 2
-                break
+        if (abs(pre_interval_1 - 20. / refresh_rate) <= allowed_jitter) and \
+            (abs(pre_interval_2 - 20. / refresh_rate) <= allowed_jitter):
+            pd_end_ind = j - 2
+            break
 
         raise ValueError('Did not find photodiode signal marking the end of display.')
 
