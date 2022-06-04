@@ -44,6 +44,7 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
     if verbose:
         print('Number of onset frame TTLs of black sync square: {}'.format(len(ts_onset_frame_ttl)))
 
+    # print(np.diff(ts_pd_fall[0:100]))
     # import matplotlib.pyplot as plt
     # plt.plot(ts_pd_fall, np.ones(len(ts_pd_fall)), '.', label='square fall')
     # plt.plot(ts_onset_frame_ttl, np.ones(len(ts_onset_frame_ttl))+0.1, '.', label='vsync fall')
@@ -66,8 +67,8 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
             (abs(pre_interval_3 - 20. / refresh_rate) <= allowed_jitter):
             pd_start_ind = i
             break
-        else:
-            raise ValueError('Did not find photodiode signal marking the start of display.')
+    else:
+        raise ValueError('Did not find photodiode signal marking the start of display.')
 
     for j in range(0, len(ts_pd_fall) - 1)[::-1]:
         pre_interval_1 = ts_pd_fall[j] - ts_pd_fall[j - 1]
@@ -77,7 +78,7 @@ def align_visual_display_time(pkl_dict, ts_pd_fall, ts_display_rise, max_mismatc
             (abs(pre_interval_2 - 20. / refresh_rate) <= allowed_jitter):
             pd_end_ind = j - 2
             break
-
+    else:
         raise ValueError('Did not find photodiode signal marking the end of display.')
 
     ts_onset_frame_pd = ts_pd_fall[pd_start_ind : pd_end_ind]
