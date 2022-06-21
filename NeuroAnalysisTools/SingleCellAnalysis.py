@@ -2338,21 +2338,26 @@ class DriftingGratingResponseTable(DataFrame):
         return self['rad'].unique()
 
     @property
-    def blank_condi_ind(self):
+    def blank_condi_ind(self, keys=('sf', 'tf', 'con', 'rad')):
         """
         if more than one blank conditions found, raise error
+        :param keys: list of strings
+            given a condition, only if all the fields defined by the keys input
+            having the value 0, this condition will be defined as blank condition.
         :return: int, blank condition index. None if no blank condition found
         """
         inds = []
 
         for row_i, row in self.iterrows():
-            if row['sf'] == 0.:
-                inds.append(row_i)
-            if row['tf'] == 0.:
-                inds.append(row_i)
-            if row['con'] == 0.:
-                inds.append(row_i)
-            if row['rad'] == 0.:
+
+            is_blank = True
+
+            for key in keys:
+                if row[key] != 0.:
+                    is_blank = False
+                    break
+
+            if is_blank:
                 inds.append(row_i)
 
         inds = list(set(inds))
