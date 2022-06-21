@@ -1824,6 +1824,12 @@ class ROI(object):
 class WeightedROI(ROI):
 
     def __init__(self, mask, pixelSize = None, pixelSizeUnit = None):
+        '''
+        :param mask: 2-d array, zero pixels will be considered as background
+        :param pixelSize: float or tuple of two floats, can be None,
+                          one value (square pixel) or (width, height) for non-square pixel
+        :param pixelSizeUnit: str, the unit of pixel size
+        '''
         super(WeightedROI,self).__init__(mask, pixelSize = pixelSize, pixelSizeUnit = pixelSizeUnit)
         self.weights = mask[self.pixels]
 
