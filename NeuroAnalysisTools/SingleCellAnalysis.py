@@ -2098,12 +2098,29 @@ class DriftingGratingResponseMatrix(DataFrame):
     def get_rad_list(self):
         return list(self['rad'].drop_duplicates())
 
-    def get_blank_ind(self):
-        blank_rows = self[(self['sf'] == 0) &
-                          (self['tf'] == 0) &
-                          (self['con'] == 0)]
+    def get_blank_ind(self, keys=('sf', 'tf')):
+        inds = []
 
-        return blank_rows.index
+        for row_i, row in self.iterrows():
+
+            is_blank = True
+
+            for key in keys:
+                if row[key] != 0.:
+                    is_blank = False
+                    break
+
+            if is_blank:
+                inds.append(row_i)
+
+        inds = list(set(inds))
+
+        if len(inds) == 0:  # no blank condition
+            return None
+        elif len(inds) == 1:  # 1 blank condition
+            return inds[0]
+        else:
+            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
 
     def get_min_max_value(self):
 
@@ -2294,11 +2311,29 @@ class DriftingGratingResponseTable(DataFrame):
 
         self.trace_type = trace_type
 
-    def get_blank_ind(self):
-        blank_rows = self[(self['sf'] == 0) &
-                          (self['tf'] == 0)]
+    def get_blank_ind(self, keys=('sf', 'tf')):
+        inds = []
 
-        return blank_rows.index
+        for row_i, row in self.iterrows():
+
+            is_blank = True
+
+            for key in keys:
+                if row[key] != 0.:
+                    is_blank = False
+                    break
+
+            if is_blank:
+                inds.append(row_i)
+
+        inds = list(set(inds))
+
+        if len(inds) == 0:  # no blank condition
+            return None
+        elif len(inds) == 1:  # 1 blank condition
+            return inds[0]
+        else:
+            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
 
     def remove_blank_cond(self, is_reset_index=True):
         blank_ind = self.get_blank_ind()
@@ -2337,7 +2372,7 @@ class DriftingGratingResponseTable(DataFrame):
         return self['rad'].unique()
 
     @property
-    def blank_condi_ind(self, keys=('sf', 'tf')):
+    def blank_condi_ind(self):
         """
         if more than one blank conditions found, raise error
         :param keys: list of strings
@@ -2345,28 +2380,10 @@ class DriftingGratingResponseTable(DataFrame):
             having the value 0, this condition will be defined as blank condition.
         :return: int, blank condition index. None if no blank condition found
         """
-        inds = []
+        blank_rows = self[(self['sf'] == 0) &
+                          (self['tf'] == 0)]
 
-        for row_i, row in self.iterrows():
-
-            is_blank = True
-
-            for key in keys:
-                if row[key] != 0.:
-                    is_blank = False
-                    break
-
-            if is_blank:
-                inds.append(row_i)
-
-        inds = list(set(inds))
-
-        if len(inds) == 0: # no blank condition
-            return None
-        elif len(inds) == 1: # 1 blank condition
-            return inds[0]
-        else:
-            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
+        return blank_rows.index
 
     @property
     def peak_condi_ind_pos(self):
