@@ -2321,13 +2321,7 @@ class DriftingGratingResponseTable(DataFrame):
                 inds.append(row_i)
 
         inds = list(set(inds))
-
-        if len(inds) == 0:  # no blank condition
-            return None
-        elif len(inds) == 1:  # 1 blank condition
-            return inds[0]
-        else:
-            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
+        return inds
 
     def remove_blank_cond(self, is_reset_index=True):
         blank_ind = self.get_blank_ind()
@@ -2374,10 +2368,15 @@ class DriftingGratingResponseTable(DataFrame):
             having the value 0, this condition will be defined as blank condition.
         :return: int, blank condition index. None if no blank condition found
         """
-        blank_rows = self[(self['sf'] == 0) &
-                          (self['tf'] == 0)]
+        inds = self[(self['sf'] == 0) &
+                    (self['tf'] == 0)].index
 
-        return blank_rows.index
+        if len(inds) == 0:  # no blank condition
+            return None
+        elif len(inds) == 1:  # 1 blank condition
+            return inds[0]
+        else:
+            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
 
     @property
     def peak_condi_ind_pos(self):
