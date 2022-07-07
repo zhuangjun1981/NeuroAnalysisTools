@@ -8,6 +8,7 @@ import scipy.optimize as opt
 import math
 import h5py
 from pandas import DataFrame
+import pandas as pd
 import matplotlib.gridspec as gridspec
 
 from .core import PlottingTools as pt
@@ -2933,7 +2934,7 @@ class DriftingGratingResponseTable(DataFrame):
                                            is_collapse_tf=is_collapse_tf)
 
         dire_tuning = dire_tuning.sort_values(by='dire')
-        dire_tuning = dire_tuning.append(dire_tuning.iloc[0, :])
+        dire_tuning = pd.concat((dire_tuning, dire_tuning.iloc[0:1, :]))
 
         if not is_arc:
             dire_tuning['dire'] = dire_tuning['dire'] * np.pi / 180.
