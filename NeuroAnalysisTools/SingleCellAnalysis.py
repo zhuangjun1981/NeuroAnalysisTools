@@ -2296,8 +2296,7 @@ class DriftingGratingResponseTable(DataFrame):
 
     def get_blank_ind(self):
         blank_rows = self[(self['sf'] == 0) &
-                          (self['tf'] == 0) &
-                          (self['con'] == 0)]
+                          (self['tf'] == 0)]
 
         return blank_rows.index
 
@@ -2338,7 +2337,7 @@ class DriftingGratingResponseTable(DataFrame):
         return self['rad'].unique()
 
     @property
-    def blank_condi_ind(self, keys=('sf', 'tf', 'con')):
+    def blank_condi_ind(self, keys=('sf', 'tf')):
         """
         if more than one blank conditions found, raise error
         :param keys: list of strings
