@@ -1978,7 +1978,7 @@ class DriftingGratingResponseMatrix(DataFrame):
         n_min_pos = np.min([len(responses_blank), len(responses_peak_pos)])
         _, p_ttest_pos = stats.ttest_rel(responses_blank[0:n_min_pos], responses_peak_pos[0:n_min_pos])
         n_min_neg = np.min([len(responses_blank), len(responses_peak_neg)])
-        _, p_ttest_neg = stats.ttest_rel(responses_blank[0:n_min_pos], responses_peak_neg[0:n_min_neg])
+        _, p_ttest_neg = stats.ttest_rel(responses_blank[0:n_min_neg], responses_peak_neg[0:n_min_neg])
 
         return zscore_response_table, p_anova, p_ttest_pos, p_ttest_neg
 
