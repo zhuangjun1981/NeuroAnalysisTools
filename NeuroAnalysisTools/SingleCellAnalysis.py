@@ -2114,13 +2114,7 @@ class DriftingGratingResponseMatrix(DataFrame):
                 inds.append(row_i)
 
         inds = list(set(inds))
-
-        if len(inds) == 0:  # no blank condition
-            return None
-        elif len(inds) == 1:  # 1 blank condition
-            return inds[0]
-        else:
-            raise LookupError('more than one blank conditions found ({}).'.format(len(inds)))
+        return inds
 
     def get_min_max_value(self):
 
